@@ -13,7 +13,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.engine import Connection
 from typing import List, Dict, Any
-from jpy_sql_runner.sql_helper import parse_sql_statements, detect_statement_type
+from jpy_sql_runner.sql_helper import parse_sql_statements, detect_statement_type, FETCH_STATEMENT, EXECUTE_STATEMENT
 
 class DbOperationError(Exception):
     """
@@ -91,13 +91,13 @@ class DbEngine:
                 # Use sqlparse to determine if statement returns rows
                 stmt_type = detect_statement_type(stmt)
                 
-                if stmt_type == 'fetch':
+                if stmt_type == FETCH_STATEMENT:
                     # Execute as fetch operation
                     rows = self._fetch_with_connection(conn, stmt)
                     results.append({
                         'statement_index': i,
                         'statement': stmt,
-                        'type': 'fetch',
+                        'type': FETCH_STATEMENT,
                         'result': rows,
                         'row_count': len(rows)
                     })
@@ -107,7 +107,7 @@ class DbEngine:
                     results.append({
                         'statement_index': i,
                         'statement': stmt,
-                        'type': 'execute',
+                        'type': EXECUTE_STATEMENT,
                         'result': result,
                         'row_count': None
                     })

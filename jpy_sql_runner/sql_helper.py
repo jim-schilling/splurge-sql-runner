@@ -12,6 +12,24 @@ import sqlparse
 from sqlparse.tokens import Comment, Keyword, DML, DDL
 
 
+# Private constants for SQL statement types
+_FETCH_STATEMENT_TYPES = ('SELECT', 'VALUES', 'SHOW', 'EXPLAIN', 'PRAGMA', 'DESC', 'DESCRIBE')
+_DML_STATEMENT_TYPES = ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
+_DESCRIBE_STATEMENT_TYPES = ('DESC', 'DESCRIBE')
+_MODIFY_DML_TYPES = ('INSERT', 'UPDATE', 'DELETE')
+
+# Private constants for SQL keywords and symbols
+_WITH_KEYWORD = 'WITH'
+_AS_KEYWORD = 'AS'
+_SELECT_KEYWORD = 'SELECT'
+_SEMICOLON = ';'
+_COMMA = ','
+
+# Public constants for statement type return values
+EXECUTE_STATEMENT = 'execute'
+FETCH_STATEMENT = 'fetch'
+
+
 def remove_sql_comments(sql_text: str) -> str:
     """
     Remove SQL comments from a SQL string using sqlparse.
@@ -51,8 +69,7 @@ def _is_fetch_statement(statement_type):
         >>> _is_fetch_statement('VALUES')
         True
     """
-    fetch_types = ('SELECT', 'VALUES', 'SHOW', 'EXPLAIN', 'PRAGMA', 'DESC', 'DESCRIBE')
-    return statement_type in fetch_types
+    return statement_type in _FETCH_STATEMENT_TYPES
 
 
 def _is_dml_statement(statement_type):
@@ -77,8 +94,7 @@ def _is_dml_statement(statement_type):
         >>> _is_dml_statement('INSERT')
         True
     """
-    dml_types = ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
-    return statement_type in dml_types
+    return statement_type in _DML_STATEMENT_TYPES
 
 
 def _find_first_dml_keyword_top_level(tokens):
@@ -106,7 +122,7 @@ def _find_first_dml_keyword_top_level(tokens):
             continue  # skip CTE definitions
         if not token.is_whitespace and token.ttype not in Comment:
             token_value = token.value.strip().upper()
-            if token_value == 'AS':
+            if token_value == _AS_KEYWORD:
                 continue
             if token.ttype in (DML, Keyword) or _is_dml_statement(token_value) or _is_fetch_statement(token_value):
                 return token_value
@@ -144,7 +160,7 @@ def _find_main_statement_after_ctes(tokens):
         token_value = token.value.strip().upper()
         
         # Track CTE definition boundaries
-        if token_value == 'AS':
+        if token_value == _AS_KEYWORD:
             in_cte_definition = True
             continue
             
@@ -152,7 +168,7 @@ def _find_main_statement_after_ctes(tokens):
             if token.is_group:
                 # This is a CTE definition group, skip it
                 continue
-            elif token_value == ',':
+            elif token_value == _COMMA:
                 # Another CTE definition starting
                 continue
             else:
@@ -208,7 +224,7 @@ def _is_with_keyword(token):
         True if token is the 'WITH' keyword, False otherwise
     """
     return (hasattr(token, 'value') and 
-            token.value.strip().upper() == 'WITH')
+            token.value.strip().upper() == _WITH_KEYWORD)
 
 
 def _find_with_keyword_index(tokens):
@@ -276,29 +292,29 @@ def detect_statement_type(sql: str) -> str:
         'fetch' if statement returns rows, 'execute' otherwise
     """
     if not sql or not sql.strip():
-        return 'execute'
+        return EXECUTE_STATEMENT
     
     parsed = sqlparse.parse(sql.strip())
     if not parsed:
-        return 'execute'
+        return EXECUTE_STATEMENT
     
     stmt = parsed[0]
     tokens = list(stmt.flatten())
     if not tokens:
-        return 'execute'
+        return EXECUTE_STATEMENT
     
     _, first_token = _next_non_ws_comment_token(tokens)
     if first_token is None:
-        return 'execute'
+        return EXECUTE_STATEMENT
     
     token_value = first_token.value.strip().upper()
     
     # DESC/DESCRIBE detection (regardless of token type)
-    if token_value in ('DESC', 'DESCRIBE'):
-        return 'fetch'
+    if token_value in _DESCRIBE_STATEMENT_TYPES:
+        return FETCH_STATEMENT
     
     # CTE detection: WITH ...
-    if token_value == 'WITH':
+    if token_value == _WITH_KEYWORD:
         after_with_tokens = _extract_tokens_after_with(stmt)
         
         # Try the more sophisticated approach first
@@ -307,24 +323,24 @@ def detect_statement_type(sql: str) -> str:
             # Fallback to the simpler approach
             dml = _find_first_dml_keyword_top_level(after_with_tokens)
             
-        if dml == 'SELECT':
-            return 'fetch'
-        elif dml in ('INSERT', 'UPDATE', 'DELETE'):
-            return 'execute'
+        if dml == _SELECT_KEYWORD:
+            return FETCH_STATEMENT
+        elif dml in _MODIFY_DML_TYPES:
+            return EXECUTE_STATEMENT
         elif _is_fetch_statement(dml):
-            return 'fetch'
-        return 'execute'
+            return FETCH_STATEMENT
+        return EXECUTE_STATEMENT
     
     # SELECT
-    if first_token.ttype is DML and token_value == 'SELECT':
-        return 'fetch'
+    if first_token.ttype is DML and token_value == _SELECT_KEYWORD:
+        return FETCH_STATEMENT
     
     # VALUES, SHOW, EXPLAIN, PRAGMA
     if _is_fetch_statement(token_value):
-        return 'fetch'
+        return FETCH_STATEMENT
     
     # All other statements (INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, etc.)
-    return 'execute'
+    return EXECUTE_STATEMENT
 
 
 def parse_sql_statements(sql_text: str, strip_semicolon: bool = False) -> List[str]:
@@ -365,7 +381,7 @@ def parse_sql_statements(sql_text: str, strip_semicolon: bool = False) -> List[s
             continue
             
         # Filter out statements that are just semicolons
-        if stmt_str == ';':
+        if stmt_str == _SEMICOLON:
             continue
             
         # Apply semicolon stripping based on parameter
