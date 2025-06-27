@@ -135,3 +135,11 @@ The CLI provides formatted output showing:
 ## License
 
 MIT License - see LICENSE file for details.
+
+## Changelog
+
+### 0.1.1
+- Refactored `detect_statement_type` into smaller, modular helper functions for clarity and maintainability.
+- Improved code readability and reduced duplication in SQL type detection logic.
+- Added comprehensive tests for complex, nested, malformed, and database-specific SQL cases.
+- Ensured robust handling of edge cases and advanced SQL features.
