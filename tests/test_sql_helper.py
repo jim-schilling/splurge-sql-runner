@@ -450,6 +450,222 @@ class TestSqlHelper(unittest.TestCase):
         # Complex whitespace
         self.assertEqual(detect_statement_type("  SELECT  *  FROM  users  ;  "), 'fetch')
 
+    def test_detect_statement_type_malformed_sql(self):
+        """Test statement type detection with malformed or problematic SQL."""
+        # Incomplete statements
+        self.assertEqual(detect_statement_type("SELECT"), 'fetch')  # Incomplete but still SELECT
+        self.assertEqual(detect_statement_type("WITH"), 'execute')  # Incomplete WITH
+        self.assertEqual(detect_statement_type("INSERT"), 'execute')  # Incomplete INSERT
+        
+        # Statements with only keywords
+        self.assertEqual(detect_statement_type("SELECT SELECT"), 'fetch')
+        self.assertEqual(detect_statement_type("WITH WITH"), 'execute')
+        
+        # Statements with special characters
+        self.assertEqual(detect_statement_type("SELECT * FROM `users`;"), 'fetch')  # Backticks
+        self.assertEqual(detect_statement_type('SELECT * FROM "users";'), 'fetch')  # Double quotes
+        self.assertEqual(detect_statement_type("SELECT * FROM [users];"), 'fetch')  # Square brackets
+        
+        # Statements with numbers and symbols
+        self.assertEqual(detect_statement_type("SELECT 1+1;"), 'fetch')
+        self.assertEqual(detect_statement_type("SELECT COUNT(*) FROM users;"), 'fetch')
+        
+        # Very long statements (stress test)
+        long_sql = "SELECT " + "a" * 1000 + " FROM users;"
+        self.assertEqual(detect_statement_type(long_sql), 'fetch')
+
+    def test_detect_statement_type_complex_nested_structures(self):
+        """Test statement type detection with very complex nested SQL structures."""
+        # Deeply nested subqueries
+        nested_subquery_sql = """
+        SELECT * FROM users WHERE id IN (
+            SELECT user_id FROM posts WHERE id IN (
+                SELECT post_id FROM comments WHERE id IN (
+                    SELECT comment_id FROM likes WHERE id IN (
+                        SELECT like_id FROM reactions WHERE type = 'love'
+                    )
+                )
+            )
+        );
+        """
+        self.assertEqual(detect_statement_type(nested_subquery_sql), 'fetch')
+        
+        # Complex CTE with multiple levels of nesting
+        complex_nested_cte_sql = """
+        WITH 
+        level1 AS (
+            SELECT id, name FROM users
+        ),
+        level2 AS (
+            SELECT l1.id, l1.name, p.title 
+            FROM level1 l1 
+            JOIN posts p ON l1.id = p.user_id
+        ),
+        level3 AS (
+            SELECT l2.id, l2.name, l2.title, c.content
+            FROM level2 l2
+            JOIN comments c ON l2.id = c.post_id
+        ),
+        level4 AS (
+            SELECT l3.id, l3.name, l3.title, l3.content, l.count
+            FROM level3 l3
+            JOIN (
+                SELECT post_id, COUNT(*) as count 
+                FROM likes 
+                GROUP BY post_id
+            ) l ON l3.id = l.post_id
+        )
+        SELECT * FROM level4 WHERE count > 10;
+        """
+        self.assertEqual(detect_statement_type(complex_nested_cte_sql), 'fetch')
+        
+        # CTE with UNION and complex joins
+        cte_union_complex_sql = """
+        WITH 
+        active_users AS (
+            SELECT id, name, 'active' as status FROM users WHERE last_login > '2023-01-01'
+            UNION ALL
+            SELECT id, name, 'recent' as status FROM users WHERE created_date > '2023-06-01'
+        ),
+        user_stats AS (
+            SELECT 
+                au.id,
+                au.name,
+                au.status,
+                COUNT(p.id) as post_count,
+                COUNT(c.id) as comment_count,
+                AVG(p.rating) as avg_rating
+            FROM active_users au
+            LEFT JOIN posts p ON au.id = p.user_id
+            LEFT JOIN comments c ON au.id = c.user_id
+            GROUP BY au.id, au.name, au.status
+        ),
+        top_users AS (
+            SELECT * FROM user_stats 
+            WHERE post_count > 5 OR comment_count > 20 OR avg_rating > 4.0
+        )
+        SELECT 
+            status,
+            COUNT(*) as user_count,
+            AVG(post_count) as avg_posts,
+            AVG(comment_count) as avg_comments
+        FROM top_users 
+        GROUP BY status;
+        """
+        self.assertEqual(detect_statement_type(cte_union_complex_sql), 'fetch')
+
+    def test_detect_statement_type_database_specific_syntax(self):
+        """Test statement type detection with database-specific SQL syntax."""
+        # PostgreSQL specific
+        postgres_sql = """
+        WITH RECURSIVE employee_tree AS (
+            SELECT id, name, manager_id, 1 as level
+            FROM employees WHERE manager_id IS NULL
+            UNION ALL
+            SELECT e.id, e.name, e.manager_id, et.level + 1
+            FROM employees e
+            JOIN employee_tree et ON e.manager_id = et.id
+        )
+        SELECT * FROM employee_tree;
+        """
+        self.assertEqual(detect_statement_type(postgres_sql), 'fetch')
+        
+        # SQLite specific
+        sqlite_sql = """
+        WITH RECURSIVE fibonacci(n, fib_n, fib_n_plus_1) AS (
+            SELECT 0, 0, 1
+            UNION ALL
+            SELECT n + 1, fib_n_plus_1, fib_n + fib_n_plus_1
+            FROM fibonacci WHERE n < 10
+        )
+        SELECT fib_n FROM fibonacci;
+        """
+        self.assertEqual(detect_statement_type(sqlite_sql), 'fetch')
+        
+        # MySQL specific
+        mysql_sql = """
+        WITH RECURSIVE cte AS (
+            SELECT 1 as n
+            UNION ALL
+            SELECT n + 1 FROM cte WHERE n < 5
+        )
+        SELECT * FROM cte;
+        """
+        self.assertEqual(detect_statement_type(mysql_sql), 'fetch')
+
+    def test_detect_statement_type_advanced_sql_features(self):
+        """Test statement type detection with advanced SQL features."""
+        # Window functions
+        window_sql = """
+        SELECT 
+            name,
+            department,
+            salary,
+            ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC) as rank,
+            LAG(salary) OVER (PARTITION BY department ORDER BY hire_date) as prev_salary
+        FROM employees;
+        """
+        self.assertEqual(detect_statement_type(window_sql), 'fetch')
+        
+        # Pivot-like queries
+        pivot_sql = """
+        SELECT 
+            department,
+            SUM(CASE WHEN salary < 50000 THEN 1 ELSE 0 END) as low_salary,
+            SUM(CASE WHEN salary BETWEEN 50000 AND 80000 THEN 1 ELSE 0 END) as mid_salary,
+            SUM(CASE WHEN salary > 80000 THEN 1 ELSE 0 END) as high_salary
+        FROM employees 
+        GROUP BY department;
+        """
+        self.assertEqual(detect_statement_type(pivot_sql), 'fetch')
+        
+        # JSON operations (modern SQL)
+        json_sql = """
+        SELECT 
+            id,
+            name,
+            JSON_EXTRACT(metadata, '$.department') as dept,
+            JSON_EXTRACT(metadata, '$.skills') as skills
+        FROM users 
+        WHERE JSON_CONTAINS(metadata, '"Python"', '$.skills');
+        """
+        self.assertEqual(detect_statement_type(json_sql), 'fetch')
+        
+        # Full-text search
+        fulltext_sql = """
+        SELECT id, title, content, 
+               MATCH(title, content) AGAINST('database optimization' IN NATURAL LANGUAGE MODE) as relevance
+        FROM articles 
+        WHERE MATCH(title, content) AGAINST('database optimization' IN NATURAL LANGUAGE MODE);
+        """
+        self.assertEqual(detect_statement_type(fulltext_sql), 'fetch')
+
+    def test_detect_statement_type_error_handling(self):
+        """Test statement type detection with various error conditions."""
+        # None input
+        self.assertEqual(detect_statement_type(None), 'execute')
+        
+        # Non-string input (should handle gracefully)
+        try:
+            result = detect_statement_type(123)
+            # If it doesn't raise an exception, it should return 'execute'
+            self.assertEqual(result, 'execute')
+        except (AttributeError, TypeError):
+            # If it raises an exception, that's also acceptable behavior
+            pass
+        
+        # Very large input
+        large_sql = "SELECT " + "a" * 10000 + " FROM users;"
+        self.assertEqual(detect_statement_type(large_sql), 'fetch')
+        
+        # SQL with unusual token patterns
+        unusual_sql = "SELECT * FROM users WHERE name LIKE '%test%' ESCAPE '\\';"
+        self.assertEqual(detect_statement_type(unusual_sql), 'fetch')
+        
+        # SQL with unicode characters
+        unicode_sql = "SELECT * FROM users WHERE name = 'José';"
+        self.assertEqual(detect_statement_type(unicode_sql), 'fetch')
+
     def test_split_sql_file(self):
         """Test SQL file splitting functionality."""
         import tempfile
@@ -491,6 +707,130 @@ class TestSqlHelper(unittest.TestCase):
             split_sql_file("")
         with self.assertRaises(ValueError):
             split_sql_file(None)
+
+    def test_detect_statement_type_cte_keyword_ambiguity_fix(self):
+        """
+        Test that CTE parsing correctly identifies statement types and doesn't 
+        incorrectly match non-statement keywords like FROM, WHERE, JOIN, etc.
+        
+        This test specifically validates the fix for the overly broad 
+        token.ttype in (DML, Keyword) check that could incorrectly identify
+        keywords as statement types.
+        """
+        # CTE with complex structure that could trigger keyword confusion
+        cte_with_complex_structure = """
+        WITH user_data AS (
+            SELECT id, name FROM users WHERE active = 1
+        ),
+        filtered_data AS (
+            SELECT * FROM user_data WHERE name LIKE 'A%'
+        )
+        SELECT * FROM filtered_data WHERE id > 100;
+        """
+        # This should correctly identify as 'fetch' (SELECT), not incorrectly match 'FROM' or 'WHERE'
+        self.assertEqual(detect_statement_type(cte_with_complex_structure), 'fetch')
+        
+        # CTE with multiple JOINs and WHERE clauses that could be confused
+        cte_with_joins_and_where = """
+        WITH user_info AS (
+            SELECT id, name FROM users WHERE active = 1
+        ),
+        post_info AS (
+            SELECT user_id, title FROM posts WHERE published = 1
+        )
+        SELECT ui.name, pi.title 
+        FROM user_info ui 
+        JOIN post_info pi ON ui.id = pi.user_id 
+        WHERE pi.title LIKE '%SQL%';
+        """
+        # This should correctly identify as 'fetch' (SELECT), not incorrectly match 'FROM', 'JOIN', or 'WHERE'
+        self.assertEqual(detect_statement_type(cte_with_joins_and_where), 'fetch')
+        
+        # CTE with GROUP BY, HAVING, ORDER BY that could be confused
+        cte_with_aggregation_keywords = """
+        WITH user_stats AS (
+            SELECT 
+                u.id, u.name, u.email,
+                COUNT(p.id) as post_count,
+                AVG(p.rating) as avg_rating
+            FROM users u
+            LEFT JOIN posts p ON u.id = p.user_id
+            WHERE u.active = 1
+            GROUP BY u.id, u.name, u.email
+            HAVING COUNT(p.id) > 0
+        )
+        SELECT name, post_count, avg_rating
+        FROM user_stats 
+        WHERE avg_rating > 4.0 
+        ORDER BY post_count DESC;
+        """
+        # This should correctly identify as 'fetch' (SELECT), not match any of the other keywords
+        self.assertEqual(detect_statement_type(cte_with_aggregation_keywords), 'fetch')
+        
+        # CTE with INSERT but complex structure that could trigger keyword confusion
+        cte_insert_with_complex_structure = """
+        WITH new_data AS (
+            SELECT 'John' as name, 'Engineering' as dept
+            UNION ALL
+            SELECT 'Jane', 'Marketing'
+        ),
+        valid_depts AS (
+            SELECT DISTINCT department FROM employees WHERE department IS NOT NULL
+        )
+        INSERT INTO employees (name, department) 
+        SELECT nd.name, nd.dept
+        FROM new_data nd
+        JOIN valid_depts vd ON nd.dept = vd.department
+        WHERE nd.dept = 'Engineering';
+        """
+        # This should correctly identify as 'execute' (INSERT), not match 'FROM', 'JOIN', or 'WHERE'
+        self.assertEqual(detect_statement_type(cte_insert_with_complex_structure), 'execute')
+        
+        # CTE with UPDATE but complex structure that could trigger keyword confusion
+        cte_update_with_complex_structure = """
+        WITH target_employees AS (
+            SELECT id FROM employees WHERE salary < 50000
+        ),
+        sales_employees AS (
+            SELECT id FROM employees WHERE department = 'Sales'
+        )
+        UPDATE employees 
+        SET salary = salary * 1.1
+        WHERE id IN (
+            SELECT te.id 
+            FROM target_employees te
+            JOIN sales_employees se ON te.id = se.id
+        );
+        """
+        # This should correctly identify as 'execute' (UPDATE), not match 'FROM', 'JOIN', or 'WHERE'
+        self.assertEqual(detect_statement_type(cte_update_with_complex_structure), 'execute')
+        
+        # CTE with complex nested structure and many keywords that could be confused
+        cte_complex_nested_keywords = """
+        WITH 
+        base_data AS (
+            SELECT id, name, department, salary FROM employees
+        ),
+        filtered_data AS (
+            SELECT * FROM base_data WHERE salary > 50000
+        ),
+        aggregated_data AS (
+            SELECT 
+                department,
+                COUNT(*) as count,
+                AVG(salary) as avg_salary,
+                MAX(salary) as max_salary
+            FROM filtered_data 
+            GROUP BY department
+            HAVING COUNT(*) > 5
+        )
+        SELECT department, count, avg_salary
+        FROM aggregated_data 
+        WHERE avg_salary > 70000
+        ORDER BY max_salary DESC;
+        """
+        # This should correctly identify as 'fetch' (SELECT), not match any of the other keywords
+        self.assertEqual(detect_statement_type(cte_complex_nested_keywords), 'fetch')
 
 
 if __name__ == '__main__':

@@ -53,7 +53,7 @@ class TestDbEngine(unittest.TestCase):
         
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]['statement_index'], 0)
-        self.assertEqual(results[0]['type'], 'execute')
+        self.assertEqual(results[0]['statement_type'], 'execute')
         self.assertTrue(results[0]['result'])
     
     def test_batch_insert_data(self):
@@ -78,7 +78,7 @@ class TestDbEngine(unittest.TestCase):
         self.assertEqual(len(results), 3)
         for i, result in enumerate(results):
             self.assertEqual(result['statement_index'], i)
-            self.assertEqual(result['type'], 'execute')
+            self.assertEqual(result['statement_type'], 'execute')
             self.assertTrue(result['result'])
     
     def test_batch_select_data(self):
@@ -99,7 +99,7 @@ class TestDbEngine(unittest.TestCase):
         results = self.db.batch(select_sql)
         
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]['type'], 'fetch')
+        self.assertEqual(results[0]['statement_type'], 'fetch')
         self.assertEqual(results[0]['row_count'], 2)
         self.assertEqual(len(results[0]['result']), 2)
         
@@ -137,21 +137,21 @@ class TestDbEngine(unittest.TestCase):
         self.assertEqual(len(results), 6)
         
         # Check CREATE TABLE
-        self.assertEqual(results[0]['type'], 'execute')
+        self.assertEqual(results[0]['statement_type'], 'execute')
         
         # Check INSERT statements
-        self.assertEqual(results[1]['type'], 'execute')
-        self.assertEqual(results[2]['type'], 'execute')
+        self.assertEqual(results[1]['statement_type'], 'execute')
+        self.assertEqual(results[2]['statement_type'], 'execute')
         
         # Check first SELECT
-        self.assertEqual(results[3]['type'], 'fetch')
+        self.assertEqual(results[3]['statement_type'], 'fetch')
         self.assertEqual(results[3]['row_count'], 1)  # Only laptop > 50
         
         # Check UPDATE
-        self.assertEqual(results[4]['type'], 'execute')
+        self.assertEqual(results[4]['statement_type'], 'execute')
         
         # Check second SELECT
-        self.assertEqual(results[5]['type'], 'fetch')
+        self.assertEqual(results[5]['statement_type'], 'fetch')
         self.assertEqual(results[5]['row_count'], 2)  # Both products
     
     def test_batch_with_comments(self):
@@ -172,9 +172,9 @@ class TestDbEngine(unittest.TestCase):
         results = self.db.batch(sql)
         
         self.assertEqual(len(results), 3)
-        self.assertEqual(results[0]['type'], 'execute')  # CREATE TABLE
-        self.assertEqual(results[1]['type'], 'execute')  # INSERT
-        self.assertEqual(results[2]['type'], 'fetch')    # SELECT
+        self.assertEqual(results[0]['statement_type'], 'execute')  # CREATE TABLE
+        self.assertEqual(results[1]['statement_type'], 'execute')  # INSERT
+        self.assertEqual(results[2]['statement_type'], 'fetch')    # SELECT
     
     def test_batch_with_errors(self):
         """Test batch execution with SQL errors (should not continue processing)."""
@@ -190,13 +190,13 @@ class TestDbEngine(unittest.TestCase):
         self.assertEqual(len(results), 3)
         
         # First three should succeed
-        self.assertEqual(results[0]['type'], 'execute')
-        self.assertEqual(results[1]['type'], 'execute')
+        self.assertEqual(results[0]['statement_type'], 'execute')
+        self.assertEqual(results[1]['statement_type'], 'execute')
         
         # The failing statement should be marked as error
-        self.assertEqual(results[2]['type'], 'error')
+        self.assertEqual(results[2]['statement_type'], 'error')
         self.assertIn('error', results[2])
-        self.assertIn('nonexistent_table', results[2]['error'])        
+        self.assertIn('nonexistent_table', results[2]['error'])
     
     def test_batch_empty_statements(self):
         """Test batch execution with empty or whitespace-only statements."""
@@ -213,9 +213,9 @@ class TestDbEngine(unittest.TestCase):
         
         # Should only process the non-empty statements
         self.assertEqual(len(results), 3)
-        self.assertEqual(results[0]['type'], 'execute')  # CREATE TABLE
-        self.assertEqual(results[1]['type'], 'execute')  # INSERT
-        self.assertEqual(results[2]['type'], 'fetch')    # SELECT
+        self.assertEqual(results[0]['statement_type'], 'execute')  # CREATE TABLE
+        self.assertEqual(results[1]['statement_type'], 'execute')  # INSERT
+        self.assertEqual(results[2]['statement_type'], 'fetch')    # SELECT
     
     def test_batch_complex_sql(self):
         """Test batch execution with complex SQL statements."""
@@ -269,7 +269,7 @@ class TestDbEngine(unittest.TestCase):
         # Check that all statements executed
         expected_types = ['execute', 'execute', 'execute', 'execute', 'fetch', 'fetch']
         for i, expected_type in enumerate(expected_types):
-            self.assertEqual(results[i]['type'], expected_type)
+            self.assertEqual(results[i]['statement_type'], expected_type)
         
         # Check the first SELECT result (high earners)
         high_earners = results[4]['result']
@@ -303,12 +303,12 @@ class TestDbEngine(unittest.TestCase):
         results = self.db.batch(sql)
         
         # The first two INSERTs should succeed
-        self.assertEqual(results[0]['type'], 'execute')
-        self.assertEqual(results[1]['type'], 'execute')
-        self.assertEqual(results[2]['type'], 'execute')
+        self.assertEqual(results[0]['statement_type'], 'execute')
+        self.assertEqual(results[1]['statement_type'], 'execute')
+        self.assertEqual(results[2]['statement_type'], 'execute')
         
         # The third INSERT should fail
-        self.assertEqual(results[3]['type'], 'error')                
+        self.assertEqual(results[3]['statement_type'], 'error')                
     
     def test_batch_with_special_characters(self):
         """Test batch execution with special characters in SQL."""
@@ -332,10 +332,10 @@ class TestDbEngine(unittest.TestCase):
         
         # All statements should execute successfully
         for i in range(4):
-            self.assertEqual(results[i]['type'], 'execute')
+            self.assertEqual(results[i]['statement_type'], 'execute')
         
         # SELECT should return 4 rows
-        self.assertEqual(results[5]['type'], 'fetch')
+        self.assertEqual(results[5]['statement_type'], 'fetch')
         self.assertEqual(results[5]['row_count'], 4)
     
     def test_batch_performance(self):
@@ -361,7 +361,7 @@ class TestDbEngine(unittest.TestCase):
         
         # Verify all inserts succeeded
         for result in results:
-            self.assertEqual(result['type'], 'execute')
+            self.assertEqual(result['statement_type'], 'execute')
             self.assertTrue(result['result'])
         
         # Verify data was inserted
@@ -373,7 +373,7 @@ class TestDbEngine(unittest.TestCase):
         # Test SELECT statements (should be detected as 'fetch')
         select_sql = "SELECT 1 as test;"
         results = self.db.batch(select_sql)
-        self.assertEqual(results[0]['type'], 'fetch')
+        self.assertEqual(results[0]['statement_type'], 'fetch')
         
         # Test INSERT statements (should be detected as 'execute')
         create_sql = "CREATE TABLE test_detection (id INTEGER PRIMARY KEY);"
@@ -381,22 +381,22 @@ class TestDbEngine(unittest.TestCase):
         
         insert_sql = "INSERT INTO test_detection (id) VALUES (1);"
         results = self.db.batch(insert_sql)
-        self.assertEqual(results[0]['type'], 'execute')
+        self.assertEqual(results[0]['statement_type'], 'execute')
         
         # Test UPDATE statements (should be detected as 'execute')
         update_sql = "UPDATE test_detection SET id = 2 WHERE id = 1;"
         results = self.db.batch(update_sql)
-        self.assertEqual(results[0]['type'], 'execute')
+        self.assertEqual(results[0]['statement_type'], 'execute')
         
         # Test DELETE statements (should be detected as 'execute')
         delete_sql = "DELETE FROM test_detection WHERE id = 2;"
         results = self.db.batch(delete_sql)
-        self.assertEqual(results[0]['type'], 'execute')
+        self.assertEqual(results[0]['statement_type'], 'execute')
         
         # Test DROP statements (should be detected as 'execute')
         drop_sql = "DROP TABLE test_detection;"
         results = self.db.batch(drop_sql)
-        self.assertEqual(results[0]['type'], 'execute')
+        self.assertEqual(results[0]['statement_type'], 'execute')
 
     def test_cte_detection(self):
         """Test that CTEs (Common Table Expressions) are properly detected as fetch operations."""
@@ -424,7 +424,7 @@ class TestDbEngine(unittest.TestCase):
         SELECT * FROM high_salary;
         """
         results = self.db.batch(cte_sql)
-        self.assertEqual(results[0]['type'], 'fetch')
+        self.assertEqual(results[0]['statement_type'], 'fetch')
         self.assertEqual(results[0]['row_count'], 2)  # Alice and Carol
         
         # Test multiple CTEs
@@ -442,7 +442,7 @@ class TestDbEngine(unittest.TestCase):
         SELECT * FROM high_avg_depts;
         """
         results = self.db.batch(multi_cte_sql)
-        self.assertEqual(results[0]['type'], 'fetch')
+        self.assertEqual(results[0]['statement_type'], 'fetch')
         self.assertEqual(results[0]['row_count'], 1)  # Engineering dept
         
         # Test CTE with INSERT (should be execute)
@@ -454,7 +454,7 @@ class TestDbEngine(unittest.TestCase):
         SELECT name, department, salary FROM new_emp;
         """
         results = self.db.batch(cte_insert_sql)
-        self.assertEqual(results[0]['type'], 'execute')
+        self.assertEqual(results[0]['statement_type'], 'execute')
         
         # Cleanup
         cleanup_sql = "DROP TABLE employees;"
@@ -502,7 +502,7 @@ class TestDbEngine(unittest.TestCase):
         SELECT * FROM employee_hierarchy;
         """
         results = self.db.batch(recursive_cte_sql)
-        self.assertEqual(results[0]['type'], 'fetch')
+        self.assertEqual(results[0]['statement_type'], 'fetch')
         self.assertEqual(results[0]['row_count'], 4)  # All employees in hierarchy
         
         # Test CTE with UPDATE
@@ -515,7 +515,7 @@ class TestDbEngine(unittest.TestCase):
         WHERE id IN (SELECT id FROM high_salary_emps);
         """
         results = self.db.batch(cte_update_sql)
-        self.assertEqual(results[0]['type'], 'execute')
+        self.assertEqual(results[0]['statement_type'], 'execute')
         
         # Test CTE with DELETE
         cte_delete_sql = """
@@ -528,7 +528,7 @@ class TestDbEngine(unittest.TestCase):
         DELETE FROM employees WHERE id IN (SELECT id FROM inactive_users);
         """
         results = self.db.batch(cte_delete_sql)
-        self.assertEqual(results[0]['type'], 'execute')
+        self.assertEqual(results[0]['statement_type'], 'execute')
         
         # Test CTE with VALUES
         cte_values_sql = """
@@ -541,7 +541,7 @@ class TestDbEngine(unittest.TestCase):
         SELECT * FROM sample_data;
         """
         results = self.db.batch(cte_values_sql)
-        self.assertEqual(results[0]['type'], 'fetch')
+        self.assertEqual(results[0]['statement_type'], 'fetch')
         self.assertEqual(results[0]['row_count'], 3)
         
         # Test complex nested CTEs
@@ -560,7 +560,7 @@ class TestDbEngine(unittest.TestCase):
         SELECT * FROM high_avg_depts;
         """
         results = self.db.batch(nested_cte_sql)
-        self.assertEqual(results[0]['type'], 'fetch')
+        self.assertEqual(results[0]['statement_type'], 'fetch')
         
         # Test CTE with window functions
         cte_window_sql = """
@@ -575,7 +575,7 @@ class TestDbEngine(unittest.TestCase):
         SELECT * FROM salary_ranks WHERE rank = 1;
         """
         results = self.db.batch(cte_window_sql)
-        self.assertEqual(results[0]['type'], 'fetch')
+        self.assertEqual(results[0]['statement_type'], 'fetch')
         
         # Test CTE with INSERT and multiple CTEs
         cte_multi_insert_sql = """
@@ -594,7 +594,7 @@ class TestDbEngine(unittest.TestCase):
         JOIN valid_depts vd ON ne.dept = vd.department;
         """
         results = self.db.batch(cte_multi_insert_sql)
-        self.assertEqual(results[0]['type'], 'execute')
+        self.assertEqual(results[0]['statement_type'], 'execute')
         
         # Cleanup
         cleanup_sql = """
