@@ -152,12 +152,23 @@ def _find_main_statement_after_ctes(tokens):
         - The transition from CTE definitions to the main statement
     """
     in_cte_definition = False
+    paren_level = 0
     
     for token in tokens:
         if token.is_whitespace or token.ttype in Comment:
             continue
             
         token_value = token.value.strip().upper()
+        
+        # Track parentheses for CTE definition boundaries
+        if token_value == '(':
+            paren_level += 1
+        elif token_value == ')':
+            paren_level -= 1
+            # If we're closing a CTE definition and we're at the top level
+            if paren_level == 0 and in_cte_definition:
+                in_cte_definition = False
+                continue
         
         # Track CTE definition boundaries
         if token_value == _AS_KEYWORD:
@@ -168,14 +179,19 @@ def _find_main_statement_after_ctes(tokens):
             if token.is_group:
                 # This is a CTE definition group, skip it
                 continue
-            elif token_value == _COMMA:
-                # Another CTE definition starting
+            elif token_value == _COMMA and paren_level == 0:
+                # Another CTE definition starting (only at top level)
                 continue
-            else:
-                # We're out of CTE definitions, look for main statement
+            elif paren_level == 0 and _is_dml_statement(token_value):
+                # We've found the main statement after CTE definitions
                 in_cte_definition = False
+                return token_value
+            elif paren_level == 0 and _is_fetch_statement(token_value):
+                # We've found the main statement after CTE definitions
+                in_cte_definition = False
+                return token_value
         
-        # Now look for the main statement
+        # Look for main statement when not in CTE definition
         if not in_cte_definition:
             if _is_dml_statement(token_value) or _is_fetch_statement(token_value):
                 return token_value
@@ -318,16 +334,16 @@ def detect_statement_type(sql: str) -> str:
         after_with_tokens = _extract_tokens_after_with(stmt)
         
         # Try the more sophisticated approach first
-        dml = _find_main_statement_after_ctes(after_with_tokens)
-        if dml is None:
+        main_stmt = _find_main_statement_after_ctes(after_with_tokens)
+        if main_stmt is None:
             # Fallback to the simpler approach
-            dml = _find_first_dml_keyword_top_level(after_with_tokens)
+            main_stmt = _find_first_dml_keyword_top_level(after_with_tokens)
             
-        if dml == _SELECT_KEYWORD:
+        if main_stmt == _SELECT_KEYWORD:
             return FETCH_STATEMENT
-        elif dml in _MODIFY_DML_TYPES:
+        elif main_stmt in _MODIFY_DML_TYPES:
             return EXECUTE_STATEMENT
-        elif _is_fetch_statement(dml):
+        elif _is_fetch_statement(main_stmt):
             return FETCH_STATEMENT
         return EXECUTE_STATEMENT
     
