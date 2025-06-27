@@ -194,6 +194,42 @@ def _next_non_ws_comment_token(tokens, start=0):
     return None, None
 
 
+def _is_with_keyword(token):
+    """
+    Check if a token represents the 'WITH' keyword.
+    
+    This helper function safely checks if a token is the WITH keyword,
+    handling cases where the token might not have a 'value' attribute.
+    
+    Args:
+        token: sqlparse token to check
+        
+    Returns:
+        True if token is the 'WITH' keyword, False otherwise
+    """
+    return (hasattr(token, 'value') and 
+            token.value.strip().upper() == 'WITH')
+
+
+def _find_with_keyword_index(tokens):
+    """
+    Find the index of the 'WITH' keyword in a list of tokens.
+    
+    This function searches through tokens to locate the WITH keyword,
+    which marks the beginning of a Common Table Expression.
+    
+    Args:
+        tokens: List of sqlparse tokens to search through
+        
+    Returns:
+        Index of the WITH keyword, or None if not found
+    """
+    for i, token in enumerate(tokens):
+        if _is_with_keyword(token):
+            return i
+    return None
+
+
 def _extract_tokens_after_with(stmt):
     """
     Extract tokens that come after the WITH keyword in a CTE statement.
@@ -215,17 +251,13 @@ def _extract_tokens_after_with(stmt):
         3. Preparing them for further analysis by CTE-specific parsing functions
     """
     top_tokens = list(stmt.tokens)
-    after_with_tokens = []
-    found_with = False
+    with_index = _find_with_keyword_index(top_tokens)
     
-    for token in top_tokens:
-        if not found_with:
-            if hasattr(token, 'value') and token.value.strip().upper() == 'WITH':
-                found_with = True
-            continue
-        after_with_tokens.append(token)
+    if with_index is None:
+        return []
     
-    return after_with_tokens
+    # Return all tokens after the WITH keyword
+    return top_tokens[with_index + 1:]
 
 
 def detect_statement_type(sql: str) -> str:
