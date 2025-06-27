@@ -97,7 +97,7 @@ class DbEngine:
                     results.append({
                         'statement_index': i,
                         'statement': stmt,
-                        'type': FETCH_STATEMENT,
+                        'statement_type': FETCH_STATEMENT,
                         'result': rows,
                         'row_count': len(rows)
                     })
@@ -107,7 +107,7 @@ class DbEngine:
                     results.append({
                         'statement_index': i,
                         'statement': stmt,
-                        'type': EXECUTE_STATEMENT,
+                        'statement_type': EXECUTE_STATEMENT,
                         'result': result,
                         'row_count': None
                     })
@@ -117,7 +117,7 @@ class DbEngine:
             results.append({
                 'statement_index': i,
                 'statement': stmt,
-                'type': 'error',
+                'statement_type': 'error',
                 'error': str(e)
             })
         return results
@@ -135,7 +135,7 @@ class DbEngine:
             List of dictionaries containing results for each statement:
                 - 'statement_index': Index of the statement in the batch
                 - 'statement': The actual SQL statement executed
-                - 'type': 'fetch', 'execute', or 'error'
+                - 'statement_type': 'fetch', 'execute', or 'error'
                 - 'result': Query results (for SELECT) or True (for other operations)
                 - 'row_count': Number of rows affected/returned
                 - 'error': Error message (only for failed statements)
