@@ -460,6 +460,149 @@ class TestDbEngine(unittest.TestCase):
         cleanup_sql = "DROP TABLE employees;"
         self.db.batch(cleanup_sql)
 
+    def test_cte_comprehensive(self):
+        """Comprehensive CTE tests including WITH RECURSIVE and complex patterns."""
+        # Setup: create tables for testing
+        setup_sql = """
+        CREATE TABLE employees (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            department TEXT,
+            salary REAL,
+            manager_id INTEGER
+        );
+        CREATE TABLE user_activity (
+            employee_id INTEGER,
+            last_activity TEXT
+        );
+        INSERT INTO employees (name, department, salary, manager_id) VALUES 
+            ('Alice', 'Engineering', 85000, NULL),
+            ('Bob', 'Marketing', 65000, NULL),
+            ('Carol', 'Engineering', 90000, 1),
+            ('David', 'Sales', 70000, NULL);
+        INSERT INTO user_activity (employee_id, last_activity) VALUES 
+            (1, '2023-12-01'),
+            (2, '2023-11-15'),
+            (3, '2023-12-10'),
+            (4, '2023-10-01');
+        """
+        self.db.batch(setup_sql)
+        
+        # Test WITH RECURSIVE CTE (hierarchical data)
+        recursive_cte_sql = """
+        WITH RECURSIVE employee_hierarchy AS (
+            SELECT id, name, manager_id, 1 as level
+            FROM employees 
+            WHERE manager_id IS NULL
+            UNION ALL
+            SELECT e.id, e.name, e.manager_id, eh.level + 1
+            FROM employees e
+            JOIN employee_hierarchy eh ON e.manager_id = eh.id
+        )
+        SELECT * FROM employee_hierarchy;
+        """
+        results = self.db.batch(recursive_cte_sql)
+        self.assertEqual(results[0]['type'], 'fetch')
+        self.assertEqual(results[0]['row_count'], 4)  # All employees in hierarchy
+        
+        # Test CTE with UPDATE
+        cte_update_sql = """
+        WITH high_salary_emps AS (
+            SELECT id FROM employees WHERE salary > 80000
+        )
+        UPDATE employees 
+        SET salary = salary * 1.1 
+        WHERE id IN (SELECT id FROM high_salary_emps);
+        """
+        results = self.db.batch(cte_update_sql)
+        self.assertEqual(results[0]['type'], 'execute')
+        
+        # Test CTE with DELETE
+        cte_delete_sql = """
+        WITH inactive_users AS (
+            SELECT e.id 
+            FROM employees e
+            JOIN user_activity ua ON e.id = ua.employee_id
+            WHERE ua.last_activity < '2023-11-01'
+        )
+        DELETE FROM employees WHERE id IN (SELECT id FROM inactive_users);
+        """
+        results = self.db.batch(cte_delete_sql)
+        self.assertEqual(results[0]['type'], 'execute')
+        
+        # Test CTE with VALUES
+        cte_values_sql = """
+        WITH sample_data AS (
+            VALUES 
+                (1, 'Test1'),
+                (2, 'Test2'),
+                (3, 'Test3')
+        )
+        SELECT * FROM sample_data;
+        """
+        results = self.db.batch(cte_values_sql)
+        self.assertEqual(results[0]['type'], 'fetch')
+        self.assertEqual(results[0]['row_count'], 3)
+        
+        # Test complex nested CTEs
+        nested_cte_sql = """
+        WITH 
+        dept_summary AS (
+            SELECT department, COUNT(*) as emp_count, AVG(salary) as avg_salary
+            FROM employees 
+            GROUP BY department
+        ),
+        high_avg_depts AS (
+            SELECT department, avg_salary
+            FROM dept_summary 
+            WHERE avg_salary > 70000
+        )
+        SELECT * FROM high_avg_depts;
+        """
+        results = self.db.batch(nested_cte_sql)
+        self.assertEqual(results[0]['type'], 'fetch')
+        
+        # Test CTE with window functions
+        cte_window_sql = """
+        WITH salary_ranks AS (
+            SELECT 
+                name,
+                department,
+                salary,
+                ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC) as rank
+            FROM employees
+        )
+        SELECT * FROM salary_ranks WHERE rank = 1;
+        """
+        results = self.db.batch(cte_window_sql)
+        self.assertEqual(results[0]['type'], 'fetch')
+        
+        # Test CTE with INSERT and multiple CTEs
+        cte_multi_insert_sql = """
+        WITH 
+        new_employees AS (
+            SELECT 'Eve' as name, 'Engineering' as dept, 85000 as salary
+            UNION ALL
+            SELECT 'Frank', 'Marketing', 65000
+        ),
+        valid_depts AS (
+            SELECT DISTINCT department FROM employees WHERE department IS NOT NULL
+        )
+        INSERT INTO employees (name, department, salary)
+        SELECT ne.name, ne.dept, ne.salary
+        FROM new_employees ne
+        JOIN valid_depts vd ON ne.dept = vd.department;
+        """
+        results = self.db.batch(cte_multi_insert_sql)
+        self.assertEqual(results[0]['type'], 'execute')
+        
+        # Cleanup
+        cleanup_sql = """
+        DROP TABLE user_activity;
+        DROP TABLE employees;
+        """
+        self.db.batch(cleanup_sql)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2) 

@@ -53,19 +53,6 @@ def detect_statement_type(sql: str) -> str:
     tokens = list(stmt.flatten())
     if not tokens:
         return 'execute'
-    def next_non_ws_comment_token(tokens, start=0):
-        for i in range(start, len(tokens)):
-            t = tokens[i]
-            if not t.is_whitespace and t.ttype not in Comment:
-                return i, t
-        return None, None
-    idx, first_token = next_non_ws_comment_token(tokens)
-    if first_token is None:
-        return 'execute'
-    val = first_token.value.strip().upper()
-    # DESC/DESCRIBE detection (regardless of token type)
-    if val in ('DESC', 'DESCRIBE'):
-        return 'fetch'
     # Helper: find first DML/Keyword at the top level after WITH (do not recurse into groups)
     def find_first_dml_keyword_top_level(tokens):
         for t in tokens:
@@ -80,6 +67,55 @@ def detect_statement_type(sql: str) -> str:
                 if tval in ('VALUES', 'SHOW', 'EXPLAIN', 'PRAGMA', 'DESC', 'DESCRIBE'):
                     return tval
         return None
+    
+    # Helper: find the main statement after CTE definitions by looking for the first DML after all CTE groups
+    def find_main_statement_after_ctes(tokens):
+        in_cte_definition = False
+        paren_level = 0
+        
+        for t in tokens:
+            if t.is_whitespace or t.ttype in Comment:
+                continue
+                
+            tval = t.value.strip().upper()
+            
+            # Track CTE definition boundaries
+            if tval == 'AS':
+                in_cte_definition = True
+                continue
+                
+            if in_cte_definition:
+                if t.is_group:
+                    # This is a CTE definition group, skip it
+                    continue
+                elif tval == ',':
+                    # Another CTE definition starting
+                    continue
+                else:
+                    # We're out of CTE definitions, look for main statement
+                    in_cte_definition = False
+            
+            # Now look for the main statement
+            if not in_cte_definition:
+                if tval in ('SELECT', 'INSERT', 'UPDATE', 'DELETE'):
+                    return tval
+                if tval in ('VALUES', 'SHOW', 'EXPLAIN', 'PRAGMA', 'DESC', 'DESCRIBE'):
+                    return tval
+                    
+        return None
+    def next_non_ws_comment_token(tokens, start=0):
+        for i in range(start, len(tokens)):
+            t = tokens[i]
+            if not t.is_whitespace and t.ttype not in Comment:
+                return i, t
+        return None, None
+    idx, first_token = next_non_ws_comment_token(tokens)
+    if first_token is None:
+        return 'execute'
+    val = first_token.value.strip().upper()
+    # DESC/DESCRIBE detection (regardless of token type)
+    if val in ('DESC', 'DESCRIBE'):
+        return 'fetch'
     # CTE detection: WITH ...
     if val == 'WITH':
         # Use high-level tokens after WITH
@@ -92,7 +128,13 @@ def detect_statement_type(sql: str) -> str:
                     found_with = True
                 continue
             after_with_tokens.append(t)
-        dml = find_first_dml_keyword_top_level(after_with_tokens)
+        
+        # Try the more sophisticated approach first
+        dml = find_main_statement_after_ctes(after_with_tokens)
+        if dml is None:
+            # Fallback to the simpler approach
+            dml = find_first_dml_keyword_top_level(after_with_tokens)
+            
         if dml == 'SELECT':
             return 'fetch'
         elif dml in ('INSERT', 'UPDATE', 'DELETE'):

@@ -176,6 +176,205 @@ class TestSqlHelper(unittest.TestCase):
         """
         self.assertEqual(detect_statement_type(cte_insert_sql), 'execute')
 
+    def test_detect_statement_type_cte_comprehensive(self):
+        """Comprehensive CTE tests including WITH RECURSIVE and complex patterns."""
+        
+        # WITH RECURSIVE CTE
+        recursive_cte_sql = """
+        WITH RECURSIVE employee_hierarchy AS (
+            SELECT id, name, manager_id, 1 as level
+            FROM employees 
+            WHERE manager_id IS NULL
+            UNION ALL
+            SELECT e.id, e.name, e.manager_id, eh.level + 1
+            FROM employees e
+            JOIN employee_hierarchy eh ON e.manager_id = eh.id
+        )
+        SELECT * FROM employee_hierarchy;
+        """
+        self.assertEqual(detect_statement_type(recursive_cte_sql), 'fetch')
+        
+        # CTE with UPDATE
+        cte_update_sql = """
+        WITH high_salary_emps AS (
+            SELECT id FROM employees WHERE salary > 100000
+        )
+        UPDATE employees 
+        SET bonus = salary * 0.1 
+        WHERE id IN (SELECT id FROM high_salary_emps);
+        """
+        self.assertEqual(detect_statement_type(cte_update_sql), 'execute')
+        
+        # CTE with DELETE
+        cte_delete_sql = """
+        WITH inactive_users AS (
+            SELECT id FROM users WHERE last_login < '2023-01-01'
+        )
+        DELETE FROM users WHERE id IN (SELECT id FROM inactive_users);
+        """
+        self.assertEqual(detect_statement_type(cte_delete_sql), 'execute')
+        
+        # CTE with VALUES
+        cte_values_sql = """
+        WITH sample_data AS (
+            VALUES 
+                (1, 'Alice'),
+                (2, 'Bob'),
+                (3, 'Charlie')
+        )
+        SELECT * FROM sample_data;
+        """
+        self.assertEqual(detect_statement_type(cte_values_sql), 'fetch')
+        
+        # Complex nested CTEs
+        nested_cte_sql = """
+        WITH 
+        dept_summary AS (
+            SELECT department, COUNT(*) as emp_count, AVG(salary) as avg_salary
+            FROM employees 
+            GROUP BY department
+        ),
+        high_avg_depts AS (
+            SELECT department, avg_salary
+            FROM dept_summary 
+            WHERE avg_salary > 75000
+        ),
+        final_result AS (
+            SELECT d.department, d.avg_salary, e.name as top_earner
+            FROM high_avg_depts d
+            JOIN employees e ON d.department = e.department
+            WHERE e.salary = (
+                SELECT MAX(salary) 
+                FROM employees e2 
+                WHERE e2.department = d.department
+            )
+        )
+        SELECT * FROM final_result;
+        """
+        self.assertEqual(detect_statement_type(nested_cte_sql), 'fetch')
+        
+        # CTE with window functions
+        cte_window_sql = """
+        WITH salary_ranks AS (
+            SELECT 
+                name,
+                department,
+                salary,
+                ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC) as rank
+            FROM employees
+        )
+        SELECT * FROM salary_ranks WHERE rank <= 3;
+        """
+        self.assertEqual(detect_statement_type(cte_window_sql), 'fetch')
+        
+        # CTE with subqueries
+        cte_subquery_sql = """
+        WITH dept_leaders AS (
+            SELECT 
+                department,
+                name,
+                salary,
+                (SELECT AVG(salary) FROM employees e2 WHERE e2.department = e1.department) as dept_avg
+            FROM employees e1
+            WHERE salary > (SELECT AVG(salary) FROM employees e3 WHERE e3.department = e1.department)
+        )
+        SELECT * FROM dept_leaders;
+        """
+        self.assertEqual(detect_statement_type(cte_subquery_sql), 'fetch')
+        
+        # CTE with INSERT and multiple CTEs
+        cte_multi_insert_sql = """
+        WITH 
+        new_employees AS (
+            SELECT 'Alice' as name, 'Engineering' as dept, 85000 as salary
+            UNION ALL
+            SELECT 'Bob', 'Marketing', 65000
+            UNION ALL
+            SELECT 'Carol', 'Engineering', 90000
+        ),
+        valid_depts AS (
+            SELECT DISTINCT department FROM employees WHERE department IS NOT NULL
+        )
+        INSERT INTO employees (name, department, salary)
+        SELECT ne.name, ne.dept, ne.salary
+        FROM new_employees ne
+        JOIN valid_depts vd ON ne.dept = vd.department;
+        """
+        self.assertEqual(detect_statement_type(cte_multi_insert_sql), 'execute')
+        
+        # CTE with UPDATE and complex conditions
+        cte_complex_update_sql = """
+        WITH 
+        salary_stats AS (
+            SELECT 
+                department,
+                AVG(salary) as avg_salary,
+                STDDEV(salary) as salary_stddev
+            FROM employees 
+            GROUP BY department
+        ),
+        outliers AS (
+            SELECT e.id, e.name, e.department, e.salary
+            FROM employees e
+            JOIN salary_stats ss ON e.department = ss.department
+            WHERE e.salary > ss.avg_salary + (2 * ss.salary_stddev)
+        )
+        UPDATE employees 
+        SET salary = salary * 0.9
+        WHERE id IN (SELECT id FROM outliers);
+        """
+        self.assertEqual(detect_statement_type(cte_complex_update_sql), 'execute')
+        
+        # CTE with DELETE and joins
+        cte_delete_join_sql = """
+        WITH 
+        inactive_depts AS (
+            SELECT department
+            FROM employees e
+            LEFT JOIN user_activity ua ON e.id = ua.employee_id
+            GROUP BY department
+            HAVING MAX(ua.last_activity) < '2023-01-01'
+        )
+        DELETE FROM employees 
+        WHERE department IN (SELECT department FROM inactive_depts);
+        """
+        self.assertEqual(detect_statement_type(cte_delete_join_sql), 'execute')
+        
+        # CTE with CASE statements
+        cte_case_sql = """
+        WITH salary_categories AS (
+            SELECT 
+                name,
+                department,
+                salary,
+                CASE 
+                    WHEN salary < 50000 THEN 'Low'
+                    WHEN salary < 80000 THEN 'Medium'
+                    ELSE 'High'
+                END as category
+            FROM employees
+        )
+        SELECT * FROM salary_categories WHERE category = 'High';
+        """
+        self.assertEqual(detect_statement_type(cte_case_sql), 'fetch')
+        
+        # CTE with CTEs that have CTEs (nested CTE definitions)
+        nested_cte_def_sql = """
+        WITH 
+        dept_data AS (
+            WITH dept_summary AS (
+                SELECT department, COUNT(*) as count
+                FROM employees 
+                GROUP BY department
+            )
+            SELECT department, count, 
+                   CASE WHEN count > 10 THEN 'Large' ELSE 'Small' END as size
+            FROM dept_summary
+        )
+        SELECT * FROM dept_data WHERE size = 'Large';
+        """
+        self.assertEqual(detect_statement_type(nested_cte_def_sql), 'fetch')
+
     def test_detect_statement_type_dml(self):
         """Test statement type detection for DML statements."""
         # INSERT
