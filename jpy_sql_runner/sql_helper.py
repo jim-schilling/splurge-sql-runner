@@ -24,6 +24,8 @@ _AS_KEYWORD = 'AS'
 _SELECT_KEYWORD = 'SELECT'
 _SEMICOLON = ';'
 _COMMA = ','
+_PAREN_OPEN = '('
+_PAREN_CLOSE = ')'
 
 # Public constants for statement type return values
 EXECUTE_STATEMENT = 'execute'
@@ -161,9 +163,9 @@ def _find_main_statement_after_ctes(tokens):
         token_value = token.value.strip().upper()
         
         # Track parentheses for CTE definition boundaries
-        if token_value == '(':
+        if token_value == _PAREN_OPEN:
             paren_level += 1
-        elif token_value == ')':
+        elif token_value == _PAREN_CLOSE:
             paren_level -= 1
             # If we're closing a CTE definition and we're at the top level
             if paren_level == 0 and in_cte_definition:
