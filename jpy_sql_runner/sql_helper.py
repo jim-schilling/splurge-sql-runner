@@ -9,7 +9,7 @@ This module is licensed under the MIT License.
 """
 from typing import List
 import sqlparse
-from sqlparse.tokens import Comment, Keyword, DML, DDL
+from sqlparse.tokens import Comment, Keyword, DML
 
 
 # Private constants for SQL statement types
@@ -126,7 +126,7 @@ def _find_first_dml_keyword_top_level(tokens):
             token_value = token.value.strip().upper()
             if token_value == _AS_KEYWORD:
                 continue
-            if token.ttype in (DML, Keyword) or _is_dml_statement(token_value) or _is_fetch_statement(token_value):
+            if _is_dml_statement(token_value) or _is_fetch_statement(token_value):
                 return token_value
     return None
 

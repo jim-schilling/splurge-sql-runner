@@ -708,6 +708,130 @@ class TestSqlHelper(unittest.TestCase):
         with self.assertRaises(ValueError):
             split_sql_file(None)
 
+    def test_detect_statement_type_cte_keyword_ambiguity_fix(self):
+        """
+        Test that CTE parsing correctly identifies statement types and doesn't 
+        incorrectly match non-statement keywords like FROM, WHERE, JOIN, etc.
+        
+        This test specifically validates the fix for the overly broad 
+        token.ttype in (DML, Keyword) check that could incorrectly identify
+        keywords as statement types.
+        """
+        # CTE with complex structure that could trigger keyword confusion
+        cte_with_complex_structure = """
+        WITH user_data AS (
+            SELECT id, name FROM users WHERE active = 1
+        ),
+        filtered_data AS (
+            SELECT * FROM user_data WHERE name LIKE 'A%'
+        )
+        SELECT * FROM filtered_data WHERE id > 100;
+        """
+        # This should correctly identify as 'fetch' (SELECT), not incorrectly match 'FROM' or 'WHERE'
+        self.assertEqual(detect_statement_type(cte_with_complex_structure), 'fetch')
+        
+        # CTE with multiple JOINs and WHERE clauses that could be confused
+        cte_with_joins_and_where = """
+        WITH user_info AS (
+            SELECT id, name FROM users WHERE active = 1
+        ),
+        post_info AS (
+            SELECT user_id, title FROM posts WHERE published = 1
+        )
+        SELECT ui.name, pi.title 
+        FROM user_info ui 
+        JOIN post_info pi ON ui.id = pi.user_id 
+        WHERE pi.title LIKE '%SQL%';
+        """
+        # This should correctly identify as 'fetch' (SELECT), not incorrectly match 'FROM', 'JOIN', or 'WHERE'
+        self.assertEqual(detect_statement_type(cte_with_joins_and_where), 'fetch')
+        
+        # CTE with GROUP BY, HAVING, ORDER BY that could be confused
+        cte_with_aggregation_keywords = """
+        WITH user_stats AS (
+            SELECT 
+                u.id, u.name, u.email,
+                COUNT(p.id) as post_count,
+                AVG(p.rating) as avg_rating
+            FROM users u
+            LEFT JOIN posts p ON u.id = p.user_id
+            WHERE u.active = 1
+            GROUP BY u.id, u.name, u.email
+            HAVING COUNT(p.id) > 0
+        )
+        SELECT name, post_count, avg_rating
+        FROM user_stats 
+        WHERE avg_rating > 4.0 
+        ORDER BY post_count DESC;
+        """
+        # This should correctly identify as 'fetch' (SELECT), not match any of the other keywords
+        self.assertEqual(detect_statement_type(cte_with_aggregation_keywords), 'fetch')
+        
+        # CTE with INSERT but complex structure that could trigger keyword confusion
+        cte_insert_with_complex_structure = """
+        WITH new_data AS (
+            SELECT 'John' as name, 'Engineering' as dept
+            UNION ALL
+            SELECT 'Jane', 'Marketing'
+        ),
+        valid_depts AS (
+            SELECT DISTINCT department FROM employees WHERE department IS NOT NULL
+        )
+        INSERT INTO employees (name, department) 
+        SELECT nd.name, nd.dept
+        FROM new_data nd
+        JOIN valid_depts vd ON nd.dept = vd.department
+        WHERE nd.dept = 'Engineering';
+        """
+        # This should correctly identify as 'execute' (INSERT), not match 'FROM', 'JOIN', or 'WHERE'
+        self.assertEqual(detect_statement_type(cte_insert_with_complex_structure), 'execute')
+        
+        # CTE with UPDATE but complex structure that could trigger keyword confusion
+        cte_update_with_complex_structure = """
+        WITH target_employees AS (
+            SELECT id FROM employees WHERE salary < 50000
+        ),
+        sales_employees AS (
+            SELECT id FROM employees WHERE department = 'Sales'
+        )
+        UPDATE employees 
+        SET salary = salary * 1.1
+        WHERE id IN (
+            SELECT te.id 
+            FROM target_employees te
+            JOIN sales_employees se ON te.id = se.id
+        );
+        """
+        # This should correctly identify as 'execute' (UPDATE), not match 'FROM', 'JOIN', or 'WHERE'
+        self.assertEqual(detect_statement_type(cte_update_with_complex_structure), 'execute')
+        
+        # CTE with complex nested structure and many keywords that could be confused
+        cte_complex_nested_keywords = """
+        WITH 
+        base_data AS (
+            SELECT id, name, department, salary FROM employees
+        ),
+        filtered_data AS (
+            SELECT * FROM base_data WHERE salary > 50000
+        ),
+        aggregated_data AS (
+            SELECT 
+                department,
+                COUNT(*) as count,
+                AVG(salary) as avg_salary,
+                MAX(salary) as max_salary
+            FROM filtered_data 
+            GROUP BY department
+            HAVING COUNT(*) > 5
+        )
+        SELECT department, count, avg_salary
+        FROM aggregated_data 
+        WHERE avg_salary > 70000
+        ORDER BY max_salary DESC;
+        """
+        # This should correctly identify as 'fetch' (SELECT), not match any of the other keywords
+        self.assertEqual(detect_statement_type(cte_complex_nested_keywords), 'fetch')
+
 
 if __name__ == '__main__':
     unittest.main() 
