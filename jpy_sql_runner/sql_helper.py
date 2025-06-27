@@ -9,7 +9,7 @@ This module is licensed under the MIT License.
 """
 from typing import List
 import sqlparse
-from sqlparse.tokens import Comment, Keyword, DML
+from sqlparse.tokens import Comment, DML
 
 
 # Private constants for SQL statement types
@@ -30,6 +30,7 @@ _PAREN_CLOSE = ')'
 # Public constants for statement type return values
 EXECUTE_STATEMENT = 'execute'
 FETCH_STATEMENT = 'fetch'
+ERROR_STATEMENT = 'error'
 
 
 def remove_sql_comments(sql_text: str) -> str:

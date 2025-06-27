@@ -13,7 +13,8 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.engine import Connection
 from typing import List, Dict, Any
-from jpy_sql_runner.sql_helper import parse_sql_statements, detect_statement_type, FETCH_STATEMENT, EXECUTE_STATEMENT
+from jpy_sql_runner.sql_helper import parse_sql_statements, detect_statement_type, FETCH_STATEMENT, EXECUTE_STATEMENT, ERROR_STATEMENT
+
 
 class DbOperationError(Exception):
     """
@@ -117,7 +118,7 @@ class DbEngine:
             results.append({
                 'statement_index': i,
                 'statement': stmt,
-                'statement_type': 'error',
+                'statement_type': ERROR_STATEMENT,
                 'error': str(e)
             })
         return results
