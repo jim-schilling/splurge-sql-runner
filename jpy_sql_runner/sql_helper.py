@@ -9,7 +9,7 @@ This module is licensed under the MIT License.
 """
 from typing import List
 import sqlparse
-from sqlparse.tokens import Comment
+from sqlparse.tokens import Comment, Keyword, DML, DDL
 
 
 def remove_sql_comments(sql_text: str) -> str:
@@ -27,6 +27,87 @@ def remove_sql_comments(sql_text: str) -> str:
     if not sql_text:
         return sql_text
     return sqlparse.format(sql_text, strip_comments=True)
+
+
+def detect_statement_type(sql: str) -> str:
+    """
+    Detect if a SQL statement returns rows using sqlparse.
+    Handles:
+    - SELECT statements
+    - CTEs (WITH ... SELECT)
+    - VALUES statements
+    - SHOW statements (some databases)
+    - DESCRIBE/DESC statements (some databases)
+    - EXPLAIN statements (some databases)
+    Args:
+        sql: SQL statement string
+    Returns:
+        'fetch' if statement returns rows, 'execute' otherwise
+    """
+    if not sql or not sql.strip():
+        return 'execute'
+    parsed = sqlparse.parse(sql.strip())
+    if not parsed:
+        return 'execute'
+    stmt = parsed[0]
+    tokens = list(stmt.flatten())
+    if not tokens:
+        return 'execute'
+    def next_non_ws_comment_token(tokens, start=0):
+        for i in range(start, len(tokens)):
+            t = tokens[i]
+            if not t.is_whitespace and t.ttype not in Comment:
+                return i, t
+        return None, None
+    idx, first_token = next_non_ws_comment_token(tokens)
+    if first_token is None:
+        return 'execute'
+    val = first_token.value.strip().upper()
+    # DESC/DESCRIBE detection (regardless of token type)
+    if val in ('DESC', 'DESCRIBE'):
+        return 'fetch'
+    # Helper: find first DML/Keyword at the top level after WITH (do not recurse into groups)
+    def find_first_dml_keyword_top_level(tokens):
+        for t in tokens:
+            if t.is_group:
+                continue  # skip CTE definitions
+            if not t.is_whitespace and t.ttype not in Comment:
+                tval = t.value.strip().upper()
+                if tval == 'AS':
+                    continue
+                if t.ttype in (DML, Keyword) or tval in ('SELECT', 'INSERT', 'UPDATE', 'DELETE'):
+                    return tval
+                if tval in ('VALUES', 'SHOW', 'EXPLAIN', 'PRAGMA', 'DESC', 'DESCRIBE'):
+                    return tval
+        return None
+    # CTE detection: WITH ...
+    if val == 'WITH':
+        # Use high-level tokens after WITH
+        top_tokens = list(stmt.tokens)
+        found_with = False
+        after_with_tokens = []
+        for t in top_tokens:
+            if not found_with:
+                if hasattr(t, 'value') and t.value.strip().upper() == 'WITH':
+                    found_with = True
+                continue
+            after_with_tokens.append(t)
+        dml = find_first_dml_keyword_top_level(after_with_tokens)
+        if dml == 'SELECT':
+            return 'fetch'
+        elif dml in ('INSERT', 'UPDATE', 'DELETE'):
+            return 'execute'
+        elif dml in ('VALUES', 'SHOW', 'EXPLAIN', 'PRAGMA', 'DESC', 'DESCRIBE'):
+            return 'fetch'
+        return 'execute'
+    # SELECT
+    if first_token.ttype is DML and val == 'SELECT':
+        return 'fetch'
+    # VALUES, SHOW, EXPLAIN, PRAGMA
+    if val in ('VALUES', 'SHOW', 'EXPLAIN', 'PRAGMA'):
+        return 'fetch'
+    # All other statements (INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, etc.)
+    return 'execute'
 
 
 def parse_sql_statements(sql_text: str, strip_semicolon: bool = False) -> List[str]:

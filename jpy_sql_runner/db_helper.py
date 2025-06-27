@@ -13,7 +13,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.engine import Connection
 from typing import List, Dict, Any
-from jpy_sql_runner.sql_helper import parse_sql_statements
+from jpy_sql_runner.sql_helper import parse_sql_statements, detect_statement_type
 
 class DbOperationError(Exception):
     """
@@ -88,9 +88,10 @@ class DbEngine:
         results = []
         try:
             for i, stmt in enumerate(statements):
-                # Determine if this is a SELECT statement
-                stmt_upper = stmt.upper().strip()
-                if stmt_upper.startswith('SELECT'):
+                # Use sqlparse to determine if statement returns rows
+                stmt_type = detect_statement_type(stmt)
+                
+                if stmt_type == 'fetch':
                     # Execute as fetch operation
                     rows = self._fetch_with_connection(conn, stmt)
                     results.append({

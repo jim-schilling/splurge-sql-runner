@@ -368,6 +368,98 @@ class TestDbEngine(unittest.TestCase):
         select_results = self.db.batch("SELECT COUNT(*) as count FROM performance_test;")
         self.assertEqual(select_results[0]['result'][0]['count'], 100)
 
+    def test_statement_type_detection(self):
+        """Test that statement type detection works correctly using SQLAlchemy."""
+        # Test SELECT statements (should be detected as 'fetch')
+        select_sql = "SELECT 1 as test;"
+        results = self.db.batch(select_sql)
+        self.assertEqual(results[0]['type'], 'fetch')
+        
+        # Test INSERT statements (should be detected as 'execute')
+        create_sql = "CREATE TABLE test_detection (id INTEGER PRIMARY KEY);"
+        self.db.batch(create_sql)
+        
+        insert_sql = "INSERT INTO test_detection (id) VALUES (1);"
+        results = self.db.batch(insert_sql)
+        self.assertEqual(results[0]['type'], 'execute')
+        
+        # Test UPDATE statements (should be detected as 'execute')
+        update_sql = "UPDATE test_detection SET id = 2 WHERE id = 1;"
+        results = self.db.batch(update_sql)
+        self.assertEqual(results[0]['type'], 'execute')
+        
+        # Test DELETE statements (should be detected as 'execute')
+        delete_sql = "DELETE FROM test_detection WHERE id = 2;"
+        results = self.db.batch(delete_sql)
+        self.assertEqual(results[0]['type'], 'execute')
+        
+        # Test DROP statements (should be detected as 'execute')
+        drop_sql = "DROP TABLE test_detection;"
+        results = self.db.batch(drop_sql)
+        self.assertEqual(results[0]['type'], 'execute')
+
+    def test_cte_detection(self):
+        """Test that CTEs (Common Table Expressions) are properly detected as fetch operations."""
+        # Setup: create a table for testing
+        setup_sql = """
+        CREATE TABLE employees (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            department TEXT,
+            salary REAL
+        );
+        INSERT INTO employees (name, department, salary) VALUES 
+            ('Alice', 'Engineering', 85000),
+            ('Bob', 'Marketing', 65000),
+            ('Carol', 'Engineering', 90000),
+            ('David', 'Sales', 70000);
+        """
+        self.db.batch(setup_sql)
+        
+        # Test simple CTE
+        cte_sql = """
+        WITH high_salary AS (
+            SELECT * FROM employees WHERE salary > 80000
+        )
+        SELECT * FROM high_salary;
+        """
+        results = self.db.batch(cte_sql)
+        self.assertEqual(results[0]['type'], 'fetch')
+        self.assertEqual(results[0]['row_count'], 2)  # Alice and Carol
+        
+        # Test multiple CTEs
+        multi_cte_sql = """
+        WITH dept_stats AS (
+            SELECT department, COUNT(*) as count, AVG(salary) as avg_salary
+            FROM employees 
+            GROUP BY department
+        ),
+        high_avg_depts AS (
+            SELECT department, avg_salary
+            FROM dept_stats 
+            WHERE avg_salary > 75000
+        )
+        SELECT * FROM high_avg_depts;
+        """
+        results = self.db.batch(multi_cte_sql)
+        self.assertEqual(results[0]['type'], 'fetch')
+        self.assertEqual(results[0]['row_count'], 1)  # Engineering dept
+        
+        # Test CTE with INSERT (should be execute)
+        cte_insert_sql = """
+        WITH new_emp AS (
+            SELECT 'Eve' as name, 'Engineering' as department, 95000 as salary
+        )
+        INSERT INTO employees (name, department, salary)
+        SELECT name, department, salary FROM new_emp;
+        """
+        results = self.db.batch(cte_insert_sql)
+        self.assertEqual(results[0]['type'], 'execute')
+        
+        # Cleanup
+        cleanup_sql = "DROP TABLE employees;"
+        self.db.batch(cleanup_sql)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2) 
