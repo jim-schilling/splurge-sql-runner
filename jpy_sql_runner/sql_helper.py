@@ -163,9 +163,9 @@ def _find_main_statement_after_ctes(tokens):
         token_value = token.value.strip().upper()
         
         # Track parentheses for CTE definition boundaries
-        if token_value == _PAREN_OPEN:
+        if token.ttype == sqlparse.tokens.Punctuation and token_value == _PAREN_OPEN:
             paren_level += 1
-        elif token_value == _PAREN_CLOSE:
+        elif token.ttype == sqlparse.tokens.Punctuation and token_value == _PAREN_CLOSE:
             paren_level -= 1
             # If we're closing a CTE definition and we're at the top level
             if paren_level == 0 and in_cte_definition:
