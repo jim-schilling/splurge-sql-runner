@@ -138,7 +138,10 @@ MIT License - see LICENSE file for details.
 
 ## Changelog
 
-### 0.1.1
+### 0.1.2 (06-29-2025)
+- Update sql_helper.py
+
+### 0.1.1 (06-28-2025)
 - Refactored `detect_statement_type` into smaller, modular helper functions for clarity and maintainability.
 - Improved code readability and reduced duplication in SQL type detection logic.
 - Added comprehensive tests for complex, nested, malformed, and database-specific SQL cases.
