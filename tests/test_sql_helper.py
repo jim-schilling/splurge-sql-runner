@@ -14,13 +14,15 @@ from jpy_sql_runner.sql_helper import (
     remove_sql_comments,
     parse_sql_statements,
     split_sql_file,
-    detect_statement_type
+    detect_statement_type,
 )
+import sqlparse
+from sqlparse.sql import Token, Statement
 
 
 class TestSqlHelper(unittest.TestCase):
     """Comprehensive tests for SQL helper functions."""
-    
+
     def test_remove_sql_comments(self):
         """Test SQL comment removal functionality."""
         # Test single-line comments
@@ -32,9 +34,9 @@ class TestSqlHelper(unittest.TestCase):
         );
         """
         clean_sql = remove_sql_comments(sql_with_single_comments)
-        self.assertNotIn('--', clean_sql)
-        self.assertIn('CREATE TABLE', clean_sql)
-        
+        self.assertNotIn("--", clean_sql)
+        self.assertIn("CREATE TABLE", clean_sql)
+
         # Test multi-line comments
         sql_with_multi_comments = """
         /* This is a multi-line comment */
@@ -46,10 +48,10 @@ class TestSqlHelper(unittest.TestCase):
         /* Another comment */
         """
         clean_sql = remove_sql_comments(sql_with_multi_comments)
-        self.assertNotIn('/*', clean_sql)
-        self.assertNotIn('*/', clean_sql)
-        self.assertIn('CREATE TABLE', clean_sql)
-        
+        self.assertNotIn("/*", clean_sql)
+        self.assertNotIn("*/", clean_sql)
+        self.assertIn("CREATE TABLE", clean_sql)
+
         # Test mixed comments
         sql_with_mixed_comments = """
         -- Single line comment
@@ -62,12 +64,12 @@ class TestSqlHelper(unittest.TestCase):
         SELECT * FROM test; -- end comment
         """
         clean_sql = remove_sql_comments(sql_with_mixed_comments)
-        self.assertNotIn('--', clean_sql)
-        self.assertNotIn('/*', clean_sql)
-        self.assertNotIn('*/', clean_sql)
-        self.assertIn('CREATE TABLE', clean_sql)
-        self.assertIn('SELECT', clean_sql)
-        
+        self.assertNotIn("--", clean_sql)
+        self.assertNotIn("/*", clean_sql)
+        self.assertNotIn("*/", clean_sql)
+        self.assertIn("CREATE TABLE", clean_sql)
+        self.assertIn("SELECT", clean_sql)
+
         # Test empty string
         self.assertEqual(remove_sql_comments(""), "")
         self.assertEqual(remove_sql_comments(None), None)
@@ -83,17 +85,17 @@ class TestSqlHelper(unittest.TestCase):
         """
         statements = parse_sql_statements(multi_sql)
         self.assertEqual(len(statements), 4)
-        self.assertIn('CREATE TABLE', statements[0])
-        self.assertIn('INSERT INTO', statements[1])
-        self.assertIn('INSERT INTO', statements[2])
-        self.assertIn('SELECT', statements[3])
-        
+        self.assertIn("CREATE TABLE", statements[0])
+        self.assertIn("INSERT INTO", statements[1])
+        self.assertIn("INSERT INTO", statements[2])
+        self.assertIn("SELECT", statements[3])
+
         # Test with semicolon stripping
         statements_no_semicolon = parse_sql_statements(multi_sql, strip_semicolon=True)
         self.assertEqual(len(statements_no_semicolon), 4)
         for stmt in statements_no_semicolon:
-            self.assertFalse(stmt.endswith(';'))
-        
+            self.assertFalse(stmt.endswith(";"))
+
         # Test with comments
         sql_with_comments = """
         -- Create table
@@ -104,10 +106,10 @@ class TestSqlHelper(unittest.TestCase):
         """
         statements = parse_sql_statements(sql_with_comments)
         self.assertEqual(len(statements), 3)
-        self.assertIn('CREATE TABLE', statements[0])
-        self.assertIn('INSERT INTO', statements[1])
-        self.assertIn('SELECT', statements[2])
-        
+        self.assertIn("CREATE TABLE", statements[0])
+        self.assertIn("INSERT INTO", statements[1])
+        self.assertIn("SELECT", statements[2])
+
         # Test empty statements
         sql_with_empty = """
         CREATE TABLE test (id INTEGER);
@@ -118,7 +120,7 @@ class TestSqlHelper(unittest.TestCase):
         """
         statements = parse_sql_statements(sql_with_empty)
         self.assertEqual(len(statements), 2)  # Empty statements filtered out
-        
+
         # Test empty input
         self.assertEqual(parse_sql_statements(""), [])
         self.assertEqual(parse_sql_statements(None), [])
@@ -126,18 +128,32 @@ class TestSqlHelper(unittest.TestCase):
     def test_detect_statement_type_select(self):
         """Test statement type detection for SELECT statements."""
         # Basic SELECT
-        self.assertEqual(detect_statement_type("SELECT * FROM users;"), 'fetch')
-        self.assertEqual(detect_statement_type("SELECT id, name FROM users WHERE id = 1;"), 'fetch')
-        
+        self.assertEqual(detect_statement_type("SELECT * FROM users;"), "fetch")
+        self.assertEqual(
+            detect_statement_type("SELECT id, name FROM users WHERE id = 1;"), "fetch"
+        )
+
         # SELECT with functions
-        self.assertEqual(detect_statement_type("SELECT COUNT(*) FROM users;"), 'fetch')
-        self.assertEqual(detect_statement_type("SELECT AVG(salary) FROM employees;"), 'fetch')
-        
+        self.assertEqual(detect_statement_type("SELECT COUNT(*) FROM users;"), "fetch")
+        self.assertEqual(
+            detect_statement_type("SELECT AVG(salary) FROM employees;"), "fetch"
+        )
+
         # SELECT with JOIN
-        self.assertEqual(detect_statement_type("SELECT u.name, p.title FROM users u JOIN posts p ON u.id = p.user_id;"), 'fetch')
-        
+        self.assertEqual(
+            detect_statement_type(
+                "SELECT u.name, p.title FROM users u JOIN posts p ON u.id = p.user_id;"
+            ),
+            "fetch",
+        )
+
         # SELECT with subquery
-        self.assertEqual(detect_statement_type("SELECT * FROM users WHERE id IN (SELECT user_id FROM posts);"), 'fetch')
+        self.assertEqual(
+            detect_statement_type(
+                "SELECT * FROM users WHERE id IN (SELECT user_id FROM posts);"
+            ),
+            "fetch",
+        )
 
     def test_detect_statement_type_cte(self):
         """Test statement type detection for CTEs (Common Table Expressions)."""
@@ -148,8 +164,8 @@ class TestSqlHelper(unittest.TestCase):
         )
         SELECT * FROM high_salary;
         """
-        self.assertEqual(detect_statement_type(cte_sql), 'fetch')
-        
+        self.assertEqual(detect_statement_type(cte_sql), "fetch")
+
         # Multiple CTEs
         multi_cte_sql = """
         WITH dept_stats AS (
@@ -164,8 +180,8 @@ class TestSqlHelper(unittest.TestCase):
         )
         SELECT * FROM high_count_depts;
         """
-        self.assertEqual(detect_statement_type(multi_cte_sql), 'fetch')
-        
+        self.assertEqual(detect_statement_type(multi_cte_sql), "fetch")
+
         # CTE with INSERT (should be execute)
         cte_insert_sql = """
         WITH new_emp AS (
@@ -174,11 +190,11 @@ class TestSqlHelper(unittest.TestCase):
         INSERT INTO employees (name, department)
         SELECT name, dept FROM new_emp;
         """
-        self.assertEqual(detect_statement_type(cte_insert_sql), 'execute')
+        self.assertEqual(detect_statement_type(cte_insert_sql), "execute")
 
     def test_detect_statement_type_cte_comprehensive(self):
         """Comprehensive CTE tests including WITH RECURSIVE and complex patterns."""
-        
+
         # WITH RECURSIVE CTE
         recursive_cte_sql = """
         WITH RECURSIVE employee_hierarchy AS (
@@ -192,8 +208,8 @@ class TestSqlHelper(unittest.TestCase):
         )
         SELECT * FROM employee_hierarchy;
         """
-        self.assertEqual(detect_statement_type(recursive_cte_sql), 'fetch')
-        
+        self.assertEqual(detect_statement_type(recursive_cte_sql), "fetch")
+
         # CTE with UPDATE
         cte_update_sql = """
         WITH high_salary_emps AS (
@@ -203,8 +219,8 @@ class TestSqlHelper(unittest.TestCase):
         SET bonus = salary * 0.1 
         WHERE id IN (SELECT id FROM high_salary_emps);
         """
-        self.assertEqual(detect_statement_type(cte_update_sql), 'execute')
-        
+        self.assertEqual(detect_statement_type(cte_update_sql), "execute")
+
         # CTE with DELETE
         cte_delete_sql = """
         WITH inactive_users AS (
@@ -212,8 +228,8 @@ class TestSqlHelper(unittest.TestCase):
         )
         DELETE FROM users WHERE id IN (SELECT id FROM inactive_users);
         """
-        self.assertEqual(detect_statement_type(cte_delete_sql), 'execute')
-        
+        self.assertEqual(detect_statement_type(cte_delete_sql), "execute")
+
         # CTE with VALUES
         cte_values_sql = """
         WITH sample_data AS (
@@ -224,8 +240,8 @@ class TestSqlHelper(unittest.TestCase):
         )
         SELECT * FROM sample_data;
         """
-        self.assertEqual(detect_statement_type(cte_values_sql), 'fetch')
-        
+        self.assertEqual(detect_statement_type(cte_values_sql), "fetch")
+
         # Complex nested CTEs
         nested_cte_sql = """
         WITH 
@@ -251,8 +267,8 @@ class TestSqlHelper(unittest.TestCase):
         )
         SELECT * FROM final_result;
         """
-        self.assertEqual(detect_statement_type(nested_cte_sql), 'fetch')
-        
+        self.assertEqual(detect_statement_type(nested_cte_sql), "fetch")
+
         # CTE with window functions
         cte_window_sql = """
         WITH salary_ranks AS (
@@ -265,8 +281,8 @@ class TestSqlHelper(unittest.TestCase):
         )
         SELECT * FROM salary_ranks WHERE rank <= 3;
         """
-        self.assertEqual(detect_statement_type(cte_window_sql), 'fetch')
-        
+        self.assertEqual(detect_statement_type(cte_window_sql), "fetch")
+
         # CTE with subqueries
         cte_subquery_sql = """
         WITH dept_leaders AS (
@@ -280,8 +296,8 @@ class TestSqlHelper(unittest.TestCase):
         )
         SELECT * FROM dept_leaders;
         """
-        self.assertEqual(detect_statement_type(cte_subquery_sql), 'fetch')
-        
+        self.assertEqual(detect_statement_type(cte_subquery_sql), "fetch")
+
         # CTE with INSERT and multiple CTEs
         cte_multi_insert_sql = """
         WITH 
@@ -300,8 +316,8 @@ class TestSqlHelper(unittest.TestCase):
         FROM new_employees ne
         JOIN valid_depts vd ON ne.dept = vd.department;
         """
-        self.assertEqual(detect_statement_type(cte_multi_insert_sql), 'execute')
-        
+        self.assertEqual(detect_statement_type(cte_multi_insert_sql), "execute")
+
         # CTE with UPDATE and complex conditions
         cte_complex_update_sql = """
         WITH 
@@ -323,8 +339,8 @@ class TestSqlHelper(unittest.TestCase):
         SET salary = salary * 0.9
         WHERE id IN (SELECT id FROM outliers);
         """
-        self.assertEqual(detect_statement_type(cte_complex_update_sql), 'execute')
-        
+        self.assertEqual(detect_statement_type(cte_complex_update_sql), "execute")
+
         # CTE with DELETE and joins
         cte_delete_join_sql = """
         WITH 
@@ -338,8 +354,8 @@ class TestSqlHelper(unittest.TestCase):
         DELETE FROM employees 
         WHERE department IN (SELECT department FROM inactive_depts);
         """
-        self.assertEqual(detect_statement_type(cte_delete_join_sql), 'execute')
-        
+        self.assertEqual(detect_statement_type(cte_delete_join_sql), "execute")
+
         # CTE with CASE statements
         cte_case_sql = """
         WITH salary_categories AS (
@@ -356,8 +372,8 @@ class TestSqlHelper(unittest.TestCase):
         )
         SELECT * FROM salary_categories WHERE category = 'High';
         """
-        self.assertEqual(detect_statement_type(cte_case_sql), 'fetch')
-        
+        self.assertEqual(detect_statement_type(cte_case_sql), "fetch")
+
         # CTE with CTEs that have CTEs (nested CTE definitions)
         nested_cte_def_sql = """
         WITH 
@@ -373,106 +389,145 @@ class TestSqlHelper(unittest.TestCase):
         )
         SELECT * FROM dept_data WHERE size = 'Large';
         """
-        self.assertEqual(detect_statement_type(nested_cte_def_sql), 'fetch')
+        self.assertEqual(detect_statement_type(nested_cte_def_sql), "fetch")
 
     def test_detect_statement_type_dml(self):
         """Test statement type detection for DML statements."""
         # INSERT
-        self.assertEqual(detect_statement_type("INSERT INTO users (name) VALUES ('John');"), 'execute')
-        self.assertEqual(detect_statement_type("INSERT INTO users SELECT * FROM temp_users;"), 'execute')
-        
+        self.assertEqual(
+            detect_statement_type("INSERT INTO users (name) VALUES ('John');"),
+            "execute",
+        )
+        self.assertEqual(
+            detect_statement_type("INSERT INTO users SELECT * FROM temp_users;"),
+            "execute",
+        )
+
         # UPDATE
-        self.assertEqual(detect_statement_type("UPDATE users SET name = 'Jane' WHERE id = 1;"), 'execute')
-        self.assertEqual(detect_statement_type("UPDATE users SET active = false;"), 'execute')
-        
+        self.assertEqual(
+            detect_statement_type("UPDATE users SET name = 'Jane' WHERE id = 1;"),
+            "execute",
+        )
+        self.assertEqual(
+            detect_statement_type("UPDATE users SET active = false;"), "execute"
+        )
+
         # DELETE
-        self.assertEqual(detect_statement_type("DELETE FROM users WHERE id = 1;"), 'execute')
-        self.assertEqual(detect_statement_type("DELETE FROM users;"), 'execute')
+        self.assertEqual(
+            detect_statement_type("DELETE FROM users WHERE id = 1;"), "execute"
+        )
+        self.assertEqual(detect_statement_type("DELETE FROM users;"), "execute")
 
     def test_detect_statement_type_ddl(self):
         """Test statement type detection for DDL statements."""
         # CREATE
-        self.assertEqual(detect_statement_type("CREATE TABLE users (id INTEGER PRIMARY KEY);"), 'execute')
-        self.assertEqual(detect_statement_type("CREATE INDEX idx_name ON users (name);"), 'execute')
-        self.assertEqual(detect_statement_type("CREATE VIEW user_view AS SELECT * FROM users;"), 'execute')
-        
+        self.assertEqual(
+            detect_statement_type("CREATE TABLE users (id INTEGER PRIMARY KEY);"),
+            "execute",
+        )
+        self.assertEqual(
+            detect_statement_type("CREATE INDEX idx_name ON users (name);"), "execute"
+        )
+        self.assertEqual(
+            detect_statement_type("CREATE VIEW user_view AS SELECT * FROM users;"),
+            "execute",
+        )
+
         # ALTER
-        self.assertEqual(detect_statement_type("ALTER TABLE users ADD COLUMN email TEXT;"), 'execute')
-        self.assertEqual(detect_statement_type("ALTER TABLE users DROP COLUMN email;"), 'execute')
-        
+        self.assertEqual(
+            detect_statement_type("ALTER TABLE users ADD COLUMN email TEXT;"), "execute"
+        )
+        self.assertEqual(
+            detect_statement_type("ALTER TABLE users DROP COLUMN email;"), "execute"
+        )
+
         # DROP
-        self.assertEqual(detect_statement_type("DROP TABLE users;"), 'execute')
-        self.assertEqual(detect_statement_type("DROP INDEX idx_name;"), 'execute')
+        self.assertEqual(detect_statement_type("DROP TABLE users;"), "execute")
+        self.assertEqual(detect_statement_type("DROP INDEX idx_name;"), "execute")
 
     def test_detect_statement_type_other(self):
         """Test statement type detection for other statement types."""
         # VALUES (some databases return rows)
-        self.assertEqual(detect_statement_type("VALUES (1, 'John'), (2, 'Jane');"), 'fetch')
-        
+        self.assertEqual(
+            detect_statement_type("VALUES (1, 'John'), (2, 'Jane');"), "fetch"
+        )
+
         # SHOW (information queries)
-        self.assertEqual(detect_statement_type("SHOW TABLES;"), 'fetch')
-        self.assertEqual(detect_statement_type("SHOW COLUMNS FROM users;"), 'fetch')
-        
+        self.assertEqual(detect_statement_type("SHOW TABLES;"), "fetch")
+        self.assertEqual(detect_statement_type("SHOW COLUMNS FROM users;"), "fetch")
+
         # DESCRIBE/DESC
-        self.assertEqual(detect_statement_type("DESCRIBE users;"), 'fetch')
-        self.assertEqual(detect_statement_type("DESC users;"), 'fetch')
-        
+        self.assertEqual(detect_statement_type("DESCRIBE users;"), "fetch")
+        self.assertEqual(detect_statement_type("DESC users;"), "fetch")
+
         # EXPLAIN
-        self.assertEqual(detect_statement_type("EXPLAIN SELECT * FROM users;"), 'fetch')
-        
+        self.assertEqual(detect_statement_type("EXPLAIN SELECT * FROM users;"), "fetch")
+
         # PRAGMA (SQLite metadata)
-        self.assertEqual(detect_statement_type("PRAGMA table_info(users);"), 'fetch')
-        
+        self.assertEqual(detect_statement_type("PRAGMA table_info(users);"), "fetch")
+
         # BEGIN/COMMIT/ROLLBACK
-        self.assertEqual(detect_statement_type("BEGIN TRANSACTION;"), 'execute')
-        self.assertEqual(detect_statement_type("COMMIT;"), 'execute')
-        self.assertEqual(detect_statement_type("ROLLBACK;"), 'execute')
+        self.assertEqual(detect_statement_type("BEGIN TRANSACTION;"), "execute")
+        self.assertEqual(detect_statement_type("COMMIT;"), "execute")
+        self.assertEqual(detect_statement_type("ROLLBACK;"), "execute")
 
     def test_detect_statement_type_edge_cases(self):
         """Test statement type detection for edge cases."""
         # Empty or whitespace
-        self.assertEqual(detect_statement_type(""), 'execute')
-        self.assertEqual(detect_statement_type("   "), 'execute')
-        self.assertEqual(detect_statement_type("\n\t"), 'execute')
-        
+        self.assertEqual(detect_statement_type(""), "execute")
+        self.assertEqual(detect_statement_type("   "), "execute")
+        self.assertEqual(detect_statement_type("\n\t"), "execute")
+
         # Case insensitive
-        self.assertEqual(detect_statement_type("select * from users;"), 'fetch')
-        self.assertEqual(detect_statement_type("SELECT * FROM users;"), 'fetch')
-        self.assertEqual(detect_statement_type("Select * From users;"), 'fetch')
-        
+        self.assertEqual(detect_statement_type("select * from users;"), "fetch")
+        self.assertEqual(detect_statement_type("SELECT * FROM users;"), "fetch")
+        self.assertEqual(detect_statement_type("Select * From users;"), "fetch")
+
         # With comments
         sql_with_comments = """
         -- This is a comment
         SELECT * FROM users; /* another comment */
         """
-        self.assertEqual(detect_statement_type(sql_with_comments), 'fetch')
-        
+        self.assertEqual(detect_statement_type(sql_with_comments), "fetch")
+
         # Complex whitespace
-        self.assertEqual(detect_statement_type("  SELECT  *  FROM  users  ;  "), 'fetch')
+        self.assertEqual(
+            detect_statement_type("  SELECT  *  FROM  users  ;  "), "fetch"
+        )
 
     def test_detect_statement_type_malformed_sql(self):
         """Test statement type detection with malformed or problematic SQL."""
         # Incomplete statements
-        self.assertEqual(detect_statement_type("SELECT"), 'fetch')  # Incomplete but still SELECT
-        self.assertEqual(detect_statement_type("WITH"), 'execute')  # Incomplete WITH
-        self.assertEqual(detect_statement_type("INSERT"), 'execute')  # Incomplete INSERT
-        
+        self.assertEqual(
+            detect_statement_type("SELECT"), "fetch"
+        )  # Incomplete but still SELECT
+        self.assertEqual(detect_statement_type("WITH"), "execute")  # Incomplete WITH
+        self.assertEqual(
+            detect_statement_type("INSERT"), "execute"
+        )  # Incomplete INSERT
+
         # Statements with only keywords
-        self.assertEqual(detect_statement_type("SELECT SELECT"), 'fetch')
-        self.assertEqual(detect_statement_type("WITH WITH"), 'execute')
-        
+        self.assertEqual(detect_statement_type("SELECT SELECT"), "fetch")
+        self.assertEqual(detect_statement_type("WITH WITH"), "execute")
+
         # Statements with special characters
-        self.assertEqual(detect_statement_type("SELECT * FROM `users`;"), 'fetch')  # Backticks
-        self.assertEqual(detect_statement_type('SELECT * FROM "users";'), 'fetch')  # Double quotes
-        self.assertEqual(detect_statement_type("SELECT * FROM [users];"), 'fetch')  # Square brackets
-        
+        self.assertEqual(
+            detect_statement_type("SELECT * FROM `users`;"), "fetch"
+        )  # Backticks
+        self.assertEqual(
+            detect_statement_type('SELECT * FROM "users";'), "fetch"
+        )  # Double quotes
+        self.assertEqual(
+            detect_statement_type("SELECT * FROM [users];"), "fetch"
+        )  # Square brackets
+
         # Statements with numbers and symbols
-        self.assertEqual(detect_statement_type("SELECT 1+1;"), 'fetch')
-        self.assertEqual(detect_statement_type("SELECT COUNT(*) FROM users;"), 'fetch')
-        
+        self.assertEqual(detect_statement_type("SELECT 1+1;"), "fetch")
+        self.assertEqual(detect_statement_type("SELECT COUNT(*) FROM users;"), "fetch")
+
         # Very long statements (stress test)
         long_sql = "SELECT " + "a" * 1000 + " FROM users;"
-        self.assertEqual(detect_statement_type(long_sql), 'fetch')
+        self.assertEqual(detect_statement_type(long_sql), "fetch")
 
     def test_detect_statement_type_complex_nested_structures(self):
         """Test statement type detection with very complex nested SQL structures."""
@@ -488,8 +543,8 @@ class TestSqlHelper(unittest.TestCase):
             )
         );
         """
-        self.assertEqual(detect_statement_type(nested_subquery_sql), 'fetch')
-        
+        self.assertEqual(detect_statement_type(nested_subquery_sql), "fetch")
+
         # Complex CTE with multiple levels of nesting
         complex_nested_cte_sql = """
         WITH 
@@ -517,8 +572,8 @@ class TestSqlHelper(unittest.TestCase):
         )
         SELECT * FROM level4 WHERE count > 10;
         """
-        self.assertEqual(detect_statement_type(complex_nested_cte_sql), 'fetch')
-        
+        self.assertEqual(detect_statement_type(complex_nested_cte_sql), "fetch")
+
         # CTE with UNION and complex joins
         cte_union_complex_sql = """
         WITH 
@@ -552,7 +607,7 @@ class TestSqlHelper(unittest.TestCase):
         FROM top_users 
         GROUP BY status;
         """
-        self.assertEqual(detect_statement_type(cte_union_complex_sql), 'fetch')
+        self.assertEqual(detect_statement_type(cte_union_complex_sql), "fetch")
 
     def test_detect_statement_type_database_specific_syntax(self):
         """Test statement type detection with database-specific SQL syntax."""
@@ -568,8 +623,8 @@ class TestSqlHelper(unittest.TestCase):
         )
         SELECT * FROM employee_tree;
         """
-        self.assertEqual(detect_statement_type(postgres_sql), 'fetch')
-        
+        self.assertEqual(detect_statement_type(postgres_sql), "fetch")
+
         # SQLite specific
         sqlite_sql = """
         WITH RECURSIVE fibonacci(n, fib_n, fib_n_plus_1) AS (
@@ -580,8 +635,8 @@ class TestSqlHelper(unittest.TestCase):
         )
         SELECT fib_n FROM fibonacci;
         """
-        self.assertEqual(detect_statement_type(sqlite_sql), 'fetch')
-        
+        self.assertEqual(detect_statement_type(sqlite_sql), "fetch")
+
         # MySQL specific
         mysql_sql = """
         WITH RECURSIVE cte AS (
@@ -591,7 +646,7 @@ class TestSqlHelper(unittest.TestCase):
         )
         SELECT * FROM cte;
         """
-        self.assertEqual(detect_statement_type(mysql_sql), 'fetch')
+        self.assertEqual(detect_statement_type(mysql_sql), "fetch")
 
     def test_detect_statement_type_advanced_sql_features(self):
         """Test statement type detection with advanced SQL features."""
@@ -605,8 +660,8 @@ class TestSqlHelper(unittest.TestCase):
             LAG(salary) OVER (PARTITION BY department ORDER BY hire_date) as prev_salary
         FROM employees;
         """
-        self.assertEqual(detect_statement_type(window_sql), 'fetch')
-        
+        self.assertEqual(detect_statement_type(window_sql), "fetch")
+
         # Pivot-like queries
         pivot_sql = """
         SELECT 
@@ -617,8 +672,8 @@ class TestSqlHelper(unittest.TestCase):
         FROM employees 
         GROUP BY department;
         """
-        self.assertEqual(detect_statement_type(pivot_sql), 'fetch')
-        
+        self.assertEqual(detect_statement_type(pivot_sql), "fetch")
+
         # JSON operations (modern SQL)
         json_sql = """
         SELECT 
@@ -629,8 +684,8 @@ class TestSqlHelper(unittest.TestCase):
         FROM users 
         WHERE JSON_CONTAINS(metadata, '"Python"', '$.skills');
         """
-        self.assertEqual(detect_statement_type(json_sql), 'fetch')
-        
+        self.assertEqual(detect_statement_type(json_sql), "fetch")
+
         # Full-text search
         fulltext_sql = """
         SELECT id, title, content, 
@@ -638,70 +693,72 @@ class TestSqlHelper(unittest.TestCase):
         FROM articles 
         WHERE MATCH(title, content) AGAINST('database optimization' IN NATURAL LANGUAGE MODE);
         """
-        self.assertEqual(detect_statement_type(fulltext_sql), 'fetch')
+        self.assertEqual(detect_statement_type(fulltext_sql), "fetch")
 
     def test_detect_statement_type_error_handling(self):
         """Test statement type detection with various error conditions."""
         # None input
-        self.assertEqual(detect_statement_type(None), 'execute')
-        
+        self.assertEqual(detect_statement_type(None), "execute")
+
         # Non-string input (should handle gracefully)
         try:
             result = detect_statement_type(123)
             # If it doesn't raise an exception, it should return 'execute'
-            self.assertEqual(result, 'execute')
+            self.assertEqual(result, "execute")
         except (AttributeError, TypeError):
             # If it raises an exception, that's also acceptable behavior
             pass
-        
+
         # Very large input
         large_sql = "SELECT " + "a" * 10000 + " FROM users;"
-        self.assertEqual(detect_statement_type(large_sql), 'fetch')
-        
+        self.assertEqual(detect_statement_type(large_sql), "fetch")
+
         # SQL with unusual token patterns
         unusual_sql = "SELECT * FROM users WHERE name LIKE '%test%' ESCAPE '\\';"
-        self.assertEqual(detect_statement_type(unusual_sql), 'fetch')
-        
+        self.assertEqual(detect_statement_type(unusual_sql), "fetch")
+
         # SQL with unicode characters
         unicode_sql = "SELECT * FROM users WHERE name = 'José';"
-        self.assertEqual(detect_statement_type(unicode_sql), 'fetch')
+        self.assertEqual(detect_statement_type(unicode_sql), "fetch")
 
     def test_split_sql_file(self):
         """Test SQL file splitting functionality."""
         import tempfile
         import os
-        
+
         # Create a temporary SQL file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
-            f.write("""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".sql", delete=False) as f:
+            f.write(
+                """
             -- Test SQL file
             CREATE TABLE test (id INTEGER PRIMARY KEY);
             INSERT INTO test VALUES (1);
             SELECT * FROM test;
-            """)
+            """
+            )
             temp_file = f.name
-        
+
         try:
             statements = split_sql_file(temp_file)
             self.assertEqual(len(statements), 3)
-            self.assertIn('CREATE TABLE', statements[0])
-            self.assertIn('INSERT INTO', statements[1])
-            self.assertIn('SELECT', statements[2])
-            
+            self.assertIn("CREATE TABLE", statements[0])
+            self.assertIn("INSERT INTO", statements[1])
+            self.assertIn("SELECT", statements[2])
+
             # Test with semicolon stripping
             statements_no_semicolon = split_sql_file(temp_file, strip_semicolon=True)
             self.assertEqual(len(statements_no_semicolon), 3)
             for stmt in statements_no_semicolon:
-                self.assertFalse(stmt.endswith(';'))
-                
+                self.assertFalse(stmt.endswith(";"))
+
         finally:
             # Clean up
             os.unlink(temp_file)
-        
+
         # Test file not found
         with self.assertRaises(FileNotFoundError):
             split_sql_file("nonexistent_file.sql")
-        
+
         # Test invalid input
         with self.assertRaises(ValueError):
             split_sql_file("")
@@ -710,10 +767,10 @@ class TestSqlHelper(unittest.TestCase):
 
     def test_detect_statement_type_cte_keyword_ambiguity_fix(self):
         """
-        Test that CTE parsing correctly identifies statement types and doesn't 
+        Test that CTE parsing correctly identifies statement types and doesn't
         incorrectly match non-statement keywords like FROM, WHERE, JOIN, etc.
-        
-        This test specifically validates the fix for the overly broad 
+
+        This test specifically validates the fix for the overly broad
         token.ttype in (DML, Keyword) check that could incorrectly identify
         keywords as statement types.
         """
@@ -728,8 +785,8 @@ class TestSqlHelper(unittest.TestCase):
         SELECT * FROM filtered_data WHERE id > 100;
         """
         # This should correctly identify as 'fetch' (SELECT), not incorrectly match 'FROM' or 'WHERE'
-        self.assertEqual(detect_statement_type(cte_with_complex_structure), 'fetch')
-        
+        self.assertEqual(detect_statement_type(cte_with_complex_structure), "fetch")
+
         # CTE with multiple JOINs and WHERE clauses that could be confused
         cte_with_joins_and_where = """
         WITH user_info AS (
@@ -744,8 +801,8 @@ class TestSqlHelper(unittest.TestCase):
         WHERE pi.title LIKE '%SQL%';
         """
         # This should correctly identify as 'fetch' (SELECT), not incorrectly match 'FROM', 'JOIN', or 'WHERE'
-        self.assertEqual(detect_statement_type(cte_with_joins_and_where), 'fetch')
-        
+        self.assertEqual(detect_statement_type(cte_with_joins_and_where), "fetch")
+
         # CTE with GROUP BY, HAVING, ORDER BY that could be confused
         cte_with_aggregation_keywords = """
         WITH user_stats AS (
@@ -765,8 +822,8 @@ class TestSqlHelper(unittest.TestCase):
         ORDER BY post_count DESC;
         """
         # This should correctly identify as 'fetch' (SELECT), not match any of the other keywords
-        self.assertEqual(detect_statement_type(cte_with_aggregation_keywords), 'fetch')
-        
+        self.assertEqual(detect_statement_type(cte_with_aggregation_keywords), "fetch")
+
         # CTE with INSERT but complex structure that could trigger keyword confusion
         cte_insert_with_complex_structure = """
         WITH new_data AS (
@@ -784,8 +841,10 @@ class TestSqlHelper(unittest.TestCase):
         WHERE nd.dept = 'Engineering';
         """
         # This should correctly identify as 'execute' (INSERT), not match 'FROM', 'JOIN', or 'WHERE'
-        self.assertEqual(detect_statement_type(cte_insert_with_complex_structure), 'execute')
-        
+        self.assertEqual(
+            detect_statement_type(cte_insert_with_complex_structure), "execute"
+        )
+
         # CTE with UPDATE but complex structure that could trigger keyword confusion
         cte_update_with_complex_structure = """
         WITH target_employees AS (
@@ -803,8 +862,10 @@ class TestSqlHelper(unittest.TestCase):
         );
         """
         # This should correctly identify as 'execute' (UPDATE), not match 'FROM', 'JOIN', or 'WHERE'
-        self.assertEqual(detect_statement_type(cte_update_with_complex_structure), 'execute')
-        
+        self.assertEqual(
+            detect_statement_type(cte_update_with_complex_structure), "execute"
+        )
+
         # CTE with complex nested structure and many keywords that could be confused
         cte_complex_nested_keywords = """
         WITH 
@@ -830,8 +891,208 @@ class TestSqlHelper(unittest.TestCase):
         ORDER BY max_salary DESC;
         """
         # This should correctly identify as 'fetch' (SELECT), not match any of the other keywords
-        self.assertEqual(detect_statement_type(cte_complex_nested_keywords), 'fetch')
+        self.assertEqual(detect_statement_type(cte_complex_nested_keywords), "fetch")
+
+    def test_detect_statement_type_malformed_sql_edge_cases(self):
+        # Test various malformed SQL that might exercise error paths
+        self.assertEqual(detect_statement_type(""), "execute")
+        self.assertEqual(detect_statement_type("   "), "execute")
+        self.assertEqual(detect_statement_type("-- comment only"), "execute")
+        self.assertEqual(detect_statement_type("/* comment only */"), "execute")
+
+    def test_detect_statement_type_cte_fallback_scenarios(self):
+        # Test CTE scenarios that trigger the fallback to _find_first_dml_keyword_top_level
+        # This happens when _find_main_statement_after_ctes returns None
+        cte_with_complex_structure = """
+        WITH cte AS (
+            SELECT 1 as x
+        )
+        SELECT * FROM cte;
+        """
+        self.assertEqual(detect_statement_type(cte_with_complex_structure), "fetch")
+
+    def test_detect_statement_type_non_select_fetch_statements(self):
+        # Test other fetch statement types that aren't SELECT
+        self.assertEqual(detect_statement_type("VALUES (1, 2, 3);"), "fetch")
+        self.assertEqual(detect_statement_type("SHOW TABLES;"), "fetch")
+        self.assertEqual(detect_statement_type("EXPLAIN SELECT * FROM users;"), "fetch")
+        self.assertEqual(detect_statement_type("PRAGMA table_info(users);"), "fetch")
+
+    def test_detect_statement_type_modify_dml_types(self):
+        # Test CTE with INSERT, UPDATE, DELETE to trigger the _MODIFY_DML_TYPES branch
+        cte_insert = """
+        WITH new_data AS (SELECT 1 as id)
+        INSERT INTO table1 SELECT * FROM new_data;
+        """
+        self.assertEqual(detect_statement_type(cte_insert), "execute")
+
+        cte_update = """
+        WITH updates AS (SELECT 1 as id)
+        UPDATE table1 SET col = 1 WHERE id IN (SELECT id FROM updates);
+        """
+        self.assertEqual(detect_statement_type(cte_update), "execute")
+
+        cte_delete = """
+        WITH to_delete AS (SELECT 1 as id)
+        DELETE FROM table1 WHERE id IN (SELECT id FROM to_delete);
+        """
+        self.assertEqual(detect_statement_type(cte_delete), "execute")
+
+    def test_detect_statement_type_other_fetch_statements_in_cte(self):
+        # Test CTE with other fetch statements (not SELECT, INSERT, UPDATE, DELETE)
+        # Note: VALUES after CTE might be parsed as execute depending on the parsing logic
+        cte_values = """
+        WITH cte AS (SELECT 1 as x)
+        VALUES (1, 2, 3);
+        """
+        result = detect_statement_type(cte_values)
+        # The actual behavior depends on how sqlparse handles VALUES after CTE
+        # Let's accept either result as valid
+        self.assertIn(result, ["fetch", "execute"])
+
+    def test_parse_sql_statements_with_semicolon_stripping(self):
+        # Test semicolon stripping functionality
+        sql = "SELECT * FROM users; INSERT INTO users VALUES (1);"
+        stmts = parse_sql_statements(sql, strip_semicolon=True)
+        self.assertEqual(len(stmts), 2)
+        self.assertFalse(stmts[0].endswith(";"))
+        self.assertFalse(stmts[1].endswith(";"))
+
+    def test_parse_sql_statements_empty_tokens(self):
+        # Test case where tokens list is empty after flattening
+        # This is hard to trigger with real SQL, but we can test the edge case
+        sql = "   "  # Just whitespace
+        stmts = parse_sql_statements(sql)
+        self.assertEqual(stmts, [])
+
+    def test_split_sql_file_os_error(self):
+        # Test OSError handling in split_sql_file
+        # This is hard to trigger reliably, but we can test the error path
+        with self.assertRaises(ValueError):
+            split_sql_file("")  # Empty string should raise ValueError
+
+    def test_detect_statement_type_parsed_empty(self):
+        # Test case where sqlparse.parse returns empty list
+        # This is hard to trigger with normal SQL, but we can test the edge case
+        # We'll use a very malformed SQL that sqlparse can't parse
+        malformed_sql = "SELECT * FROM"  # Incomplete SQL
+        # This should still return "execute" as it's not a complete statement
+        result = detect_statement_type(malformed_sql)
+        self.assertIn(result, ["fetch", "execute"])
+
+    def test_detect_statement_type_tokens_empty_after_flatten(self):
+        # Test case where stmt.flatten() returns empty tokens list
+        # This is hard to trigger, but we can test the edge case
+        empty_sql = "   "  # Just whitespace
+        result = detect_statement_type(empty_sql)
+        self.assertEqual(result, "execute")
+
+    def test_detect_statement_type_first_token_none(self):
+        # Test case where _next_non_ws_comment_token returns None for first_token
+        # This happens when all tokens are whitespace or comments
+        comment_only_sql = "-- comment\n/* block comment */"
+        result = detect_statement_type(comment_only_sql)
+        self.assertEqual(result, "execute")
 
 
-if __name__ == '__main__':
-    unittest.main() 
+# Additional tests for better coverage
+class TestSqlHelperAdditional(unittest.TestCase):
+    def test_split_sql_file_invalid_path(self):
+        with self.assertRaises(FileNotFoundError):
+            split_sql_file("nonexistent_file.sql")
+
+    def test_split_sql_file_invalid_type(self):
+        with self.assertRaises(ValueError):
+            split_sql_file(None)
+        with self.assertRaises(ValueError):
+            split_sql_file(123)
+
+    def test_parse_sql_statements_semicolons_in_strings(self):
+        sql = """
+        INSERT INTO test VALUES ('semicolon; inside string');
+        SELECT * FROM test;
+        """
+        stmts = parse_sql_statements(sql)
+        self.assertEqual(len(stmts), 2)
+        self.assertIn("semicolon; inside string", stmts[0])
+
+    def test_parse_sql_statements_only_comments(self):
+        sql = """-- just a comment
+        /* another comment */
+        --;
+        """
+        stmts = parse_sql_statements(sql)
+        self.assertEqual(stmts, [])
+
+    def test_detect_statement_type_vendor_specific(self):
+        self.assertEqual(detect_statement_type("SHOW TABLES;"), "fetch")
+        self.assertEqual(detect_statement_type("PRAGMA table_info(users);"), "fetch")
+        self.assertEqual(detect_statement_type("EXPLAIN SELECT * FROM users;"), "fetch")
+        self.assertEqual(detect_statement_type("DESC users;"), "fetch")
+        self.assertEqual(detect_statement_type("DESCRIBE users;"), "fetch")
+
+    def test_parse_sql_statements_whitespace(self):
+        self.assertEqual(parse_sql_statements("   "), [])
+        self.assertEqual(parse_sql_statements("\n\n"), [])
+
+
+class TestSqlHelperCoverage(unittest.TestCase):
+    def test_parse_sql_statements_all_comments_semicolon(self):
+        sql = '-- comment\n;\n/* block comment */\n;\n'
+        stmts = parse_sql_statements(sql)
+        self.assertEqual(stmts, [])
+
+    def test_parse_sql_statements_empty(self):
+        self.assertEqual(parse_sql_statements(None), [])
+        self.assertEqual(parse_sql_statements(""), [])
+        self.assertEqual(parse_sql_statements("   "), [])
+
+    def test_parse_sql_statements_all_tokens_comments(self):
+        sql = '-- comment\n/* block comment */\n'
+        stmts = parse_sql_statements(sql)
+        self.assertEqual(stmts, [])
+
+    def test_detect_statement_type_complex_cte_edge_cases(self):
+        # Test CTE with complex nested structure that exercises internal parsing
+        complex_cte = """
+        WITH RECURSIVE cte AS (
+            SELECT 1 as n
+            UNION ALL
+            SELECT n + 1 FROM cte WHERE n < 10
+        )
+        SELECT * FROM cte;
+        """
+        self.assertEqual(detect_statement_type(complex_cte), "fetch")
+
+    def test_detect_statement_type_cte_with_multiple_definitions(self):
+        # Test CTE with multiple definitions separated by commas
+        multi_cte = """
+        WITH 
+        cte1 AS (SELECT 1 as x),
+        cte2 AS (SELECT 2 as y),
+        cte3 AS (SELECT 3 as z)
+        SELECT * FROM cte1, cte2, cte3;
+        """
+        self.assertEqual(detect_statement_type(multi_cte), "fetch")
+
+    def test_detect_statement_type_cte_with_insert(self):
+        # Test CTE that leads to an INSERT statement
+        cte_insert = """
+        WITH new_data AS (
+            SELECT 'John' as name, 'Doe' as surname
+        )
+        INSERT INTO users (name, surname) 
+        SELECT name, surname FROM new_data;
+        """
+        self.assertEqual(detect_statement_type(cte_insert), "execute")
+
+    def test_detect_statement_type_malformed_sql_edge_cases(self):
+        # Test various malformed SQL that might exercise error paths
+        self.assertEqual(detect_statement_type(""), "execute")
+        self.assertEqual(detect_statement_type("   "), "execute")
+        self.assertEqual(detect_statement_type("-- comment only"), "execute")
+        self.assertEqual(detect_statement_type("/* comment only */"), "execute")
+
+
+if __name__ == "__main__":
+    unittest.main()

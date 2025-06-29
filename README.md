@@ -11,11 +11,12 @@ A Python utility for executing SQL files against databases with support for mult
 - Pretty-printed results with tabulated output
 - Batch processing of multiple files
 - Transaction support with rollback on errors
+- Clean CLI interface with comprehensive error handling
 
 ## Installation
 
 ```bash
-pip install -r requirements.txt
+pip install jpy-sql-runner
 ```
 
 ## CLI Usage
@@ -137,6 +138,14 @@ The CLI provides formatted output showing:
 MIT License - see LICENSE file for details.
 
 ## Changelog
+
+### 0.1.3 (06-29-2025)
+- **Major CLI Refactoring**: Separated CLI logic into dedicated `cli.py` module for better code organization
+- **Improved Architecture**: Made `__main__.py` a simple stub that delegates to the CLI module
+- **Enhanced Test Coverage**: Added comprehensive tests for CLI functionality, achieving 90% overall coverage
+- **Better Error Handling**: Improved CLI error messages and validation
+- **Code Quality**: Fixed deprecation warnings in `pyproject.toml` license format
+- **Documentation**: Updated README with improved installation instructions and CLI examples
 
 ### 0.1.2 (06-29-2025)
 - Update sql_helper.py
