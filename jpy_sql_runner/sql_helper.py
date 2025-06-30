@@ -45,7 +45,7 @@ FETCH_STATEMENT = "fetch"
 ERROR_STATEMENT = "error"
 
 
-def remove_sql_comments(sql_text: str) -> str:
+def remove_sql_comments(sql_text: Optional[str]) -> str:
     """
     Remove SQL comments from a SQL string using sqlparse.
     Handles:
