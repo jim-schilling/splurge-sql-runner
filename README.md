@@ -140,6 +140,10 @@ MIT License - see LICENSE file for details.
 ## Changelog
 
 ### 0.1.4 (06-30-2025)
+- **Improved CTE and Statement Type Detection**: Enhanced logic for parsing and detecting main SQL statement types after complex CTEs, including better handling of nested, multi-CTE, and ambiguous keyword scenarios.
+- **Expanded SQL Parsing Robustness**: Improved handling of edge cases, malformed SQL, and advanced SQL features (e.g., window functions, JSON, vendor-specific statements like PRAGMA, SHOW, EXPLAIN, DESC/DESCRIBE).
+- **Comprehensive Test Coverage**: Added and expanded tests for CTE ambiguity, complex/nested SQL, vendor-specific syntax, error handling, and edge cases, ensuring robust detection and parsing across a wide range of SQL inputs.
+- **Documentation**: Updated and clarified docstrings and comments for maintainability and developer clarity.
 
 ### 0.1.3 (06-29-2025)
 - **Major CLI Refactoring**: Separated CLI logic into dedicated `cli.py` module for better code organization
