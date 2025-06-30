@@ -139,6 +139,8 @@ MIT License - see LICENSE file for details.
 
 ## Changelog
 
+### 0.1.4 (06-30-2025)
+
 ### 0.1.3 (06-29-2025)
 - **Major CLI Refactoring**: Separated CLI logic into dedicated `cli.py` module for better code organization
 - **Improved Architecture**: Made `__main__.py` a simple stub that delegates to the CLI module
