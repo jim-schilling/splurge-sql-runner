@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jpy-sql-runner"
-version = "0.1.3"
+version = "0.1.4"
 description = "A Python utility for executing SQL files against databases with support for multiple statements, comments, and pretty-printed results"
 readme = "README.md"
 license = "MIT"
@@ -25,7 +25,6 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Database",
-    "Topic :: Database :: Database Drivers",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Utilities",
     "Environment :: Console",

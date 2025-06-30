@@ -72,7 +72,7 @@ class TestSqlHelper(unittest.TestCase):
 
         # Test empty string
         self.assertEqual(remove_sql_comments(""), "")
-        self.assertEqual(remove_sql_comments(None), None)
+        self.assertEqual(remove_sql_comments(None), "")
 
     def test_parse_sql_statements(self):
         """Test SQL statement parsing functionality."""

@@ -10,10 +10,10 @@ This module is licensed under the MIT License.
 
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
-import sqlparse
-from sqlparse.tokens import Comment, DML
-from sqlparse.sql import Statement, Token
 
+import sqlparse
+from sqlparse.sql import Statement, Token
+from sqlparse.tokens import DML, Comment
 
 # Private constants for SQL statement types
 _FETCH_STATEMENT_TYPES = (
@@ -28,6 +28,7 @@ _FETCH_STATEMENT_TYPES = (
 _DML_STATEMENT_TYPES = ("SELECT", "INSERT", "UPDATE", "DELETE")
 _DESCRIBE_STATEMENT_TYPES = ("DESC", "DESCRIBE")
 _MODIFY_DML_TYPES = ("INSERT", "UPDATE", "DELETE")
+_DDL_STATEMENT_TYPES = ("CREATE", "ALTER", "DROP")
 
 # Private constants for SQL keywords and symbols
 _WITH_KEYWORD = "WITH"
@@ -44,7 +45,7 @@ FETCH_STATEMENT = "fetch"
 ERROR_STATEMENT = "error"
 
 
-def remove_sql_comments(sql_text: str) -> str:
+def remove_sql_comments(sql_text: Optional[str]) -> str:
     """
     Remove SQL comments from a SQL string using sqlparse.
     Handles:
@@ -57,8 +58,8 @@ def remove_sql_comments(sql_text: str) -> str:
         SQL string with comments removed
     """
     if not sql_text:
-        return sql_text
-    return sqlparse.format(sql_text, strip_comments=True)
+        return ""
+    return str(sqlparse.format(sql_text, strip_comments=True))
 
 
 def _is_fetch_statement(statement_type: str) -> bool:
@@ -135,7 +136,7 @@ def _find_first_dml_keyword_top_level(tokens: List[Token]) -> Optional[str]:
         if token.is_group:
             continue  # skip CTE definitions
         if not token.is_whitespace and token.ttype not in Comment:
-            token_value = token.value.strip().upper()
+            token_value = str(token.value).strip().upper()
             if token_value == _AS_KEYWORD:
                 continue
             if _is_dml_statement(token_value) or _is_fetch_statement(token_value):
@@ -172,7 +173,7 @@ def _find_main_statement_after_ctes(tokens: List[Token]) -> Optional[str]:
         if token.is_whitespace or token.ttype in Comment:
             continue
 
-        token_value = token.value.strip().upper()
+        token_value = str(token.value).strip().upper()
 
         # Track parentheses for CTE definition boundaries
         if token.ttype == sqlparse.tokens.Punctuation and token_value == _PAREN_OPEN:
@@ -255,7 +256,7 @@ def _is_with_keyword(token: Token) -> bool:
     Returns:
         True if token is the 'WITH' keyword, False otherwise
     """
-    return hasattr(token, "value") and token.value.strip().upper() == _WITH_KEYWORD
+    return hasattr(token, "value") and str(token.value).strip().upper() == _WITH_KEYWORD
 
 
 def _find_with_keyword_index(tokens: List[Token]) -> Optional[int]:
@@ -338,7 +339,7 @@ def detect_statement_type(sql: str) -> str:
     if first_token is None:
         return EXECUTE_STATEMENT
 
-    token_value = first_token.value.strip().upper()
+    token_value = str(first_token.value).strip().upper()
 
     # DESC/DESCRIBE detection (regardless of token type)
     if token_value in _DESCRIBE_STATEMENT_TYPES:
@@ -354,12 +355,21 @@ def detect_statement_type(sql: str) -> str:
             # Fallback to the simpler approach
             main_stmt = _find_first_dml_keyword_top_level(after_with_tokens)
 
+        # Patch: DDL detection after CTE
+        if main_stmt is not None and main_stmt in _DDL_STATEMENT_TYPES:
+            return EXECUTE_STATEMENT
         if main_stmt == _SELECT_KEYWORD:
             return FETCH_STATEMENT
         elif main_stmt in _MODIFY_DML_TYPES:
             return EXECUTE_STATEMENT
-        elif _is_fetch_statement(main_stmt):
+        elif main_stmt is not None and _is_fetch_statement(main_stmt):
             return FETCH_STATEMENT
+        # If no main statement found after CTE, but there are more statements, check the next statement
+        if main_stmt is None and len(parsed) > 1:
+            # Recursively check the next parsed statement
+            next_stmt_str = str(parsed[1]).strip()
+            if next_stmt_str:
+                return detect_statement_type(next_stmt_str)
         return EXECUTE_STATEMENT
 
     # SELECT
@@ -459,43 +469,3 @@ def split_sql_file(
         raise FileNotFoundError(f"SQL file not found: {file_path}")
     except OSError as e:
         raise OSError(f"Error reading SQL file {file_path}: {e}") from e
-
-
-# Usage examples
-if __name__ == "__main__":
-    # Example 1: Remove comments
-    sql_with_comments = """
-    CREATE TABLE users (
-        id INTEGER PRIMARY KEY, -- user id
-        name TEXT NOT NULL,     /* user name */
-        email TEXT              -- user email
-    );
-    """
-
-    clean_sql = remove_sql_comments(sql_with_comments)
-    print("Clean SQL:")
-    print(clean_sql)
-    print()
-
-    # Example 2: Parse multiple statements (preserve semicolons by default)
-    multi_sql = """
-    CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT);
-    INSERT INTO users VALUES (1, 'John');
-    INSERT INTO users VALUES (2, 'Jane');
-    SELECT * FROM users;
-    """
-
-    statements = parse_sql_statements(multi_sql)
-    print("Individual statements (semicolons preserved):")
-    for i, stmt in enumerate(statements, 1):
-        print(f"{i}. {stmt}")
-    print()
-
-    # Example 3: Parse multiple statements (strip semicolons)
-    statements_without_semicolons = parse_sql_statements(
-        multi_sql, strip_semicolon=True
-    )
-    print("Individual statements (semicolons stripped):")
-    for i, stmt in enumerate(statements_without_semicolons, 1):
-        print(f"{i}. {stmt}")
-    print()
