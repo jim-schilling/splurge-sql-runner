@@ -209,18 +209,3 @@ class TestLoggerFunctions:
                     password_filters.append(filter_obj)
         
         assert len(password_filters) > 0
-    
-    def test_setup_logging_with_password_filter(self, tmp_path: Path) -> None:
-        """Test setup_logging includes password filter by default."""
-        log_file = tmp_path / "filter_test.log"
-        logger = setup_logging(log_file=str(log_file), enable_console=False)
-        
-        # Check that password filter is applied
-        from splurge_sql_runner.logging.filters import PasswordFilter
-        password_filters = []
-        for handler in logger.handlers:
-            for filter_obj in handler.filters:
-                if isinstance(filter_obj, PasswordFilter):
-                    password_filters.append(filter_obj)
-        
-        assert len(password_filters) > 0

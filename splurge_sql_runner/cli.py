@@ -5,8 +5,9 @@ import sys
 from pathlib import Path
 from typing import List, Dict, Any
 
-from splurge_sql_runner.db_helper import (
-    DbEngine,
+from splurge_sql_runner.database.engines import UnifiedDatabaseEngine
+from splurge_sql_runner.config.database_config import DatabaseConfig
+from splurge_sql_runner.errors.database_errors import (
     DatabaseConnectionError,
     DatabaseBatchError,
     DatabaseEngineError,
@@ -25,6 +26,9 @@ from splurge_sql_runner.errors import (
 )
 from splurge_sql_runner.security import SecurityValidator
 from splurge_sql_runner.logging import configure_module_logging
+from splurge_sql_runner.config import ConfigManager
+from splurge_sql_runner.config.security_config import SecurityConfig
+from splurge_sql_runner.config.constants import DEFAULT_MAX_FILE_SIZE_MB, DEFAULT_MAX_STATEMENTS_PER_FILE
 from tabulate import tabulate
 
 
@@ -100,7 +104,7 @@ def pretty_print_results(results: List[Dict[str, Any]], file_path: str | None = 
     Pretty print the results of SQL execution.
 
     Args:
-        results: List of result dictionaries from DbEngine.batch()
+        results: List of result dictionaries from UnifiedDatabaseEngine.batch()
         file_path: Optional file path for context
     """
     if file_path:
@@ -132,13 +136,12 @@ def pretty_print_results(results: List[Dict[str, Any]], file_path: str | None = 
 
 
 def process_sql_file(
-    db_engine: DbEngine,
+    db_engine: UnifiedDatabaseEngine,
     file_path: str,
+    security_config: SecurityConfig,
     *,
     verbose: bool = False,
     disable_security: bool = False,
-    max_file_size: int = 10,
-    max_statements: int = 100,
 ) -> bool:
     """
     Process a single SQL file and execute its statements.
@@ -146,10 +149,9 @@ def process_sql_file(
     Args:
         db_engine: Database engine instance
         file_path: Path to SQL file
+        security_config: Security configuration
         verbose: Whether to print verbose output
         disable_security: Whether to disable security validation
-        max_file_size: Maximum file size in MB
-        max_statements: Maximum statements per file
 
     Returns:
         True if successful, False otherwise
@@ -162,7 +164,7 @@ def process_sql_file(
         if not disable_security:
             logger.debug("Performing file path security validation")
             try:
-                SecurityValidator.validate_file_path(file_path)
+                SecurityValidator.validate_file_path(file_path, security_config)
                 logger.debug("File path security validation passed")
             except ValueError as e:
                 logger.error(f"File path security validation failed: {e}")
@@ -194,7 +196,7 @@ def process_sql_file(
         if not disable_security:
             logger.debug("Performing SQL content security validation")
             try:
-                SecurityValidator.validate_sql_content(sql_content)
+                SecurityValidator.validate_sql_content(sql_content, security_config)
                 logger.debug("SQL content security validation passed")
             except ValueError as e:
                 logger.error(f"SQL content security validation failed: {e}")
@@ -284,9 +286,9 @@ Examples:
         help="Disable security validation (not recommended)",
     )
 
-    parser.add_argument("--max-file-size", type=int, default=10, help="Maximum file size in MB (default: 10)")
+    parser.add_argument("--max-file-size", type=int, default=DEFAULT_MAX_FILE_SIZE_MB, help=f"Maximum file size in MB (default: {DEFAULT_MAX_FILE_SIZE_MB})")
 
-    parser.add_argument("--max-statements", type=int, default=100, help="Maximum statements per file (default: 100)")
+    parser.add_argument("--max-statements", type=int, default=DEFAULT_MAX_STATEMENTS_PER_FILE, help=f"Maximum statements per file (default: {DEFAULT_MAX_STATEMENTS_PER_FILE})")
 
     args = parser.parse_args()
 
@@ -304,11 +306,20 @@ Examples:
         parser.error("Cannot specify both -f/--file and -p/--pattern")
 
     try:
+        # Load configuration
+        config_manager = ConfigManager()
+        cli_config = {
+            "database_url": args.connection,
+            "max_file_size": args.max_file_size,
+            "max_statements_per_file": args.max_statements,
+        }
+        config = config_manager.load_config(cli_config)
+        
         # Security validation (unless disabled)
         if not args.disable_security:
             logger.info("Performing security validation")
             try:
-                SecurityValidator.validate_database_url(args.connection)
+                SecurityValidator.validate_database_url(args.connection, config.security)
                 logger.debug("Security validation passed")
             except ValueError as e:
                 logger.error(f"Security validation failed: {e}")
@@ -322,7 +333,12 @@ Examples:
         if args.verbose:
             print(f"Connecting to database: {args.connection}")
 
-        db_engine = DbEngine(args.connection, debug=args.debug)
+        # Create database configuration from URL
+        db_config = DatabaseConfig(
+            url=args.connection,
+            enable_debug=args.debug
+        )
+        db_engine = UnifiedDatabaseEngine(db_config)
         logger.info("Database engine initialized successfully")
 
         # Determine files to process
@@ -355,15 +371,12 @@ Examples:
             # Prepare arguments for process_sql_file
             verbose = args.verbose
             disable_security = args.disable_security
-            max_file_size = args.max_file_size
-            max_statements = args.max_statements
             success = process_sql_file(
                 db_engine,
                 file_path,
+                config.security,
                 verbose=verbose,
                 disable_security=disable_security,
-                max_file_size=max_file_size,
-                max_statements=max_statements,
             )
             if success:
                 success_count += 1
@@ -404,8 +417,8 @@ Examples:
     finally:
         # Clean up
         if "db_engine" in locals():
-            logger.info("Shutting down database engine")
-            db_engine.shutdown()
+            logger.info("Closing database engine")
+            db_engine.close()
         logger.info("splurge-sql-runner CLI completed")
 
 

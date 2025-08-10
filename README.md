@@ -89,27 +89,27 @@ python -m splurge_sql_runner -c "sqlite:///database.db" -f "script.sql" --disabl
 ### Basic Usage
 
 ```python
-from splurge_sql_runner.db_helper import DbEngine
-from splurge_sql_runner.sql_helper import split_sql_file
+from splurge_sql_runner.database.engines import UnifiedDatabaseEngine
+from splurge_sql_runner.config.security_config import SecurityConfig
 
-# Initialize database engine
-db = DbEngine("sqlite:///database.db")
+# Initialize the database engine
+engine = UnifiedDatabaseEngine("sqlite:///database.db")
 
-# Execute SQL from file
-sql_statements = split_sql_file("script.sql")
-sql_content = ";\n".join(sql_statements) + ";"
-results = db.batch(sql_content)
+# Create security configuration
+security_config = SecurityConfig(
+    max_file_size_mb=10,
+    max_statements_per_file=100
+)
 
-# Process results
-for result in results:
-    if result['type'] == 'fetch':
-        print(f"Query returned {result['row_count']} rows")
-    elif result['type'] == 'execute':
-        print("Statement executed successfully")
-    elif result['type'] == 'error':
-        print(f"Error: {result['error']}")
+# Execute SQL with security validation
+try:
+    results = engine.execute_file("script.sql", security_config)
+    for result in results:
+        print(f"Statement executed: {result.success}")
+except Exception as e:
+    print(f"Execution failed: {e}")
 
-db.shutdown()
+engine.shutdown()
 ```
 
 ### Advanced Usage with New Architecture
@@ -144,6 +144,8 @@ try:
 except Exception as e:
     print(f"Execution failed: {e}")
 ```
+
+
 
 ## Configuration
 
@@ -251,4 +253,10 @@ mypy splurge_sql_runner/
 
 ### 2025.2.0 (08-10-2025)
 
-# Initial Commit
+- **Breaking Changes**: `DbEngine` class has been removed entirely
+- **New**: `UnifiedDatabaseEngine` is the only database engine for programmatic usage
+- **New**: Centralized configuration constants in `splurge_sql_runner.config.constants`
+- **Improved**: Security validation now uses centralized `SecurityConfig` from `splurge_sql_runner.config.security_config`
+- **Code Quality**: Eliminated code duplication across the codebase
+
+### Initial Commit

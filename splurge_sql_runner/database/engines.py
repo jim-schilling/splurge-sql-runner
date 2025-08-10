@@ -32,6 +32,14 @@ class SqlAlchemyConnection(DatabaseConnection):
         self._connection = connection
         self._logger = configure_module_logging("database.connection")
 
+    def __enter__(self):
+        """Enter context manager."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit context manager."""
+        self.close()
+
     def execute(self, sql: str, parameters: Dict[str, Any] | None = None) -> Any:
         """Execute SQL statement."""
         try:
@@ -210,6 +218,110 @@ class UnifiedDatabaseEngine(DatabaseEngine):
             "dialect": self._engine.dialect.name if self._engine else None,
             "driver": self._engine.dialect.driver if self._engine else None,
         }
+
+    def batch(self, sql_query: str) -> List[Dict[str, Any]]:
+        """
+        Execute multiple SQL statements in a batch.
+
+        Args:
+            sql_query: SQL string containing one or more statements separated by semicolons.
+                      Supports both DDL (CREATE, ALTER, DROP) and DML (INSERT, UPDATE, DELETE)
+                      statements. Comments (-- and /* */) are automatically removed.
+
+        Returns:
+            List of dictionaries containing results for each statement:
+                - 'statement': The actual SQL statement executed
+                - 'statement_type': 'fetch', 'execute', or 'error'
+                - 'result': Query results (for SELECT) or True (for other operations)
+                - 'row_count': Number of rows affected/returned
+                - 'error': Error message (only for failed statements)
+
+        Raises:
+            DatabaseConnectionError: If database connection fails
+        """
+        from splurge_sql_runner.sql_helper import parse_sql_statements, detect_statement_type, FETCH_STATEMENT, EXECUTE_STATEMENT, ERROR_STATEMENT
+
+        self._logger.info(f"Starting batch execution of SQL query (length: {len(sql_query)} characters)")
+        
+        try:
+            with self.create_connection() as conn:
+                self._logger.debug("Database connection established for batch execution")
+                results = self._execute_batch_statements(conn, sql_query)
+                self._logger.info(f"Batch execution completed successfully with {len(results)} result sets")
+                return results
+        except Exception as e:
+            self._logger.error(f"Batch execution failed: {e}")
+            # Check if this is a connection error by looking at the exception type or message
+            if (isinstance(e, DatabaseConnectionError) or 
+                "connection" in str(e).lower() or 
+                "connect" in str(e).lower() or
+                "unable to connect" in str(e).lower() or
+                "connection refused" in str(e).lower() or
+                "timeout" in str(e).lower()):
+                raise DatabaseConnectionError(f"Database connection failed: {str(e)}") from e
+            else:
+                # For other errors, return a single error result instead of raising
+                return [{
+                    "statement": sql_query,
+                    "statement_type": ERROR_STATEMENT,
+                    "error": str(e),
+                }]
+
+    def _execute_batch_statements(self, conn: DatabaseConnection, sql_query: str) -> List[Dict[str, Any]]:
+        """
+        Execute a batch of SQL statements and return results for each.
+        Stops and rolls back on the first error.
+
+        Args:
+            conn: Database connection
+            sql_query: SQL string containing multiple statements
+
+        Returns:
+            List of results for each statement (up to and including the error)
+        """
+        from splurge_sql_runner.sql_helper import parse_sql_statements, detect_statement_type, FETCH_STATEMENT, EXECUTE_STATEMENT, ERROR_STATEMENT
+
+        statements = parse_sql_statements(sql_query)
+        results = []
+        
+        try:
+            for i, stmt in enumerate(statements):
+                # Use sqlparse to determine if statement returns rows
+                stmt_type = detect_statement_type(stmt)
+
+                if stmt_type == FETCH_STATEMENT:
+                    # Execute as fetch operation
+                    rows = conn.fetch_all(stmt)
+                    results.append(
+                        {
+                            "statement": stmt,
+                            "statement_type": FETCH_STATEMENT,
+                            "result": rows,
+                            "row_count": len(rows),
+                        }
+                    )
+                else:
+                    # Execute as non-SELECT operation
+                    result = conn.execute(stmt)
+                    results.append(
+                        {
+                            "statement": stmt,
+                            "statement_type": EXECUTE_STATEMENT,
+                            "result": True,
+                            "row_count": None,
+                        }
+                    )
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            results.append(
+                {
+                    "statement": stmt,
+                    "statement_type": ERROR_STATEMENT,
+                    "error": str(e),
+                }
+            )
+        return results
 
     def close(self) -> None:
         """Close the database engine."""

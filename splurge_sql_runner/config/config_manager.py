@@ -17,6 +17,12 @@ from dataclasses import dataclass, field
 
 from splurge_sql_runner.config.database_config import DatabaseConfig, ConnectionConfig, PoolConfig
 from splurge_sql_runner.config.security_config import SecurityConfig
+from splurge_sql_runner.config.constants import (
+    DEFAULT_MAX_FILE_SIZE_MB,
+    DEFAULT_MAX_STATEMENTS_PER_FILE,
+    DEFAULT_ENABLE_VERBOSE_OUTPUT,
+    DEFAULT_ENABLE_DEBUG_MODE,
+)
 from splurge_sql_runner.errors import (
     ConfigurationError,
     ConfigValidationError,
@@ -34,10 +40,10 @@ class AppConfig:
     logging: LoggingConfig
 
     # Application-specific settings
-    max_file_size_mb: int = 10
-    max_statements_per_file: int = 100
-    enable_verbose_output: bool = False
-    enable_debug_mode: bool = False
+    max_file_size_mb: int = DEFAULT_MAX_FILE_SIZE_MB
+    max_statements_per_file: int = DEFAULT_MAX_STATEMENTS_PER_FILE
+    enable_verbose_output: bool = DEFAULT_ENABLE_VERBOSE_OUTPUT
+    enable_debug_mode: bool = DEFAULT_ENABLE_DEBUG_MODE
 
 
 class ConfigManager:

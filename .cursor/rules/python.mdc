@@ -47,3 +47,4 @@ alwaysApply: true
 - Class level private methods shall prefer parameterization versus reliance on instance or class objects.
 - Prefer | instead of Optional or Union.
 - Prefer simple, straightforward design approach instead of over-engineered design.
+- Review codebase and tests for duplicate classes, methods, etc.

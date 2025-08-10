@@ -217,9 +217,15 @@ ORDER BY post_count DESC;
         print(f"{'='*60}")
         
         # Create multiple SQL files
-        file1_sql = "SELECT 'File 1 executed' as result;"
-        file2_sql = "SELECT 'File 2 executed' as result;"
-        file3_sql = "SELECT 'File 3 executed' as result;"
+        file1_sql = """
+SELECT 'File 1 executed' as result;
+"""
+        file2_sql = """
+SELECT 'File 2 executed' as result;
+"""
+        file3_sql = """
+SELECT 'File 3 executed' as result;
+"""
         
         temp_dir = tempfile.mkdtemp()
         file1_path = os.path.join(temp_dir, "file1.sql")

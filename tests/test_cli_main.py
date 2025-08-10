@@ -23,8 +23,10 @@ from splurge_sql_runner.cli import (
     process_sql_file,
     main,
 )
-from splurge_sql_runner.db_helper import DbEngine
+from splurge_sql_runner.database.engines import UnifiedDatabaseEngine
+from splurge_sql_runner.config.database_config import DatabaseConfig
 from splurge_sql_runner.errors import DatabaseEngineError
+from splurge_sql_runner.config.security_config import SecurityConfig
 
 
 class TestSimpleTableFormat(unittest.TestCase):
@@ -180,6 +182,7 @@ class TestProcessSqlFile(unittest.TestCase):
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
         self.test_file = os.path.join(self.temp_dir, "test.sql")
+        self.security_config = SecurityConfig()
         
         # Create a test SQL file
         with open(self.test_file, "w") as f:
@@ -195,15 +198,16 @@ class TestProcessSqlFile(unittest.TestCase):
     def test_process_sql_file_with_real_database(self):
         """Test processing a real SQL file with actual SQLite database."""
         # Create a real SQLite database engine
-        db_engine = DbEngine("sqlite:///:memory:")
+        db_config = DatabaseConfig(url="sqlite:///:memory:")
+        db_engine = UnifiedDatabaseEngine(db_config)
         
         # Test with real file and real database
-        result = process_sql_file(db_engine, self.test_file, verbose=True)
+        result = process_sql_file(db_engine, self.test_file, self.security_config, verbose=True)
         
         self.assertTrue(result)
         
         # Clean up
-        db_engine.shutdown()
+        db_engine.close()
 
     def test_process_sql_file_no_statements(self):
         """Test processing file with no SQL statements."""
@@ -212,14 +216,15 @@ class TestProcessSqlFile(unittest.TestCase):
         with open(empty_file, "w") as f:
             f.write("-- This is a comment\n\n")
         
-        db_engine = DbEngine("sqlite:///:memory:")
+        db_config = DatabaseConfig(url="sqlite:///:memory:")
+        db_engine = UnifiedDatabaseEngine(db_config)
         
-        result = process_sql_file(db_engine, empty_file)
+        result = process_sql_file(db_engine, empty_file, self.security_config)
         
         self.assertTrue(result)
         
         # Clean up
-        db_engine.shutdown()
+        db_engine.close()
 
     def test_process_sql_file_with_invalid_sql(self):
         """Test processing file with invalid SQL."""
@@ -228,11 +233,12 @@ class TestProcessSqlFile(unittest.TestCase):
         with open(invalid_file, "w") as f:
             f.write("SELECT * FROM nonexistent_table WHERE invalid_column = 'test';\n")
         
-        db_engine = DbEngine("sqlite:///:memory:")
+        db_config = DatabaseConfig(url="sqlite:///:memory:")
+        db_engine = UnifiedDatabaseEngine(db_config)
         
         # Capture output to check for error messages
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
-            result = process_sql_file(db_engine, invalid_file)
+            result = process_sql_file(db_engine, invalid_file, self.security_config)
             output = mock_stdout.getvalue()
         
         # Should return True (batch completed) but contain error information
@@ -240,19 +246,20 @@ class TestProcessSqlFile(unittest.TestCase):
         self.assertIn("nonexistent_table", output)
         
         # Clean up
-        db_engine.shutdown()
+        db_engine.close()
 
     def test_process_sql_file_with_security_validation(self):
         """Test processing file with security validation enabled."""
-        db_engine = DbEngine("sqlite:///:memory:")
+        db_config = DatabaseConfig(url="sqlite:///:memory:")
+        db_engine = UnifiedDatabaseEngine(db_config)
         
         # Test with security validation (default)
-        result = process_sql_file(db_engine, self.test_file, disable_security=False)
+        result = process_sql_file(db_engine, self.test_file, self.security_config, disable_security=False)
         
         self.assertTrue(result)
         
         # Clean up
-        db_engine.shutdown()
+        db_engine.close()
 
     def test_process_sql_file_with_large_file(self):
         """Test processing file with size limits."""
@@ -262,15 +269,16 @@ class TestProcessSqlFile(unittest.TestCase):
             for i in range(200):  # More than default max_statements
                 f.write(f"SELECT {i};\n")
         
-        db_engine = DbEngine("sqlite:///:memory:")
+        db_config = DatabaseConfig(url="sqlite:///:memory:")
+        db_engine = UnifiedDatabaseEngine(db_config)
         
         # Should fail due to too many statements
-        result = process_sql_file(db_engine, large_file, max_statements=100)
+        result = process_sql_file(db_engine, large_file, self.security_config)
         
         self.assertFalse(result)
         
         # Clean up
-        db_engine.shutdown()
+        db_engine.close()
 
 
 class TestCLIMain(unittest.TestCase):
@@ -280,6 +288,7 @@ class TestCLIMain(unittest.TestCase):
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
         self.test_file = os.path.join(self.temp_dir, "test.sql")
+        self.security_config = SecurityConfig()
         
         # Create a test SQL file
         with open(self.test_file, "w") as f:
@@ -390,7 +399,7 @@ class TestCLIMain(unittest.TestCase):
     def test_main_database_error(self):
         """Test main function with database connection error."""
         # Use an invalid database URL that will cause a connection error
-        with patch("sys.argv", ["cli.py", "-c", "postgresql://invalid:5432/nonexistent", "-f", self.test_file]):
+        with patch("sys.argv", ["cli.py", "-c", "sqlite:///nonexistent/path/database.db", "-f", self.test_file]):
             with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
                 with self.assertRaises(SystemExit):
                     main()

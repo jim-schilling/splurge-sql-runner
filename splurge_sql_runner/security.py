@@ -1,8 +1,7 @@
 """
-Security configuration and validation for splurge-sql-runner.
+Security validation utilities for splurge-sql-runner.
 
-Provides centralized security settings, validation functions, and security-related
-utilities to protect against common security vulnerabilities.
+Provides security validation functions and utilities to protect against common security vulnerabilities.
 
 Copyright (c) 2025, Jim Schilling
 
@@ -14,82 +13,20 @@ from pathlib import Path
 from typing import Tuple
 from urllib.parse import urlparse
 
-
-class SecurityConfig:
-    """Security configuration settings."""
-
-    # Dangerous path patterns that should be blocked
-    DANGEROUS_PATH_PATTERNS: Tuple[str, ...] = (
-        "..",
-        "~",
-        "/etc",
-        "/var",
-        "/usr",
-        "/bin",
-        "/sbin",
-        "/dev",
-        "\\windows\\system32",
-        "\\windows\\syswow64",
-        "\\program files",
-        "\\program files (x86)",
-    )
-
-    # Maximum file size in MB
-    MAX_FILE_SIZE_MB: int = 10
-
-    # Dangerous SQL patterns that should be blocked
-    DANGEROUS_SQL_PATTERNS: Tuple[str, ...] = (
-        "DROP DATABASE",
-        "TRUNCATE DATABASE",
-        "DELETE FROM INFORMATION_SCHEMA",
-        "DELETE FROM SYS.",
-        "EXEC ",
-        "EXECUTE ",
-        "XP_",
-        "SP_",
-        "OPENROWSET",
-        "OPENDATASOURCE",
-        "BACKUP DATABASE",
-        "RESTORE DATABASE",
-        "SHUTDOWN",
-        "KILL",
-        "RECONFIGURE",
-    )
-
-    # Dangerous URL patterns
-    DANGEROUS_URL_PATTERNS: Tuple[str, ...] = (
-        "--",
-        "/*",
-        "*/",
-        "xp_",
-        "sp_",
-        "exec",
-        "execute",
-        "script:",
-        "javascript:",
-        "data:",
-    )
-
-    # Allowed file extensions
-    ALLOWED_FILE_EXTENSIONS: Tuple[str, ...] = (".sql",)
-
-    # Maximum number of statements per file
-    MAX_STATEMENTS_PER_FILE: int = 100
-
-    # Maximum statement length
-    MAX_STATEMENT_LENGTH: int = 10000
+from splurge_sql_runner.config.security_config import SecurityConfig
 
 
 class SecurityValidator:
     """Security validation utilities."""
 
     @staticmethod
-    def validate_file_path(file_path: str) -> None:
+    def validate_file_path(file_path: str, config: SecurityConfig) -> None:
         """
         Validate file path for security concerns.
 
         Args:
             file_path: Path to validate
+            config: Security configuration
 
         Raises:
             ValueError: If path contains dangerous patterns
@@ -98,36 +35,27 @@ class SecurityValidator:
             raise ValueError("File path cannot be empty")
 
         # Check for dangerous path patterns in the original path
-        path_lower = file_path.lower()
-        for pattern in SecurityConfig.DANGEROUS_PATH_PATTERNS:
-            if pattern.lower() in path_lower:
-                raise ValueError(f"File path contains potentially dangerous pattern: {pattern}")
+        file_path_lower = file_path.lower()
+        for pattern in config.validation.dangerous_path_patterns:
+            if pattern.lower() in file_path_lower:
+                raise ValueError(f"File path contains dangerous pattern: {pattern}")
 
         # Check file extension
-        if not any(path_lower.endswith(ext) for ext in SecurityConfig.ALLOWED_FILE_EXTENSIONS):
-            raise ValueError(f"Only {', '.join(SecurityConfig.ALLOWED_FILE_EXTENSIONS)} files are allowed")
+        if not config.is_file_extension_allowed(file_path):
+            raise ValueError(f"File extension not allowed: {Path(file_path).suffix}")
 
-        # Check file size if file exists
-        try:
-            normalized_path = Path(file_path).resolve()
-            if normalized_path.exists():
-                file_size_mb = normalized_path.stat().st_size / (1024 * 1024)
-                if file_size_mb > SecurityConfig.MAX_FILE_SIZE_MB:
-                    raise ValueError(
-                        f"File size ({file_size_mb:.1f}MB) exceeds maximum allowed size "
-                        f"({SecurityConfig.MAX_FILE_SIZE_MB}MB)"
-                    )
-        except (OSError, RuntimeError):
-            # If we can't resolve or access the path, that's fine for validation
-            pass
+        # Check if path is safe
+        if not config.is_path_safe(file_path):
+            raise ValueError("File path is not safe")
 
     @staticmethod
-    def validate_database_url(database_url: str) -> None:
+    def validate_database_url(database_url: str, config: SecurityConfig) -> None:
         """
-        Validate database connection URL for security concerns.
+        Validate database URL for security concerns.
 
         Args:
             database_url: Database URL to validate
+            config: Security configuration
 
         Raises:
             ValueError: If URL contains dangerous patterns
@@ -135,62 +63,64 @@ class SecurityValidator:
         if not database_url:
             raise ValueError("Database URL cannot be empty")
 
-        # Check for dangerous patterns in URL first
-        url_lower = database_url.lower()
-        for pattern in SecurityConfig.DANGEROUS_URL_PATTERNS:
-            if pattern in url_lower:
-                raise ValueError(f"Database URL contains potentially dangerous pattern: {pattern}")
-
+        # Parse URL to check for dangerous patterns
         try:
-            parsed = urlparse(database_url)
+            parsed_url = urlparse(database_url)
         except Exception as e:
             raise ValueError(f"Invalid database URL format: {e}")
 
-        # Validate that scheme exists (SQLAlchemy will handle unsupported schemes)
-        if not parsed.scheme:
-            raise ValueError("Database URL must include a scheme")
+        # Check for valid scheme
+        if not parsed_url.scheme:
+            raise ValueError("Database URL must include a scheme (e.g., sqlite://, postgresql://)")
+
+        # Check for dangerous patterns in URL
+        url_lower = database_url.lower()
+        for pattern in config.validation.dangerous_url_patterns:
+            if pattern.lower() in url_lower:
+                raise ValueError(f"Database URL contains dangerous pattern: {pattern}")
+
+        # Check if URL is safe
+        if not config.is_url_safe(database_url):
+            raise ValueError("Database URL is not safe")
 
     @staticmethod
-    def validate_sql_content(sql_content: str) -> None:
+    def validate_sql_content(sql_content: str, config: SecurityConfig) -> None:
         """
-        Validate SQL content for potentially dangerous operations.
+        Validate SQL content for security concerns.
 
         Args:
             sql_content: SQL content to validate
+            config: Security configuration
 
         Raises:
             ValueError: If SQL contains dangerous patterns
         """
         if not sql_content:
-            return
-
-        sql_upper = sql_content.upper()
+            return  # Empty content is safe
 
         # Check for dangerous SQL patterns
-        for pattern in SecurityConfig.DANGEROUS_SQL_PATTERNS:
-            if pattern in sql_upper:
-                raise ValueError(f"SQL contains potentially dangerous operation: {pattern}")
+        sql_upper = sql_content.upper()
+        for pattern in config.validation.dangerous_sql_patterns:
+            if pattern.upper() in sql_upper:
+                raise ValueError(f"SQL content contains dangerous pattern: {pattern}")
 
-        # Check statement count
+        # Check statement length
+        if not config.is_statement_length_safe(sql_content):
+            raise ValueError(f"SQL statement too long (max: {config.validation.max_statement_length} chars)")
+
+        # Check number of statements
         statements = sql_content.split(";")
-        if len(statements) > SecurityConfig.MAX_STATEMENTS_PER_FILE:
-            raise ValueError(
-                f"Too many SQL statements ({len(statements)}). "
-                f"Maximum allowed: {SecurityConfig.MAX_STATEMENTS_PER_FILE}"
-            )
+        if len(statements) > config.max_statements_per_file:
+            raise ValueError(f"Too many SQL statements ({len(statements)}). Maximum allowed: {config.max_statements_per_file}")
 
-        # Check individual statement length
-        for i, stmt in enumerate(statements, 1):
-            if len(stmt.strip()) > SecurityConfig.MAX_STATEMENT_LENGTH:
-                raise ValueError(
-                    f"Statement {i} is too long ({len(stmt.strip())} chars). "
-                    f"Maximum allowed: {SecurityConfig.MAX_STATEMENT_LENGTH}"
-                )
+        # Check if SQL is safe
+        if not config.is_sql_safe(sql_content):
+            raise ValueError("SQL content is not safe")
 
     @staticmethod
     def sanitize_sql_content(sql_content: str) -> str:
         """
-        Sanitize SQL content by removing potentially dangerous elements.
+        Sanitize SQL content by removing or escaping dangerous patterns.
 
         Args:
             sql_content: SQL content to sanitize
@@ -202,64 +132,64 @@ class SecurityValidator:
             return sql_content
 
         # Remove SQL comments
-        # Remove single-line comments
-        sql_content = re.sub(r"--.*$", "", sql_content, flags=re.MULTILINE)
+        sql_content = re.sub(r'--.*$', '', sql_content, flags=re.MULTILINE)
+        sql_content = re.sub(r'/\*.*?\*/', '', sql_content, flags=re.DOTALL)
 
-        # Remove multi-line comments
-        sql_content = re.sub(r"/\*.*?\*/", "", sql_content, flags=re.DOTALL)
+        # Remove extra whitespace
+        sql_content = re.sub(r'\s+', ' ', sql_content).strip()
 
-        # Remove excessive whitespace
-        sql_content = re.sub(r"\s+", " ", sql_content)
-
-        return sql_content.strip()
+        return sql_content
 
     @staticmethod
-    def is_safe_file_path(file_path: str) -> bool:
+    def is_safe_file_path(file_path: str, config: SecurityConfig) -> bool:
         """
-        Check if a file path is safe without raising exceptions.
+        Check if file path is safe.
 
         Args:
             file_path: Path to check
+            config: Security configuration
 
         Returns:
             True if path is safe, False otherwise
         """
         try:
-            SecurityValidator.validate_file_path(file_path)
+            SecurityValidator.validate_file_path(file_path, config)
             return True
         except ValueError:
             return False
 
     @staticmethod
-    def is_safe_database_url(database_url: str) -> bool:
+    def is_safe_database_url(database_url: str, config: SecurityConfig) -> bool:
         """
-        Check if a database URL is safe without raising exceptions.
+        Check if database URL is safe.
 
         Args:
             database_url: URL to check
+            config: Security configuration
 
         Returns:
             True if URL is safe, False otherwise
         """
         try:
-            SecurityValidator.validate_database_url(database_url)
+            SecurityValidator.validate_database_url(database_url, config)
             return True
         except ValueError:
             return False
 
     @staticmethod
-    def is_safe_sql_content(sql_content: str) -> bool:
+    def is_safe_sql_content(sql_content: str, config: SecurityConfig) -> bool:
         """
-        Check if SQL content is safe without raising exceptions.
+        Check if SQL content is safe.
 
         Args:
             sql_content: SQL content to check
+            config: Security configuration
 
         Returns:
-            True if content is safe, False otherwise
+            True if SQL is safe, False otherwise
         """
         try:
-            SecurityValidator.validate_sql_content(sql_content)
+            SecurityValidator.validate_sql_content(sql_content, config)
             return True
         except ValueError:
             return False

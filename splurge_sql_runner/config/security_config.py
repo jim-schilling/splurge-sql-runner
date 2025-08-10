@@ -12,62 +12,32 @@ This module is licensed under the MIT License.
 from dataclasses import dataclass, field
 from typing import List, Tuple
 
+from splurge_sql_runner.config.constants import (
+    DANGEROUS_PATH_PATTERNS,
+    DANGEROUS_SQL_PATTERNS,
+    DANGEROUS_URL_PATTERNS,
+    DEFAULT_ALLOWED_FILE_EXTENSIONS,
+    DEFAULT_MAX_FILE_SIZE_MB,
+    DEFAULT_MAX_STATEMENTS_PER_FILE,
+    DEFAULT_MAX_STATEMENT_LENGTH,
+)
+
 
 @dataclass
 class ValidationConfig:
     """Input validation configuration."""
 
     # Dangerous path patterns that should be blocked
-    dangerous_path_patterns: Tuple[str, ...] = (
-        "..",
-        "~",
-        "/etc",
-        "/var",
-        "/usr",
-        "/bin",
-        "/sbin",
-        "/dev",
-        "\\windows\\system32",
-        "\\windows\\syswow64",
-        "\\program files",
-        "\\program files (x86)",
-    )
+    dangerous_path_patterns: Tuple[str, ...] = DANGEROUS_PATH_PATTERNS
 
     # Dangerous SQL patterns that should be blocked
-    dangerous_sql_patterns: Tuple[str, ...] = (
-        "DROP DATABASE",
-        "TRUNCATE DATABASE",
-        "DELETE FROM INFORMATION_SCHEMA",
-        "DELETE FROM SYS.",
-        "EXEC ",
-        "EXECUTE ",
-        "XP_",
-        "SP_",
-        "OPENROWSET",
-        "OPENDATASOURCE",
-        "BACKUP DATABASE",
-        "RESTORE DATABASE",
-        "SHUTDOWN",
-        "KILL",
-        "RECONFIGURE",
-    )
+    dangerous_sql_patterns: Tuple[str, ...] = DANGEROUS_SQL_PATTERNS
 
     # Dangerous URL patterns
-    dangerous_url_patterns: Tuple[str, ...] = (
-        "--",
-        "/*",
-        "*/",
-        "xp_",
-        "sp_",
-        "exec",
-        "execute",
-        "script:",
-        "javascript:",
-        "data:",
-    )
+    dangerous_url_patterns: Tuple[str, ...] = DANGEROUS_URL_PATTERNS
 
     # Maximum statement length
-    max_statement_length: int = 10000
+    max_statement_length: int = DEFAULT_MAX_STATEMENT_LENGTH
 
 
 @dataclass
@@ -75,9 +45,9 @@ class SecurityConfig:
     """Complete security configuration."""
 
     enable_validation: bool = True
-    max_file_size_mb: int = 10
-    max_statements_per_file: int = 100
-    allowed_file_extensions: List[str] = field(default_factory=lambda: [".sql"])
+    max_file_size_mb: int = DEFAULT_MAX_FILE_SIZE_MB
+    max_statements_per_file: int = DEFAULT_MAX_STATEMENTS_PER_FILE
+    allowed_file_extensions: List[str] = field(default_factory=lambda: list(DEFAULT_ALLOWED_FILE_EXTENSIONS))
     validation: ValidationConfig = field(default_factory=ValidationConfig)
 
     def __post_init__(self) -> None:
