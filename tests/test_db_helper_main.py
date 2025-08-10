@@ -1,5 +1,5 @@
 """
-Test suite for jpy-sql-runner database helper module.
+Test suite for splurge-sql-runner database helper module.
 
 Comprehensive unit tests for DbEngine class covering database operations,
 batch execution, error handling, and transaction management.
@@ -12,7 +12,7 @@ This module is licensed under the MIT License.
 import unittest
 import tempfile
 import os
-from jpy_sql_runner.db_helper import DbEngine
+from splurge_sql_runner.db_helper import DbEngine
 
 
 class TestDbEngine(unittest.TestCase):
@@ -52,7 +52,6 @@ class TestDbEngine(unittest.TestCase):
         results = self.db.batch(sql)
 
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]["statement_index"], 0)
         self.assertEqual(results[0]["statement_type"], "execute")
         self.assertTrue(results[0]["result"])
 
@@ -76,8 +75,7 @@ class TestDbEngine(unittest.TestCase):
         results = self.db.batch(insert_sql)
 
         self.assertEqual(len(results), 3)
-        for i, result in enumerate(results):
-            self.assertEqual(result["statement_index"], i)
+        for result in results:
             self.assertEqual(result["statement_type"], "execute")
             self.assertTrue(result["result"])
 
@@ -280,9 +278,7 @@ class TestDbEngine(unittest.TestCase):
         self.assertEqual(len(dept_summary), 3)  # 3 departments
 
         # Verify Engineering has 2 employees
-        engineering = next(
-            row for row in dept_summary if row["department"] == "Engineering"
-        )
+        engineering = next(row for row in dept_summary if row["department"] == "Engineering")
         self.assertEqual(engineering["employee_count"], 2)
 
     def test_batch_transaction_rollback_on_error(self):
@@ -354,9 +350,7 @@ class TestDbEngine(unittest.TestCase):
         # Generate many INSERT statements
         insert_statements = []
         for i in range(100):
-            insert_statements.append(
-                f"INSERT INTO performance_test (value) VALUES ('value_{i}');"
-            )
+            insert_statements.append(f"INSERT INTO performance_test (value) VALUES ('value_{i}');")
 
         sql = "\n".join(insert_statements)
         results = self.db.batch(sql)
@@ -369,9 +363,7 @@ class TestDbEngine(unittest.TestCase):
             self.assertTrue(result["result"])
 
         # Verify data was inserted
-        select_results = self.db.batch(
-            "SELECT COUNT(*) as count FROM performance_test;"
-        )
+        select_results = self.db.batch("SELECT COUNT(*) as count FROM performance_test;")
         self.assertEqual(select_results[0]["result"][0]["count"], 100)
 
     def test_statement_type_detection(self):

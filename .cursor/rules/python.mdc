@@ -1,0 +1,49 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- Write concise, technical Python targeting v3.10-3.12. 
+- Follow PEP8. 
+- Document everything with docstrings. 
+- For complex logic, preface block with comment.
+- Type annotate method signatures always.
+- Type annotate variables where clarity is needed. 
+- Prefer line length max of 120 characters, except when to do so would require use of temporary variables.
+- Prefer list comprehensions over `map()` and `filter()`.
+- Avoid wildcard imports.
+- Prefer absolute import paths.
+- Group imports at top of module: standard -> third-party -> local.
+- Avoid side effects in module-level code.
+- Optimize loops.
+- Use pytest and pytest-cov for testing.
+- Unittests shall be runnable using pytest and unittest.
+- Prioritize error handling.
+- Use guard clauses to handle preconditions and invalid state early.
+- Place the happy path last in the function.
+- Use try blocks as needed.
+- Prefer if blocks over if else blocks
+- Except clauses shall be prefixed with a blank line. 
+- Prefer separating logical blocks of code with a blank line for visual clarity.
+- Prefer clarity, efficiency, and best practices in code.
+- Remove unused imports.
+- Use descriptive variable names with auxiliary verbs (e.g. is_active, has_permission).
+- Prefer iteration and modularization over code duplication.
+- For Object definitions/declarations (e.g. class, enum, dataclass), names with acronyms or abbreviations (e.g. DSVReader, CSVWriter, TransformXMLToJSON), shall be Pascal case like DsvReader, CsvWriter, TransformXmlToJson.
+- All class and instance level fields shall be private by default (e.g. self._is_active, self._data_model).
+- Class and instance level fields shall have public property getters (e.g. is_active, data_model, file_name).
+- Prefer parameters in method signatures and method calls to be listed on separate lines.
+- Default parameters for Method signatures shall be named (e.g def myfunc(value: str, trim:bool = True) will be def myfunc(value: str, *, trim: bool = True)).
+- Avoid magic strings and magic numbers, instead use private constants at module or class level.
+- For all method signatures with more than 2 parameters, place each parameter on separate line and close parenthesis on separate line.
+- For all method calls that span more than 1 line or with more than 2 parameters, place each parameter on separate line and close parenthesis on separate line.
+- Follow SOLID principles.
+- When updating a method or class signature, do not maintain backwards compatibility unless specifically told to do so.
+- For any line continuations, use parentheses only.
+- Coverage for tests shall target 85% code coverage of all public interfaces / methods.
+- Use module level exceptions as needed.
+- Do not test private methods.
+- Use actual methods, classes, interfaces, and data when possible for testing, to minimize amount of use of mocks.
+- Class level private methods shall prefer parameterization versus reliance on instance or class objects.
+- Prefer | instead of Optional or Union.
+- Prefer simple, straightforward design approach instead of over-engineered design.

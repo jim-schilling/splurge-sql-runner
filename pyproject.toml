@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "jpy-sql-runner"
-version = "0.1.4"
+name = "splurge-sql-runner"
+version = "2025.2.0"
 description = "A Python utility for executing SQL files against databases with support for multiple statements, comments, and pretty-printed results"
 readme = "README.md"
 license = "MIT"
@@ -34,18 +34,18 @@ requires-python = ">=3.10"
 dependencies = [
     "sqlalchemy>=2.0.37",
     "sqlparse>=0.4.0",
-    "tabulate>=0.9.0",
+    "tabulate>=0.9.0"
 ]
 
 [project.urls]
-Homepage = "https://github.com/jim-schilling/jpy-sql-runner"
-Documentation = "https://github.com/jim-schilling/jpy-sql-runner#readme"
-Repository = "https://github.com/jim-schilling/jpy-sql-runner.git"
-Issues = "https://github.com/jim-schilling/jpy-sql-runner/issues"
-Changelog = "https://github.com/jim-schilling/jpy-sql-runner/blob/main/README.md#changelog"
+Homepage = "https://github.com/jim-schilling/splurge-sql-runner"
+Documentation = "https://github.com/jim-schilling/splurge-sql-runner#readme"
+Repository = "https://github.com/jim-schilling/splurge-sql-runner.git"
+Issues = "https://github.com/jim-schilling/splurge-sql-runner/issues"
+Changelog = "https://github.com/jim-schilling/splurge-sql-runner/blob/main/README.md#changelog"
 
 [project.scripts]
-jpy-sql-runner = "jpy_sql_runner.__main__:main"
+splurge-sql-runner = "splurge_sql_runner.__main__:main"
 
 [project.optional-dependencies]
 dev = [
@@ -55,6 +55,8 @@ dev = [
     "flake8>=6.0.0",
     "mypy>=1.0.0",
     "pre-commit>=3.0.0",
+    "safety>=2.0.0",  # For vulnerability scanning
+    "bandit>=1.7.0",  # For security linting
 ]
 test = [
     "pytest>=7.0.0",
@@ -72,13 +74,13 @@ docs = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["jpy_sql_runner*"]
+include = ["splurge_sql_runner*"]
 
 [tool.setuptools.package-data]
-jpy_sql_runner = ["*.sql"]
+splurge_sql_runner = ["*.sql"]
 
 [tool.black]
-line-length = 88
+line-length = 120
 target-version = ['py310']
 include = '\.pyi?$'
 extend-exclude = '''
@@ -96,7 +98,7 @@ extend-exclude = '''
 '''
 
 [tool.flake8]
-max-line-length = 88
+max-line-length = 120
 extend-ignore = ["E203", "W503"]
 exclude = [
     ".git",
@@ -132,7 +134,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 
 [tool.coverage.run]
-source = ["jpy_sql_runner"]
+source = ["splurge_sql_runner"]
 omit = [
     "*/tests/*",
     "*/test_*",
