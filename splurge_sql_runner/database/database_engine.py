@@ -9,10 +9,9 @@ This module is licensed under the MIT License.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from splurge_sql_runner.database.database_connection import DatabaseConnection
-from splurge_sql_runner.database.database_connection_pool import ConnectionPool
 
 
 class DatabaseEngine(ABC):
@@ -24,18 +23,8 @@ class DatabaseEngine(ABC):
         pass
 
     @abstractmethod
-    def create_connection_pool(self, pool_size: int = 5) -> ConnectionPool:
-        """Create a connection pool."""
-        pass
-
-    @abstractmethod
-    def test_connection(self) -> bool:
-        """Test if the database is accessible."""
-        pass
-
-    @abstractmethod
-    def get_database_info(self) -> Dict[str, Any]:
-        """Get database information."""
+    def batch(self, sql_query: str) -> List[Dict[str, Any]]:
+        """Execute multiple SQL statements in a batch."""
         pass
 
     @abstractmethod

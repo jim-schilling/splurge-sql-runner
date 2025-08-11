@@ -61,6 +61,16 @@ from splurge_sql_runner.errors.error_recovery import (
     SecurityErrorRecovery,
     CliErrorRecovery,
 )
+from splurge_sql_runner.errors.typed_error_context import (
+    DatabaseErrorContext,
+    SqlErrorContext,
+    SecurityErrorContext,
+    CliErrorContext,
+    create_database_error_context,
+    create_sql_error_context,
+    create_security_error_context,
+    create_cli_error_context,
+)
 
 __all__ = [
     # Base errors
@@ -108,4 +118,13 @@ __all__ = [
     "SqlErrorRecovery",
     "SecurityErrorRecovery",
     "CliErrorRecovery",
+    # Typed error contexts
+    "DatabaseErrorContext",
+    "SqlErrorContext",
+    "SecurityErrorContext",
+    "CliErrorContext",
+    "create_database_error_context",
+    "create_sql_error_context",
+    "create_security_error_context",
+    "create_cli_error_context",
 ]

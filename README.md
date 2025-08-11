@@ -10,7 +10,7 @@ A Python utility for executing SQL files against databases with support for mult
 - Automatic comment removal and statement parsing
 - Pretty-printed results with tabulated output
 - Batch processing of multiple files
-- Transaction support with rollback on errors
+- Batch SQL execution with error handling
 - Clean CLI interface with comprehensive error handling
 - Security validation for database URLs and file operations
 - Comprehensive error handling with circuit breaker patterns
@@ -86,6 +86,8 @@ python -m splurge_sql_runner -c "sqlite:///database.db" -f "script.sql" --disabl
 
 ## Programmatic Usage
 
+**Note**: This library is primarily designed to be used via the CLI interface. The programmatic API is provided for advanced use cases and integration scenarios, but the CLI offers the most comprehensive features and best user experience.
+
 ### Basic Usage
 
 ```python
@@ -112,34 +114,30 @@ except Exception as e:
 engine.shutdown()
 ```
 
-### Advanced Usage with New Architecture
+### Advanced Usage
 
 ```python
 from splurge_sql_runner.config import ConfigManager, AppConfig
-from splurge_sql_runner.database import SqlRepository, UnifiedDatabaseEngine
-from splurge_sql_runner.errors import ErrorHandler, CircuitBreakerConfig
+from splurge_sql_runner.database import UnifiedDatabaseEngine
 
 # Load configuration
 config_manager = ConfigManager("config.json")
 config = config_manager.load_config()
 
-# Create database repository with error handling
-error_handler = ErrorHandler(
-    circuit_breaker_config=CircuitBreakerConfig(
-        failure_threshold=5,
-        recovery_timeout=60
-    )
-)
+# Create database engine
+engine = UnifiedDatabaseEngine(config.database)
 
-repository = SqlRepository(config)
-
-# Execute SQL with resilience
+# Execute SQL batch
 try:
-    results = repository.execute_batch("script.sql", config)
+    results = engine.batch("SELECT 1; INSERT INTO test VALUES (1);")
     for result in results:
-        print(f"Statement executed: {result.success}")
+        print(f"Statement type: {result['statement_type']}")
+        if result['statement_type'] == 'fetch':
+            print(f"Rows returned: {result['row_count']}")
 except Exception as e:
     print(f"Execution failed: {e}")
+
+engine.close()
 ```
 
 
@@ -152,16 +150,10 @@ The library supports JSON-based configuration files for advanced usage:
 {
     "database": {
         "url": "sqlite:///database.db",
-        "type": "sqlite",
         "connection": {
-            "timeout": 30,
-            "max_connections": 5
+            "timeout": 30
         },
-        "pool": {
-            "size": 5,
-            "max_overflow": 0,
-            "recycle_time": 3600
-        }
+        "enable_debug": false
     },
     "security": {
         "enable_validation": true,
@@ -248,12 +240,23 @@ mypy splurge_sql_runner/
 
 ## Changelog
 
-### 2025.2.0 (08-10-2025)
+### 2025.3.0 (08-11-2025)
 
+- **Documentation**: Updated Programmatic Usage section to clarify that the library is primarily designed for CLI usage
+- **Documentation**: Added note explaining that programmatic API is for advanced use cases and integration scenarios
+- **Documentation**: Emphasized that CLI offers the most comprehensive features and best user experience
 - **Breaking Changes**: `DbEngine` class has been removed entirely
 - **New**: `UnifiedDatabaseEngine` is the only database engine for programmatic usage
 - **New**: Centralized configuration constants in `splurge_sql_runner.config.constants`
 - **Improved**: Security validation now uses centralized `SecurityConfig` from `splurge_sql_runner.config.security_config`
 - **Code Quality**: Eliminated code duplication across the codebase
+- **Breaking Changes**: Environment variables now use `SPLURGE_SQL_RUNNER_` prefix instead of `JPY_`
+  - `JPY_DB_URL` → `SPLURGE_SQL_RUNNER_DB_URL`
+  - `JPY_DB_TIMEOUT` → `SPLURGE_SQL_RUNNER_DB_TIMEOUT`
+  - `JPY_SECURITY_ENABLED` → `SPLURGE_SQL_RUNNER_SECURITY_ENABLED`
+  - `JPY_MAX_FILE_SIZE_MB` → `SPLURGE_SQL_RUNNER_MAX_FILE_SIZE_MB`
+  - `JPY_MAX_STATEMENTS_PER_FILE` → `SPLURGE_SQL_RUNNER_MAX_STATEMENTS_PER_FILE`
+  - `JPY_VERBOSE` → `SPLURGE_SQL_RUNNER_VERBOSE`
+  - `JPY_LOG_LEVEL` → `SPLURGE_SQL_RUNNER_LOG_LEVEL`
+  - `JPY_LOG_FORMAT` → `SPLURGE_SQL_RUNNER_LOG_FORMAT`
 
-### Initial Commit

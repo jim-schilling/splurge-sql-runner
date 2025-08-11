@@ -13,7 +13,6 @@ from splurge_sql_runner.config import (
     ConfigManager,
     DatabaseConfig,
     ConnectionConfig,
-    PoolConfig,
     SecurityConfig,
     ValidationConfig,
     LoggingConfig,
@@ -23,8 +22,6 @@ from splurge_sql_runner.config import (
 )
 
 from splurge_sql_runner.database import (
-    SqlRepository,
-    BatchExecutionResult,
     UnifiedDatabaseEngine,
 )
 
@@ -60,12 +57,6 @@ from splurge_sql_runner.errors import (
     CliFileError,
     CliExecutionError,
     CliSecurityError,
-    # Error handling
-    ErrorHandler,
-    ErrorRecoveryStrategy,
-    CircuitBreaker,
-    RetryStrategy,
-    ErrorContext,
 )
 
 from splurge_sql_runner.logging import (
@@ -84,10 +75,6 @@ from splurge_sql_runner.logging import (
     ContextualLogger,
     get_contextual_logger,
     log_context,
-    # Performance monitoring
-    PerformanceLogger,
-    log_performance,
-    performance_context,
 )
 
 __all__ = [
@@ -98,7 +85,6 @@ __all__ = [
     "ConfigFileError",
     "DatabaseConfig",
     "ConnectionConfig",
-    "PoolConfig",
     "SecurityConfig",
     "ValidationConfig",
     "LoggingConfig",
@@ -106,8 +92,6 @@ __all__ = [
     "LogFormat",
     "AppConfig",
     # Database
-    "SqlRepository",
-    "BatchExecutionResult",
     "UnifiedDatabaseEngine",
     # Errors
     "SplurgeSqlRunnerError",
@@ -135,11 +119,6 @@ __all__ = [
     "CliFileError",
     "CliExecutionError",
     "CliSecurityError",
-    "ErrorHandler",
-    "ErrorRecoveryStrategy",
-    "CircuitBreaker",
-    "RetryStrategy",
-    "ErrorContext",
     # Logging
     "setup_logging",
     "get_logger",
@@ -154,7 +133,4 @@ __all__ = [
     "ContextualLogger",
     "get_contextual_logger",
     "log_context",
-    "PerformanceLogger",
-    "log_performance",
-    "performance_context",
 ]

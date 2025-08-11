@@ -1,15 +1,8 @@
 {
   "database": {
     "url": "sqlite:///example.db",
-    "type": "sqlite",
     "connection": {
-      "timeout": 30,
-      "max_connections": 5
-    },
-    "pool": {
-      "size": 5,
-      "max_overflow": 0,
-      "recycle_time": 3600
+      "timeout": 30
     },
     "enable_debug": false
   },

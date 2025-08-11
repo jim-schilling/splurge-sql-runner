@@ -239,45 +239,31 @@ class TestProcessSqlFile:
 
 
 class TestCLIMain:
-    """Test the CLI main function."""
-
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.test_file = os.path.join(self.temp_dir, "test.sql")
-        
-        # Create a test SQL file
-        with open(self.test_file, "w") as f:
-            f.write("CREATE TABLE test (id INTEGER);\n")
-            f.write("SELECT 1 as test;\n")
-
-    def teardown_method(self) -> None:
-        """Clean up test fixtures."""
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
+    """Test the CLI main function using shared fixtures."""
 
     @patch("sys.stdout", new_callable=StringIO)
-    def test_main_single_file_success(self, mock_stdout) -> None:
+    def test_main_single_file_success(self, mock_stdout, temp_sql_file: str) -> None:
         """Test main function with single file success."""
-        with patch("sys.argv", ["cli", "-c", "sqlite:///test.db", "--file", self.test_file]):
+        with patch("sys.argv", ["cli", "-c", "sqlite:///test.db", "--file", temp_sql_file]):
             main()  # main() doesn't return a value, it exits on success
             output = mock_stdout.getvalue()
             assert "Summary: 1/1 files processed successfully" in output
             assert "Results for:" in output
 
     @patch("sys.stdout", new_callable=StringIO)
-    def test_main_pattern_files_success(self, mock_stdout) -> None:
+    def test_main_pattern_files_success(self, mock_stdout, temp_sql_file: str) -> None:
         """Test main function with pattern files success."""
         with patch("sys.argv", ["cli", "-c", "sqlite:///test.db", "--pattern", "*.sql"]):
-            with patch("glob.glob", return_value=[self.test_file]):
+            with patch("glob.glob", return_value=[temp_sql_file]):
                 main()  # main() doesn't return a value, it exits on success
                 output = mock_stdout.getvalue()
                 assert "Summary: 1/1 files processed successfully" in output
                 assert "Results for:" in output
 
     @patch("sys.stdout", new_callable=StringIO)
-    def test_main_with_verbose_and_debug(self, mock_stdout) -> None:
+    def test_main_with_verbose_and_debug(self, mock_stdout, temp_sql_file: str) -> None:
         """Test main function with verbose and debug flags."""
-        with patch("sys.argv", ["cli", "-c", "sqlite:///test.db", "--file", self.test_file, "--verbose", "--debug"]):
+        with patch("sys.argv", ["cli", "-c", "sqlite:///test.db", "--file", temp_sql_file, "--verbose", "--debug"]):
             main()  # main() doesn't return a value, it exits on success
             output = mock_stdout.getvalue()
             assert "Connecting to database: sqlite:///test.db" in output
@@ -330,18 +316,18 @@ class TestCLIMain:
         assert "No files found matching pattern" in error_output
 
     @patch("sys.stdout", new_callable=StringIO)
-    def test_main_partial_failure(self, mock_stdout) -> None:
+    def test_main_partial_failure(self, mock_stdout, temp_sql_file: str) -> None:
         """Test main function with partial failure."""
-        with patch("sys.argv", ["cli", "-c", "sqlite:///test.db", "--file", self.test_file]):
+        with patch("sys.argv", ["cli", "-c", "sqlite:///test.db", "--file", temp_sql_file]):
             main()  # main() doesn't return a value, it exits on success
             output = mock_stdout.getvalue()
             assert "Summary: 1/1 files processed successfully" in output
             assert "Results for:" in output
 
     @patch("sys.stdout", new_callable=StringIO)
-    def test_main_database_error(self, mock_stdout) -> None:
+    def test_main_database_error(self, mock_stdout, temp_sql_file: str) -> None:
         """Test main function with database error."""
-        with patch("sys.argv", ["cli", "-c", "sqlite:///test.db", "--file", self.test_file]):
+        with patch("sys.argv", ["cli", "-c", "sqlite:///test.db", "--file", temp_sql_file]):
             with patch("splurge_sql_runner.cli.process_sql_file", side_effect=DatabaseEngineError("Database error")):
                 with pytest.raises(SystemExit):
                     main()

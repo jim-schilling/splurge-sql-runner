@@ -11,14 +11,13 @@ This module is licensed under the MIT License.
 
 from typing import Any, Dict, List
 from sqlalchemy import create_engine, text
-from sqlalchemy.engine import Connection, Engine
 
 from splurge_sql_runner.database.interfaces import (
     DatabaseEngine,
     DatabaseConnection,
-    ConnectionPool,
 )
 from splurge_sql_runner.config.database_config import DatabaseConfig
+
 from splurge_sql_runner.errors.database_errors import (
     DatabaseConnectionError,
     DatabaseOperationError,
@@ -36,10 +35,11 @@ from splurge_sql_runner.sql_helper import (
 class SqlAlchemyConnection(DatabaseConnection):
     """SQLAlchemy-based database connection implementation."""
 
-    def __init__(self, connection: Connection) -> None:
+    def __init__(self, connection) -> None:
         """Initialize with SQLAlchemy connection."""
         self._connection = connection
         self._logger = configure_module_logging("database.connection")
+        self._closed = False
 
     def __enter__(self):
         """Enter context manager."""
@@ -55,12 +55,21 @@ class SqlAlchemyConnection(DatabaseConnection):
         parameters: Dict[str, Any] | None = None,
     ) -> Any:
         """Execute SQL statement."""
+        if self._closed:
+            raise RuntimeError("Connection is closed")
+        
         try:
             if parameters and "?" in sql:
-                # Convert named parameters to positional for SQLite-style placeholders
-                param_list = list(parameters.values())
-                # SQLAlchemy expects parameters as individual arguments for positional placeholders
-                result = self._connection.execute(text(sql), *param_list)
+                # Convert SQL with ? placeholders to use named parameters
+                param_values = list(parameters.values())
+                # Replace ? with named parameters
+                named_sql = sql
+                for i, _ in enumerate(param_values):
+                    named_sql = named_sql.replace("?", f":param_{i}", 1)
+                
+                # Create named parameters dict
+                named_params = {f"param_{i}": value for i, value in enumerate(param_values)}
+                result = self._connection.execute(text(named_sql), named_params)
             elif parameters:
                 # Use named parameters
                 result = self._connection.execute(text(sql), parameters)
@@ -77,6 +86,9 @@ class SqlAlchemyConnection(DatabaseConnection):
         parameters: Dict[str, Any] | None = None,
     ) -> List[Dict[str, Any]]:
         """Fetch all rows from SQL query."""
+        if self._closed:
+            raise RuntimeError("Connection is closed")
+        
         try:
             result = self._connection.execute(text(sql), parameters or {})
             rows = result.fetchall()
@@ -91,6 +103,9 @@ class SqlAlchemyConnection(DatabaseConnection):
         parameters: Dict[str, Any] | None = None,
     ) -> Dict[str, Any] | None:
         """Fetch one row from SQL query."""
+        if self._closed:
+            raise RuntimeError("Connection is closed")
+        
         try:
             result = self._connection.execute(text(sql), parameters or {})
             row = result.fetchone()
@@ -119,41 +134,10 @@ class SqlAlchemyConnection(DatabaseConnection):
         """Close connection."""
         try:
             self._connection.close()
+            self._closed = True
         except Exception as e:
             self._logger.error(f"Failed to close connection: {e}")
-
-
-class SqlAlchemyConnectionPool(ConnectionPool):
-    """SQLAlchemy-based connection pool implementation."""
-
-    def __init__(self, engine: Engine, pool_size: int = 5) -> None:
-        """Initialize connection pool."""
-        self._engine = engine
-        self._pool_size = pool_size
-        self._logger = configure_module_logging("database.pool")
-
-    def get_connection(self) -> DatabaseConnection:
-        """Get a connection from the pool."""
-        try:
-            connection = self._engine.connect()
-            return SqlAlchemyConnection(connection)
-        except Exception as e:
-            self._logger.error(f"Failed to get connection from pool: {e}")
-            raise DatabaseConnectionError(f"Failed to get connection: {e}") from e
-
-    def return_connection(self, connection: DatabaseConnection) -> None:
-        """Return a connection to the pool."""
-        try:
-            connection.close()
-        except Exception as e:
-            self._logger.error(f"Failed to return connection to pool: {e}")
-
-    def close_all(self) -> None:
-        """Close all connections in the pool."""
-        try:
-            self._engine.dispose()
-        except Exception as e:
-            self._logger.error(f"Failed to close connection pool: {e}")
+            self._closed = True
 
 
 class UnifiedDatabaseEngine(DatabaseEngine):
@@ -168,10 +152,10 @@ class UnifiedDatabaseEngine(DatabaseEngine):
     def __init__(self, config: DatabaseConfig) -> None:
         """Initialize unified database engine."""
         self._config = config
-        self._engine: Engine | None = None
+        self._engine = None
         self._logger = configure_module_logging("database.engine")
 
-    def _create_engine(self) -> Engine:
+    def _create_engine(self):
         """
         Create SQLAlchemy engine using URL-based detection.
 
@@ -209,33 +193,6 @@ class UnifiedDatabaseEngine(DatabaseEngine):
         except Exception as e:
             self._logger.error(f"Failed to create connection: {e}")
             raise DatabaseConnectionError(f"Failed to create connection: {e}") from e
-
-    def create_connection_pool(self, pool_size: int = 5) -> ConnectionPool:
-        """Create a connection pool."""
-        if not self._engine:
-            self._engine = self._create_engine()
-
-        return SqlAlchemyConnectionPool(self._engine, pool_size)
-
-    def test_connection(self) -> bool:
-        """Test if the database is accessible."""
-        try:
-            with self.create_connection() as conn:
-                conn.fetch_one("SELECT 1")
-            return True
-        except Exception as e:
-            self._logger.error(f"Connection test failed: {e}")
-            return False
-
-    def get_database_info(self) -> Dict[str, Any]:
-        """Get database information."""
-        return {
-            "url": self._config.url,
-            "connection_timeout": self._config.connection.timeout,
-            "max_connections": self._config.connection.max_connections,
-            "dialect": self._engine.dialect.name if self._engine else None,
-            "driver": self._engine.dialect.driver if self._engine else None,
-        }
 
     def batch(self, sql_query: str) -> List[Dict[str, Any]]:
         """
@@ -346,6 +303,7 @@ class UnifiedDatabaseEngine(DatabaseEngine):
         if self._engine:
             try:
                 self._engine.dispose()
-                self._engine = None
             except Exception as e:
                 self._logger.error(f"Failed to close engine: {e}")
+            finally:
+                self._engine = None

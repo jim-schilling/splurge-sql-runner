@@ -265,19 +265,68 @@ class ErrorHandler:
         use_retry: str | None = None,
     ) -> Any:
         """
-        Handle error with recovery strategies.
+        Handle error with registered recovery strategies and optional resilience patterns.
+
+        This method attempts to recover from errors by applying registered recovery
+        strategies based on exception type. It provides a centralized approach to
+        error handling with optional circuit breaker and retry mechanisms.
 
         Args:
-            error: The error to handle
-            context: Error context
-            use_circuit_breaker: Optional circuit breaker name
-            use_retry: Optional retry strategy name
+            error: The exception to handle. Recovery strategies are matched based on
+                the exception type hierarchy (isinstance check).
+            context: Error context containing operation metadata, component information,
+                and additional context for recovery decision-making.
+            use_circuit_breaker: Optional name of a registered circuit breaker to apply
+                during recovery attempts. If specified, recovery will respect circuit
+                breaker state (OPEN/CLOSED/HALF_OPEN).
+            use_retry: Optional name of a registered retry strategy to apply during
+                recovery attempts. If specified, failed recovery attempts will be
+                retried according to the strategy configuration.
 
         Returns:
-            Recovery result if successful
+            Recovery result if a matching recovery strategy is found and successfully
+            handles the error. The return type depends on the specific recovery strategy.
 
         Raises:
-            Exception: If recovery fails
+            Exception: The original error is re-raised if no matching recovery strategy
+                is found, or if all recovery strategies fail to handle the error.
+            SplurgeSqlRunnerError: If circuit breaker prevents recovery execution.
+            RetryExhaustionError: If retry strategy exhausts all attempts without success.
+
+        Examples:
+            Basic error handling:
+                >>> handler = ErrorHandler()
+                >>> handler.register_recovery_strategy(
+                ...     DatabaseConnectionError, 
+                ...     DatabaseErrorRecovery()
+                ... )
+                >>> try:
+                ...     risky_database_operation()
+                ... except DatabaseConnectionError as e:
+                ...     context = ErrorContext(operation="db_query", component="database")
+                ...     result = handler.handle_error(e, context)
+
+            With circuit breaker protection:
+                >>> handler.register_circuit_breaker("db", CircuitBreakerConfig(...))
+                >>> result = handler.handle_error(
+                ...     error,
+                ...     context,
+                ...     use_circuit_breaker="db"
+                ... )
+
+            With retry strategy:
+                >>> handler.register_retry_strategy("network", RetryConfig(...))
+                >>> result = handler.handle_error(
+                ...     error,
+                ...     context,
+                ...     use_retry="network"
+                ... )
+
+        Note:
+            - Recovery strategies are matched in registration order
+            - First matching strategy (by exception type) is used
+            - Recovery strategies should implement ErrorRecoveryStrategy interface
+            - Context information is passed to recovery strategies for decision-making
         """
         # Try to find recovery strategy
         for exception_type, strategy in self._recovery_strategies.items():
@@ -297,16 +346,76 @@ class ErrorHandler:
         retry_strategy_name: str | None = None,
     ) -> Any:
         """
-        Execute function with resilience patterns.
+        Execute function with resilience patterns including circuit breakers and retry strategies.
+
+        This method applies resilience patterns to function execution, providing protection
+        against cascading failures through circuit breakers and automatic recovery through
+        retry strategies with exponential backoff.
 
         Args:
-            func: Function to execute
-            context: Execution context
-            circuit_breaker_name: Optional circuit breaker name
-            retry_strategy_name: Optional retry strategy name
+            func: Function to execute. Should be a callable with no arguments that returns
+                the desired result. For functions with arguments, use a lambda or partial.
+            context: Execution context containing operation metadata, component information,
+                and additional context for error handling and logging.
+            circuit_breaker_name: Optional name of a registered circuit breaker to apply.
+                If specified, the circuit breaker will prevent execution if it's in OPEN
+                state, or allow limited execution in HALF_OPEN state.
+            retry_strategy_name: Optional name of a registered retry strategy to apply.
+                If specified, failed executions will be retried according to the strategy's
+                configuration (max attempts, backoff, jitter).
 
         Returns:
-            Function result
+            The result of the function execution, or the result from error recovery
+            if the function fails and recovery is successful.
+
+        Raises:
+            SplurgeSqlRunnerError: If circuit breaker is open and prevents execution.
+            DatabaseConnectionError: If database connection fails and no recovery available.
+            RetryExhaustionError: If all retry attempts are exhausted without success.
+            Exception: Any exception raised by the function that cannot be recovered from.
+
+        Examples:
+            Basic usage with database operation:
+                >>> handler = ErrorHandler()
+                >>> context = ErrorContext(operation="fetch_users", component="database")
+                >>> result = handler.execute_with_resilience(
+                ...     lambda: db.query("SELECT * FROM users"),
+                ...     context
+                ... )
+
+            With circuit breaker protection:
+                >>> handler.register_circuit_breaker("db", CircuitBreakerConfig(
+                ...     failure_threshold=5, recovery_timeout=60.0
+                ... ))
+                >>> result = handler.execute_with_resilience(
+                ...     lambda: external_api.call(),
+                ...     context,
+                ...     circuit_breaker_name="db"
+                ... )
+
+            With retry strategy:
+                >>> handler.register_retry_strategy("network", RetryConfig(
+                ...     max_attempts=3, base_delay=1.0, exponential_base=2.0
+                ... ))
+                >>> result = handler.execute_with_resilience(
+                ...     lambda: network_request(),
+                ...     context,
+                ...     retry_strategy_name="network"
+                ... )
+
+            Combined circuit breaker and retry:
+                >>> result = handler.execute_with_resilience(
+                ...     lambda: risky_operation(),
+                ...     context,
+                ...     circuit_breaker_name="external",
+                ...     retry_strategy_name="network"
+                ... )
+
+        Note:
+            - Retry strategies are applied before circuit breakers in the execution chain
+            - If both are specified, retries happen within the circuit breaker protection
+            - Error recovery strategies are automatically applied based on exception type
+            - All resilience patterns respect the provided error context for logging
         """
 
         # Apply retry strategy if specified

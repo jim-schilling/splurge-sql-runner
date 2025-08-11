@@ -1,8 +1,8 @@
 """
-Configuration management module.
+Configuration manager for splurge-sql-runner.
 
-Provides centralized configuration management for the application,
-supporting multiple configuration sources (JSON, environment, CLI).
+Provides centralized configuration management with support for
+JSON configuration files, environment variables, and CLI arguments.
 
 Copyright (c) 2025, Jim Schilling
 
@@ -11,32 +11,22 @@ This module is licensed under the MIT License.
 
 import json
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict
-from dataclasses import dataclass, field
 
-from splurge_sql_runner.config.database_config import (
-    DatabaseConfig,
-    ConnectionConfig,
-    PoolConfig,
-)
+from splurge_sql_runner.config.database_config import DatabaseConfig, ConnectionConfig
 from splurge_sql_runner.config.security_config import SecurityConfig
+from splurge_sql_runner.config.logging_config import LoggingConfig, LogLevel, LogFormat
 from splurge_sql_runner.config.constants import (
     DEFAULT_MAX_FILE_SIZE_MB,
     DEFAULT_MAX_STATEMENTS_PER_FILE,
+    DEFAULT_CONNECTION_TIMEOUT,
     DEFAULT_ENABLE_VERBOSE_OUTPUT,
     DEFAULT_ENABLE_DEBUG_MODE,
 )
-from splurge_sql_runner.errors import (
-    ConfigurationError,
-    ConfigValidationError,
-    ConfigFileError,
-)
-from splurge_sql_runner.config.logging_config import (
-    LoggingConfig,
-    LogLevel,
-    LogFormat,
-)
+from splurge_sql_runner.config.validation_summary import ConfigValidationSummary
+from splurge_sql_runner.errors import ConfigFileError, ConfigValidationError
 
 
 @dataclass
@@ -56,30 +46,37 @@ class AppConfig:
 
 class ConfigManager:
     """
-    Centralized configuration manager with support for multiple sources.
+    Configuration manager for splurge-sql-runner.
 
-    Priority order (highest to lowest):
-    1. CLI arguments
-    2. Environment variables
-    3. JSON configuration file
-    4. Default values
+    Handles loading and merging configuration from multiple sources:
+    - Default values
+    - JSON configuration file
+    - Environment variables
+    - CLI arguments
+
+    Configuration sources are merged in order of precedence:
+    CLI args > Environment > JSON file > Defaults
     """
 
     def __init__(self, config_file_path: str | None = None) -> None:
         """
-        Initialize the configuration manager.
+        Initialize configuration manager.
 
         Args:
             config_file_path: Optional path to JSON configuration file
         """
         self._config_file_path = config_file_path
-        self._config: AppConfig | None = None
-        self._default_config = self._create_default_config()
+        self._validation_summary = ConfigValidationSummary()
+        self._logger = None  # Will be set up later
 
     def _create_default_config(self) -> AppConfig:
         """Create default configuration."""
         return AppConfig(
-            database=DatabaseConfig(url="sqlite:///:memory:"),
+            database=DatabaseConfig(
+                url="sqlite:///:memory:",
+                connection=ConnectionConfig(timeout=DEFAULT_CONNECTION_TIMEOUT),
+                enable_debug=False,
+            ),
             security=SecurityConfig(),
             logging=LoggingConfig(),
         )
@@ -89,57 +86,82 @@ class ConfigManager:
         cli_args: Dict[str, Any] | None = None,
     ) -> AppConfig:
         """
-        Load configuration from all sources with proper precedence.
+        Load configuration from all sources.
 
         Args:
             cli_args: Optional CLI arguments to override configuration
 
         Returns:
-            Loaded configuration
+            Merged configuration
 
         Raises:
-            ConfigurationError: If configuration loading fails
-            ConfigValidationError: If configuration validation fails
+            ConfigFileError: If configuration file cannot be loaded
+            ConfigValidationError: If configuration is invalid
         """
         # Start with default configuration
         config = self._create_default_config()
 
-        # Load from JSON file if specified
-        if self._config_file_path:
-            config = self._merge_config(config, self._load_json_config())
+        # Load environment configuration first (lowest priority)
+        env_config = self._load_env_config()
+        config = self._merge_config(config, env_config)
 
-        # Override with environment variables
-        config = self._merge_config(config, self._load_env_config())
+        # Load JSON configuration if file exists (overrides environment)
+        if self._config_file_path and Path(self._config_file_path).exists():
+            try:
+                json_config = self._load_json_config()
+                config = self._merge_config(config, json_config)
+            except Exception as e:
+                raise ConfigFileError(f"Failed to load JSON config: {e}") from e
 
-        # Override with CLI arguments (highest priority)
+        # Load CLI configuration last (highest priority - overrides everything)
         if cli_args:
-            config = self._merge_config(config, self._load_cli_config(cli_args))
+            cli_config = self._load_cli_config(cli_args)
+            config = self._merge_config(config, cli_config)
 
         # Validate final configuration
         self._validate_config(config)
 
-        self._config = config
         return config
+
+    def get_validation_summary(self) -> ConfigValidationSummary:
+        """Get configuration validation summary."""
+        return self._validation_summary
+
+    def _track_default_config(self, config: AppConfig) -> None:
+        """Track configuration values that use defaults."""
+        if config.database.url == "":
+            self._validation_summary.add_warning(
+                "Using default database URL", "database.url"
+            )
+
+        if config.database.connection.timeout == DEFAULT_CONNECTION_TIMEOUT:
+            self._validation_summary.add_info(
+                f"Using default connection timeout: {DEFAULT_CONNECTION_TIMEOUT}s",
+                "database.connection.timeout",
+            )
+
+        if config.max_file_size_mb == DEFAULT_MAX_FILE_SIZE_MB:
+            self._validation_summary.add_info(
+                f"Using default max file size: {DEFAULT_MAX_FILE_SIZE_MB}MB",
+                "max_file_size_mb",
+            )
 
     def _load_json_config(self) -> AppConfig:
         """Load configuration from JSON file."""
         if not self._config_file_path:
             return self._create_default_config()
 
+        if not Path(self._config_file_path).exists():
+            raise ConfigFileError(f"Configuration file not found: {self._config_file_path}")
+
         try:
-            config_path = Path(self._config_file_path)
-            if not config_path.exists():
-                raise ConfigFileError(f"Configuration file not found: {config_path}")
-
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(self._config_file_path, "r", encoding="utf-8") as f:
                 config_data = json.load(f)
-
             return self._parse_json_config(config_data)
-
         except json.JSONDecodeError as e:
-            raise ConfigFileError(f"Invalid JSON in configuration file: {e}")
+            raise ConfigFileError(f"Invalid JSON in config file: {e}") from e
         except Exception as e:
-            raise ConfigFileError(f"Failed to load configuration file: {e}")
+            raise ConfigFileError(f"Failed to read config file: {e}") from e
 
     def _parse_json_config(self, config_data: Dict[str, Any]) -> AppConfig:
         """Parse JSON configuration data into AppConfig."""
@@ -149,63 +171,81 @@ class ConfigManager:
         if "database" in config_data:
             db_config = config_data["database"]
 
-            config.database = DatabaseConfig(
-                url=db_config.get("url", ""),
-                connection=ConnectionConfig(
-                    timeout=db_config.get("connection", {}).get("timeout", 30),
-                    max_connections=db_config.get("connection", {}).get("max_connections", 5),
-                ),
-                pool=PoolConfig(
-                    size=db_config.get("pool", {}).get("size", 5),
-                    max_overflow=db_config.get("pool", {}).get("max_overflow", 0),
-                    recycle_time=db_config.get("pool", {}).get("recycle_time", 3600),
-                ),
-                enable_debug=db_config.get("enable_debug", False),
-            )
+            if "url" in db_config:
+                config.database.url = db_config["url"]
+
+            if "connection" in db_config:
+                conn_config = db_config["connection"]
+                if "timeout" in conn_config:
+                    config.database.connection.timeout = conn_config["timeout"]
+                if "application_name" in conn_config:
+                    config.database.connection.application_name = conn_config["application_name"]
+
+            if "enable_debug" in db_config:
+                config.database.enable_debug = db_config["enable_debug"]
 
         # Parse security configuration
         if "security" in config_data:
             sec_config = config_data["security"]
-            config.security = SecurityConfig(
-                enable_validation=sec_config.get("enable_validation", True),
-                max_file_size_mb=sec_config.get("max_file_size_mb", 10),
-                max_statements_per_file=sec_config.get("max_statements_per_file", 100),
-                allowed_file_extensions=sec_config.get("allowed_file_extensions", [".sql"]),
-            )
+            
+            if "enable_validation" in sec_config:
+                config.security.enable_validation = sec_config["enable_validation"]
+            
+            if "max_file_size_mb" in sec_config:
+                config.security.max_file_size_mb = sec_config["max_file_size_mb"]
+            
+            if "max_statements_per_file" in sec_config:
+                config.security.max_statements_per_file = sec_config["max_statements_per_file"]
+            
+            if "allowed_file_extensions" in sec_config:
+                config.security.allowed_file_extensions = sec_config["allowed_file_extensions"]
 
         # Parse logging configuration
         if "logging" in config_data:
             log_config = config_data["logging"]
-            log_level = log_config.get("level", "INFO")
-            log_format = log_config.get("format", "TEXT")
+            
+            if "level" in log_config:
+                try:
+                    config.logging.level = LogLevel(log_config["level"])
+                except ValueError:
+                    pass  # Keep default
 
-            try:
-                log_level = LogLevel(log_level)
-            except ValueError:
-                log_level = LogLevel.INFO
+            if "format" in log_config:
+                try:
+                    config.logging.format = LogFormat(log_config["format"])
+                except ValueError:
+                    pass  # Keep default
 
-            try:
-                log_format = LogFormat(log_format)
-            except ValueError:
-                log_format = LogFormat.TEXT
+            if "enable_console" in log_config:
+                config.logging.enable_console = log_config["enable_console"]
 
-            config.logging = LoggingConfig(
-                level=log_level,
-                format=log_format,
-                enable_console=log_config.get("enable_console", True),
-                enable_file=log_config.get("enable_file", False),
-                log_file=log_config.get("log_file"),
-                log_dir=log_config.get("log_dir"),
-                backup_count=log_config.get("backup_count", 7),
-            )
+            if "enable_file" in log_config:
+                config.logging.enable_file = log_config["enable_file"]
+
+            if "log_file" in log_config:
+                config.logging.log_file = log_config["log_file"]
+
+            if "log_dir" in log_config:
+                config.logging.log_dir = log_config["log_dir"]
+
+            if "backup_count" in log_config:
+                config.logging.backup_count = log_config["backup_count"]
 
         # Parse application settings
         if "app" in config_data:
             app_config = config_data["app"]
-            config.max_file_size_mb = app_config.get("max_file_size_mb", 10)
-            config.max_statements_per_file = app_config.get("max_statements_per_file", 100)
-            config.enable_verbose_output = app_config.get("enable_verbose_output", False)
-            config.enable_debug_mode = app_config.get("enable_debug_mode", False)
+            
+            if "max_file_size_mb" in app_config:
+                config.max_file_size_mb = app_config["max_file_size_mb"]
+            
+            if "max_statements_per_file" in app_config:
+                config.max_statements_per_file = app_config["max_statements_per_file"]
+            
+            if "enable_verbose_output" in app_config:
+                config.enable_verbose_output = app_config["enable_verbose_output"]
+            
+            if "enable_debug_mode" in app_config:
+                config.enable_debug_mode = app_config["enable_debug_mode"]
 
         return config
 
@@ -213,59 +253,15 @@ class ConfigManager:
         """Load configuration from environment variables."""
         config = self._create_default_config()
 
-        # Database configuration from environment
-        if os.getenv("JPY_DB_URL"):
-            config.database.url = os.getenv("JPY_DB_URL")
+        # Only database configuration from environment (for security - passwords, tokens, etc.)
+        if os.getenv("SPLURGE_SQL_RUNNER_DB_URL"):
+            config.database.url = os.getenv("SPLURGE_SQL_RUNNER_DB_URL")
 
-        # Database type is now auto-detected from URL, no need to set it
-
-        if os.getenv("JPY_DB_TIMEOUT"):
+        if os.getenv("SPLURGE_SQL_RUNNER_DB_TIMEOUT"):
             try:
-                config.database.connection.timeout = int(os.getenv("JPY_DB_TIMEOUT", "30"))
+                config.database.connection.timeout = int(os.getenv("SPLURGE_SQL_RUNNER_DB_TIMEOUT"))
             except ValueError:
                 pass
-
-        if os.getenv("JPY_DB_MAX_CONNECTIONS"):
-            try:
-                config.database.connection.max_connections = int(
-                    os.getenv("JPY_DB_MAX_CONNECTIONS", "5")
-                )
-            except ValueError:
-                pass
-
-        # Security configuration from environment
-        if os.getenv("JPY_SECURITY_ENABLED"):
-            config.security.enable_validation = (
-                os.getenv("JPY_SECURITY_ENABLED").lower() == "true"
-            )
-
-        if os.getenv("JPY_MAX_FILE_SIZE_MB"):
-            try:
-                config.security.max_file_size_mb = int(
-                    os.getenv("JPY_MAX_FILE_SIZE_MB", "10")
-                )
-            except ValueError:
-                pass
-
-        # Logging configuration from environment
-        if os.getenv("JPY_LOG_LEVEL"):
-            config.logging.level = os.getenv("JPY_LOG_LEVEL", "INFO")
-
-        if os.getenv("JPY_LOG_FORMAT"):
-            config.logging.format = os.getenv("JPY_LOG_FORMAT", "TEXT")
-
-        if os.getenv("JPY_LOG_FILE"):
-            config.logging.log_file = os.getenv("JPY_LOG_FILE")
-
-        if os.getenv("JPY_LOG_DIR"):
-            config.logging.log_dir = os.getenv("JPY_LOG_DIR")
-
-        # Application settings from environment
-        if os.getenv("JPY_VERBOSE"):
-            config.enable_verbose_output = os.getenv("JPY_VERBOSE").lower() == "true"
-
-        if os.getenv("JPY_DEBUG"):
-            config.enable_debug_mode = os.getenv("JPY_DEBUG").lower() == "true"
 
         return config
 
@@ -273,29 +269,25 @@ class ConfigManager:
         """Load configuration from CLI arguments."""
         config = self._create_default_config()
 
-        # Database configuration from CLI
-        if "connection" in cli_args:
+        # Handle database URL (support both "database_url" and "connection" keys)
+        if "database_url" in cli_args:
+            config.database.url = cli_args["database_url"]
+        elif "connection" in cli_args:
             config.database.url = cli_args["connection"]
 
-        if "debug" in cli_args:
-            config.database.enable_debug = cli_args["debug"]
-            config.enable_debug_mode = cli_args["debug"]
-
-        # Security configuration from CLI
-        if "disable_security" in cli_args:
-            config.security.enable_validation = not cli_args["disable_security"]
-
         if "max_file_size" in cli_args:
+            config.max_file_size_mb = cli_args["max_file_size"]
             config.security.max_file_size_mb = cli_args["max_file_size"]
 
-        if "max_statements" in cli_args:
-            config.security.max_statements_per_file = cli_args["max_statements"]
+        if "max_statements_per_file" in cli_args:
+            config.max_statements_per_file = cli_args["max_statements_per_file"]
+            config.security.max_statements_per_file = cli_args["max_statements_per_file"]
 
-        # Logging configuration from CLI
         if "verbose" in cli_args:
             config.enable_verbose_output = cli_args["verbose"]
-            if cli_args["verbose"]:
-                config.logging.level = "DEBUG"
+
+        if "debug" in cli_args:
+            config.enable_debug_mode = cli_args["debug"]
 
         return config
 
@@ -305,37 +297,20 @@ class ConfigManager:
         override: AppConfig,
     ) -> AppConfig:
         """Merge two configurations, with override taking precedence."""
-        merged = self._create_default_config()
-
-        # Merge database configuration
-        merged.database = self._merge_database_config(base.database, override.database)
-
-        # Merge security configuration
-        merged.security = self._merge_security_config(base.security, override.security)
-
-        # Merge logging configuration
-        merged.logging = self._merge_logging_config(base.logging, override.logging)
-
-        # Merge application settings
-        merged.max_file_size_mb = (
-            override.max_file_size_mb
-            if override.max_file_size_mb != base.max_file_size_mb
-            else base.max_file_size_mb
-        )
-        merged.max_statements_per_file = (
-            override.max_statements_per_file
-            if override.max_statements_per_file != base.max_statements_per_file
-            else base.max_statements_per_file
-        )
-        merged.enable_verbose_output = (
-            override.enable_verbose_output
-            if override.enable_verbose_output != base.enable_verbose_output
-            else base.enable_verbose_output
-        )
-        merged.enable_debug_mode = (
-            override.enable_debug_mode
-            if override.enable_debug_mode != base.enable_debug_mode
-            else base.enable_debug_mode
+        # Use override value if it's not None/empty, otherwise use base value
+        max_file_size_mb = override.max_file_size_mb if override.max_file_size_mb is not None else base.max_file_size_mb
+        max_statements_per_file = override.max_statements_per_file if override.max_statements_per_file is not None else base.max_statements_per_file
+        enable_verbose_output = override.enable_verbose_output if override.enable_verbose_output is not None else base.enable_verbose_output
+        enable_debug_mode = override.enable_debug_mode if override.enable_debug_mode is not None else base.enable_debug_mode
+        
+        merged = AppConfig(
+            database=self._merge_database_config(base.database, override.database),
+            security=self._merge_security_config(base.security, override.security),
+            logging=self._merge_logging_config(base.logging, override.logging),
+            max_file_size_mb=max_file_size_mb,
+            max_statements_per_file=max_statements_per_file,
+            enable_verbose_output=enable_verbose_output,
+            enable_debug_mode=enable_debug_mode,
         )
 
         return merged
@@ -346,9 +321,22 @@ class ConfigManager:
         override: DatabaseConfig,
     ) -> DatabaseConfig:
         """Merge database configurations."""
-        if override.url is not None:
-            return override
-        return base
+        # Use override URL if it's not empty, otherwise use base URL
+        url = override.url if override.url else base.url
+        
+        # Handle None values - use base value if override is None
+        timeout = override.connection.timeout if override.connection.timeout is not None else base.connection.timeout
+        application_name = override.connection.application_name if override.connection.application_name is not None else base.connection.application_name
+        enable_debug = override.enable_debug if override.enable_debug is not None else base.enable_debug
+        
+        return DatabaseConfig(
+            url=url,
+            connection=ConnectionConfig(
+                timeout=timeout,
+                application_name=application_name,
+            ),
+            enable_debug=enable_debug,
+        )
 
     def _merge_security_config(
         self,
@@ -356,30 +344,18 @@ class ConfigManager:
         override: SecurityConfig,
     ) -> SecurityConfig:
         """Merge security configurations."""
-        merged = SecurityConfig()
-
-        merged.enable_validation = (
-            override.enable_validation
-            if override.enable_validation != base.enable_validation
-            else base.enable_validation
+        # Use override value if it's not None/zero, otherwise use base value
+        enable_validation = override.enable_validation if override.enable_validation is not None else base.enable_validation
+        max_file_size_mb = override.max_file_size_mb if override.max_file_size_mb is not None and override.max_file_size_mb > 0 else base.max_file_size_mb
+        max_statements_per_file = override.max_statements_per_file if override.max_statements_per_file is not None and override.max_statements_per_file > 0 else base.max_statements_per_file
+        allowed_file_extensions = override.allowed_file_extensions if override.allowed_file_extensions is not None else base.allowed_file_extensions
+        
+        return SecurityConfig(
+            enable_validation=enable_validation,
+            max_file_size_mb=max_file_size_mb,
+            max_statements_per_file=max_statements_per_file,
+            allowed_file_extensions=allowed_file_extensions,
         )
-        merged.max_file_size_mb = (
-            override.max_file_size_mb
-            if override.max_file_size_mb != base.max_file_size_mb
-            else base.max_file_size_mb
-        )
-        merged.max_statements_per_file = (
-            override.max_statements_per_file
-            if override.max_statements_per_file != base.max_statements_per_file
-            else base.max_statements_per_file
-        )
-        merged.allowed_file_extensions = (
-            override.allowed_file_extensions
-            if override.allowed_file_extensions != base.allowed_file_extensions
-            else base.allowed_file_extensions
-        )
-
-        return merged
 
     def _merge_logging_config(
         self,
@@ -387,70 +363,43 @@ class ConfigManager:
         override: LoggingConfig,
     ) -> LoggingConfig:
         """Merge logging configurations."""
-        merged = LoggingConfig()
-
-        merged.level = override.level if override.level != base.level else base.level
-        merged.format = override.format if override.format != base.format else base.format
-        merged.enable_console = (
-            override.enable_console
-            if override.enable_console != base.enable_console
-            else base.enable_console
+        # Use override value if it's not None, otherwise use base value
+        level = override.level if override.level is not None else base.level
+        format = override.format if override.format is not None else base.format
+        enable_console = override.enable_console if override.enable_console is not None else base.enable_console
+        enable_file = override.enable_file if override.enable_file is not None else base.enable_file
+        log_file = override.log_file if override.log_file is not None else base.log_file
+        log_dir = override.log_dir if override.log_dir is not None else base.log_dir
+        backup_count = override.backup_count if override.backup_count is not None else base.backup_count
+        
+        return LoggingConfig(
+            level=level,
+            format=format,
+            enable_console=enable_console,
+            enable_file=enable_file,
+            log_file=log_file,
+            log_dir=log_dir,
+            backup_count=backup_count,
         )
-        merged.enable_file = (
-            override.enable_file
-            if override.enable_file != base.enable_file
-            else base.enable_file
-        )
-        merged.log_file = (
-            override.log_file if override.log_file is not None else base.log_file
-        )
-        merged.log_dir = (
-            override.log_dir if override.log_dir is not None else base.log_dir
-        )
-        merged.backup_count = (
-            override.backup_count
-            if override.backup_count != base.backup_count
-            else base.backup_count
-        )
-
-        return merged
 
     def _validate_config(self, config: AppConfig) -> None:
-        """Validate the configuration."""
-        errors = []
-
-        # Validate database configuration
+        """Validate configuration."""
         if not config.database.url:
-            errors.append("Database URL is required")
+            raise ConfigValidationError("Database URL is required")
 
-        # Validate security configuration
-        if config.security.max_file_size_mb <= 0:
-            errors.append("Max file size must be positive")
+        if config.database.connection.timeout <= 0:
+            raise ConfigValidationError("Connection timeout must be positive")
 
-        if config.security.max_statements_per_file <= 0:
-            errors.append("Max statements per file must be positive")
+        if config.max_file_size_mb <= 0:
+            raise ConfigValidationError("Max file size must be positive")
 
-        # Validate logging configuration
-        if (
-            config.logging.enable_file
-            and not config.logging.log_file
-            and not config.logging.log_dir
-        ):
-            errors.append(
-                "Log file or directory must be specified when file logging is enabled"
-            )
-
-        if errors:
-            raise ConfigValidationError(
-                f"Configuration validation failed: {'; '.join(errors)}"
-            )
+        if config.max_statements_per_file <= 0:
+            raise ConfigValidationError("Max statements per file must be positive")
 
     def get_config(self) -> AppConfig:
-        """Get the current configuration."""
-        if self._config is None:
-            raise ConfigurationError(
-                "Configuration not loaded. Call load_config() first."
-            )
+        """Get current configuration."""
+        if not hasattr(self, "_config"):
+            self._config = self.load_config()
         return self._config
 
     def save_config(
@@ -463,48 +412,42 @@ class ConfigManager:
 
         Args:
             config: Configuration to save
-            file_path: Path to save the configuration file
+            file_path: Path to save configuration file
         """
-        try:
-            config_data = {
-                "database": {
-                    "url": config.database.url,
-                    "connection": {
-                        "timeout": config.database.connection.timeout,
-                        "max_connections": config.database.connection.max_connections,
-                    },
-                    "pool": {
-                        "size": config.database.pool.size,
-                        "max_overflow": config.database.pool.max_overflow,
-                        "recycle_time": config.database.pool.recycle_time,
-                    },
-                    "enable_debug": config.database.enable_debug,
+        config_data = {
+            "database": {
+                "url": config.database.url,
+                "connection": {
+                    "timeout": config.database.connection.timeout,
+                    "application_name": config.database.connection.application_name,
                 },
-                "security": {
-                    "enable_validation": config.security.enable_validation,
-                    "max_file_size_mb": config.security.max_file_size_mb,
-                    "max_statements_per_file": config.security.max_statements_per_file,
-                    "allowed_file_extensions": config.security.allowed_file_extensions,
-                },
-                "logging": {
-                    "level": config.logging.level.value,
-                    "format": config.logging.format.value,
-                    "enable_console": config.logging.enable_console,
-                    "enable_file": config.logging.enable_file,
-                    "log_file": config.logging.log_file,
-                    "log_dir": config.logging.log_dir,
-                    "backup_count": config.logging.backup_count,
-                },
-                "app": {
-                    "max_file_size_mb": config.max_file_size_mb,
-                    "max_statements_per_file": config.max_statements_per_file,
-                    "enable_verbose_output": config.enable_verbose_output,
-                    "enable_debug_mode": config.enable_debug_mode,
-                },
-            }
+                "enable_debug": config.database.enable_debug,
+            },
+            "security": {
+                "enable_validation": config.security.enable_validation,
+                "max_file_size_mb": config.security.max_file_size_mb,
+                "max_statements_per_file": config.security.max_statements_per_file,
+                "allowed_file_extensions": config.security.allowed_file_extensions,
+            },
+            "logging": {
+                "level": config.logging.level.value,
+                "format": config.logging.format.value,
+                "enable_console": config.logging.enable_console,
+                "enable_file": config.logging.enable_file,
+                "log_file": config.logging.log_file,
+                "log_dir": config.logging.log_dir,
+                "backup_count": config.logging.backup_count,
+            },
+            "app": {
+                "max_file_size_mb": config.max_file_size_mb,
+                "max_statements_per_file": config.max_statements_per_file,
+                "enable_verbose_output": config.enable_verbose_output,
+                "enable_debug_mode": config.enable_debug_mode,
+            },
+        }
 
+        try:
             with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(config_data, f, indent=2, ensure_ascii=False)
-
         except Exception as e:
-            raise ConfigFileError(f"Failed to save configuration file: {e}")
+            raise ConfigFileError(f"Failed to save config file: {e}") from e

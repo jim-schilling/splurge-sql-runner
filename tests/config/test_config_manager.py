@@ -75,8 +75,8 @@ class TestConfigManager:
         """Test ConfigManager initialization."""
         manager = ConfigManager()
         assert manager._config_file_path is None
-        assert manager._config is None
-        assert isinstance(manager._default_config, AppConfig)
+        assert manager._validation_summary is not None
+        assert manager._logger is None
 
     def test_initialization_with_file(self) -> None:
         """Test ConfigManager initialization with config file."""
@@ -186,17 +186,18 @@ class TestConfigManager:
         assert config.enable_verbose_output is True
 
     @patch.dict(os.environ, {
-        "JPY_DB_URL": "sqlite:///env.db",
-        "JPY_MAX_FILE_SIZE_MB": "25",
-        "JPY_VERBOSE": "true",
+        "SPLURGE_SQL_RUNNER_DB_URL": "sqlite:///env.db",
+        "SPLURGE_SQL_RUNNER_DB_TIMEOUT": "60",
     })
     def test_load_env_config(self) -> None:
         """Test loading configuration from environment variables."""
         manager = ConfigManager()
         config = manager._load_env_config()
         assert config.database.url == "sqlite:///env.db"
-        assert config.security.max_file_size_mb == 25
-        assert config.enable_verbose_output is True
+        assert config.database.connection.timeout == 60
+        # Security and application settings should use defaults (not overridden by environment)
+        assert config.security.max_file_size_mb == 10  # Default
+        assert config.enable_verbose_output is False  # Default
 
     def test_load_cli_config(self) -> None:
         """Test loading configuration from CLI arguments."""

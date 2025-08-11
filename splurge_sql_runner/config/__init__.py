@@ -17,7 +17,6 @@ from splurge_sql_runner.config.config_manager import (
 from splurge_sql_runner.config.database_config import (
     DatabaseConfig,
     ConnectionConfig,
-    PoolConfig,
 )
 from splurge_sql_runner.config.security_config import (
     SecurityConfig,
@@ -32,9 +31,7 @@ from splurge_sql_runner.config.constants import (
     DEFAULT_MAX_FILE_SIZE_MB,
     DEFAULT_MAX_STATEMENTS_PER_FILE,
     DEFAULT_MAX_STATEMENT_LENGTH,
-    DEFAULT_MAX_CONNECTIONS,
     DEFAULT_CONNECTION_TIMEOUT,
-    DEFAULT_POOL_RECYCLE,
     DANGEROUS_PATH_PATTERNS,
     DANGEROUS_SQL_PATTERNS,
     DANGEROUS_URL_PATTERNS,
@@ -51,7 +48,6 @@ __all__ = [
     "AppConfig",
     "DatabaseConfig",
     "ConnectionConfig",
-    "PoolConfig",
     "SecurityConfig",
     "ValidationConfig",
     "LoggingConfig",
@@ -61,9 +57,7 @@ __all__ = [
     "DEFAULT_MAX_FILE_SIZE_MB",
     "DEFAULT_MAX_STATEMENTS_PER_FILE",
     "DEFAULT_MAX_STATEMENT_LENGTH",
-    "DEFAULT_MAX_CONNECTIONS",
     "DEFAULT_CONNECTION_TIMEOUT",
-    "DEFAULT_POOL_RECYCLE",
     "DANGEROUS_PATH_PATTERNS",
     "DANGEROUS_SQL_PATTERNS",
     "DANGEROUS_URL_PATTERNS",
