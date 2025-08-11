@@ -97,7 +97,11 @@ def _token_value_upper(token: Token) -> str:
     """
     Return the uppercased, stripped value of a token.
     """
-    return str(token.value).strip().upper() if hasattr(token, "value") and token.value else ""
+    return (
+        str(token.value).strip().upper()
+        if hasattr(token, "value") and token.value
+        else ""
+    )
 
 
 def _next_significant_token(
@@ -158,7 +162,10 @@ def _find_main_statement_after_ctes(tokens: list[Token]) -> str | None:
             if next_i is None:
                 return None
             i = next_i
-            if tokens[i].ttype == sqlparse.tokens.Punctuation and tokens[i].value == _PAREN_OPEN:
+            if (
+                tokens[i].ttype == sqlparse.tokens.Punctuation
+                and tokens[i].value == _PAREN_OPEN
+            ):
                 paren_level = 1
                 i += 1
                 while i < n and paren_level > 0:
@@ -174,7 +181,10 @@ def _find_main_statement_after_ctes(tokens: list[Token]) -> str | None:
                 if next_i is None:
                     return None
                 i = next_i
-                if tokens[i].ttype == sqlparse.tokens.Punctuation and tokens[i].value == _COMMA:
+                if (
+                    tokens[i].ttype == sqlparse.tokens.Punctuation
+                    and tokens[i].value == _COMMA
+                ):
                     i += 1
                     continue
                 break
@@ -202,7 +212,11 @@ def _is_with_keyword(token: Token) -> bool:
         True if token is the 'WITH' keyword, False otherwise
     """
     try:
-        return token.value.strip().upper() == _WITH_KEYWORD if hasattr(token, "value") and token.value else False
+        return (
+            token.value.strip().upper() == _WITH_KEYWORD
+            if hasattr(token, "value") and token.value
+            else False
+        )
     except (AttributeError, TypeError):
         return False
 

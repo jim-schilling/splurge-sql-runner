@@ -15,7 +15,11 @@ from pathlib import Path
 from typing import Any, Dict
 from dataclasses import dataclass, field
 
-from splurge_sql_runner.config.database_config import DatabaseConfig, ConnectionConfig, PoolConfig
+from splurge_sql_runner.config.database_config import (
+    DatabaseConfig,
+    ConnectionConfig,
+    PoolConfig,
+)
 from splurge_sql_runner.config.security_config import SecurityConfig
 from splurge_sql_runner.config.constants import (
     DEFAULT_MAX_FILE_SIZE_MB,
@@ -28,7 +32,11 @@ from splurge_sql_runner.errors import (
     ConfigValidationError,
     ConfigFileError,
 )
-from splurge_sql_runner.config.logging_config import LoggingConfig, LogLevel, LogFormat
+from splurge_sql_runner.config.logging_config import (
+    LoggingConfig,
+    LogLevel,
+    LogFormat,
+)
 
 
 @dataclass
@@ -76,7 +84,10 @@ class ConfigManager:
             logging=LoggingConfig(),
         )
 
-    def load_config(self, cli_args: Dict[str, Any] | None = None) -> AppConfig:
+    def load_config(
+        self,
+        cli_args: Dict[str, Any] | None = None,
+    ) -> AppConfig:
         """
         Load configuration from all sources with proper precedence.
 
@@ -216,17 +227,23 @@ class ConfigManager:
 
         if os.getenv("JPY_DB_MAX_CONNECTIONS"):
             try:
-                config.database.connection.max_connections = int(os.getenv("JPY_DB_MAX_CONNECTIONS", "5"))
+                config.database.connection.max_connections = int(
+                    os.getenv("JPY_DB_MAX_CONNECTIONS", "5")
+                )
             except ValueError:
                 pass
 
         # Security configuration from environment
         if os.getenv("JPY_SECURITY_ENABLED"):
-            config.security.enable_validation = os.getenv("JPY_SECURITY_ENABLED").lower() == "true"
+            config.security.enable_validation = (
+                os.getenv("JPY_SECURITY_ENABLED").lower() == "true"
+            )
 
         if os.getenv("JPY_MAX_FILE_SIZE_MB"):
             try:
-                config.security.max_file_size_mb = int(os.getenv("JPY_MAX_FILE_SIZE_MB", "10"))
+                config.security.max_file_size_mb = int(
+                    os.getenv("JPY_MAX_FILE_SIZE_MB", "10")
+                )
             except ValueError:
                 pass
 
@@ -282,7 +299,11 @@ class ConfigManager:
 
         return config
 
-    def _merge_config(self, base: AppConfig, override: AppConfig) -> AppConfig:
+    def _merge_config(
+        self,
+        base: AppConfig,
+        override: AppConfig,
+    ) -> AppConfig:
         """Merge two configurations, with override taking precedence."""
         merged = self._create_default_config()
 
@@ -297,7 +318,9 @@ class ConfigManager:
 
         # Merge application settings
         merged.max_file_size_mb = (
-            override.max_file_size_mb if override.max_file_size_mb != base.max_file_size_mb else base.max_file_size_mb
+            override.max_file_size_mb
+            if override.max_file_size_mb != base.max_file_size_mb
+            else base.max_file_size_mb
         )
         merged.max_statements_per_file = (
             override.max_statements_per_file
@@ -317,13 +340,21 @@ class ConfigManager:
 
         return merged
 
-    def _merge_database_config(self, base: DatabaseConfig, override: DatabaseConfig) -> DatabaseConfig:
+    def _merge_database_config(
+        self,
+        base: DatabaseConfig,
+        override: DatabaseConfig,
+    ) -> DatabaseConfig:
         """Merge database configurations."""
         if override.url is not None:
             return override
         return base
 
-    def _merge_security_config(self, base: SecurityConfig, override: SecurityConfig) -> SecurityConfig:
+    def _merge_security_config(
+        self,
+        base: SecurityConfig,
+        override: SecurityConfig,
+    ) -> SecurityConfig:
         """Merge security configurations."""
         merged = SecurityConfig()
 
@@ -333,7 +364,9 @@ class ConfigManager:
             else base.enable_validation
         )
         merged.max_file_size_mb = (
-            override.max_file_size_mb if override.max_file_size_mb != base.max_file_size_mb else base.max_file_size_mb
+            override.max_file_size_mb
+            if override.max_file_size_mb != base.max_file_size_mb
+            else base.max_file_size_mb
         )
         merged.max_statements_per_file = (
             override.max_statements_per_file
@@ -348,19 +381,37 @@ class ConfigManager:
 
         return merged
 
-    def _merge_logging_config(self, base: LoggingConfig, override: LoggingConfig) -> LoggingConfig:
+    def _merge_logging_config(
+        self,
+        base: LoggingConfig,
+        override: LoggingConfig,
+    ) -> LoggingConfig:
         """Merge logging configurations."""
         merged = LoggingConfig()
 
         merged.level = override.level if override.level != base.level else base.level
         merged.format = override.format if override.format != base.format else base.format
         merged.enable_console = (
-            override.enable_console if override.enable_console != base.enable_console else base.enable_console
+            override.enable_console
+            if override.enable_console != base.enable_console
+            else base.enable_console
         )
-        merged.enable_file = override.enable_file if override.enable_file != base.enable_file else base.enable_file
-        merged.log_file = override.log_file if override.log_file is not None else base.log_file
-        merged.log_dir = override.log_dir if override.log_dir is not None else base.log_dir
-        merged.backup_count = override.backup_count if override.backup_count != base.backup_count else base.backup_count
+        merged.enable_file = (
+            override.enable_file
+            if override.enable_file != base.enable_file
+            else base.enable_file
+        )
+        merged.log_file = (
+            override.log_file if override.log_file is not None else base.log_file
+        )
+        merged.log_dir = (
+            override.log_dir if override.log_dir is not None else base.log_dir
+        )
+        merged.backup_count = (
+            override.backup_count
+            if override.backup_count != base.backup_count
+            else base.backup_count
+        )
 
         return merged
 
@@ -380,19 +431,33 @@ class ConfigManager:
             errors.append("Max statements per file must be positive")
 
         # Validate logging configuration
-        if config.logging.enable_file and not config.logging.log_file and not config.logging.log_dir:
-            errors.append("Log file or directory must be specified when file logging is enabled")
+        if (
+            config.logging.enable_file
+            and not config.logging.log_file
+            and not config.logging.log_dir
+        ):
+            errors.append(
+                "Log file or directory must be specified when file logging is enabled"
+            )
 
         if errors:
-            raise ConfigValidationError(f"Configuration validation failed: {'; '.join(errors)}")
+            raise ConfigValidationError(
+                f"Configuration validation failed: {'; '.join(errors)}"
+            )
 
     def get_config(self) -> AppConfig:
         """Get the current configuration."""
         if self._config is None:
-            raise ConfigurationError("Configuration not loaded. Call load_config() first.")
+            raise ConfigurationError(
+                "Configuration not loaded. Call load_config() first."
+            )
         return self._config
 
-    def save_config(self, config: AppConfig, file_path: str) -> None:
+    def save_config(
+        self,
+        config: AppConfig,
+        file_path: str,
+    ) -> None:
         """
         Save configuration to JSON file.
 

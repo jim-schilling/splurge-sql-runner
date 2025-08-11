@@ -13,14 +13,24 @@ from typing import Any, Dict, List
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Connection, Engine
 
-from splurge_sql_runner.database.interfaces import DatabaseEngine, DatabaseConnection, ConnectionPool
+from splurge_sql_runner.database.interfaces import (
+    DatabaseEngine,
+    DatabaseConnection,
+    ConnectionPool,
+)
 from splurge_sql_runner.config.database_config import DatabaseConfig
 from splurge_sql_runner.errors.database_errors import (
     DatabaseConnectionError,
     DatabaseOperationError,
 )
 from splurge_sql_runner.logging import configure_module_logging
-from splurge_sql_runner.sql_helper import parse_sql_statements, detect_statement_type, FETCH_STATEMENT, EXECUTE_STATEMENT, ERROR_STATEMENT
+from splurge_sql_runner.sql_helper import (
+    parse_sql_statements,
+    detect_statement_type,
+    FETCH_STATEMENT,
+    EXECUTE_STATEMENT,
+    ERROR_STATEMENT,
+)
 
 
 class SqlAlchemyConnection(DatabaseConnection):
@@ -39,7 +49,11 @@ class SqlAlchemyConnection(DatabaseConnection):
         """Exit context manager."""
         self.close()
 
-    def execute(self, sql: str, parameters: Dict[str, Any] | None = None) -> Any:
+    def execute(
+        self,
+        sql: str,
+        parameters: Dict[str, Any] | None = None,
+    ) -> Any:
         """Execute SQL statement."""
         try:
             if parameters and "?" in sql:
@@ -57,7 +71,11 @@ class SqlAlchemyConnection(DatabaseConnection):
             self._logger.error(f"Failed to execute SQL: {e}")
             raise DatabaseOperationError(f"SQL execution failed: {e}") from e
 
-    def fetch_all(self, sql: str, parameters: Dict[str, Any] | None = None) -> List[Dict[str, Any]]:
+    def fetch_all(
+        self,
+        sql: str,
+        parameters: Dict[str, Any] | None = None,
+    ) -> List[Dict[str, Any]]:
         """Fetch all rows from SQL query."""
         try:
             result = self._connection.execute(text(sql), parameters or {})
@@ -67,7 +85,11 @@ class SqlAlchemyConnection(DatabaseConnection):
             self._logger.error(f"Failed to fetch data: {e}")
             raise DatabaseOperationError(f"Data fetch failed: {e}") from e
 
-    def fetch_one(self, sql: str, parameters: Dict[str, Any] | None = None) -> Dict[str, Any] | None:
+    def fetch_one(
+        self,
+        sql: str,
+        parameters: Dict[str, Any] | None = None,
+    ) -> Dict[str, Any] | None:
         """Fetch one row from SQL query."""
         try:
             result = self._connection.execute(text(sql), parameters or {})
@@ -134,8 +156,6 @@ class SqlAlchemyConnectionPool(ConnectionPool):
             self._logger.error(f"Failed to close connection pool: {e}")
 
 
-
-
 class UnifiedDatabaseEngine(DatabaseEngine):
     """
     Unified database engine that leverages SQLAlchemy's built-in multi-engine support.
@@ -165,9 +185,15 @@ class UnifiedDatabaseEngine(DatabaseEngine):
             connect_args = self._config.get_connect_args()
             engine_kwargs = self._config.get_engine_kwargs()
 
-            self._logger.info(f"Creating SQLAlchemy engine for database at {self._config.url}")
+            self._logger.info(
+                f"Creating SQLAlchemy engine for database at {self._config.url}"
+            )
 
-            return create_engine(self._config.url, connect_args=connect_args, **engine_kwargs)
+            return create_engine(
+                self._config.url,
+                connect_args=connect_args,
+                **engine_kwargs,
+            )
         except Exception as e:
             self._logger.error(f"Failed to create database engine: {e}")
             raise DatabaseOperationError(f"Failed to create database engine: {e}") from e
@@ -231,23 +257,29 @@ class UnifiedDatabaseEngine(DatabaseEngine):
         Raises:
             DatabaseConnectionError: If database connection fails
         """
-        self._logger.info(f"Starting batch execution of SQL query (length: {len(sql_query)} characters)")
+        self._logger.info(
+            f"Starting batch execution of SQL query (length: {len(sql_query)} characters)"
+        )
         
         try:
             with self.create_connection() as conn:
                 self._logger.debug("Database connection established for batch execution")
                 results = self._execute_batch_statements(conn, sql_query)
-                self._logger.info(f"Batch execution completed successfully with {len(results)} result sets")
+                self._logger.info(
+                    f"Batch execution completed successfully with {len(results)} result sets"
+                )
                 return results
         except Exception as e:
             self._logger.error(f"Batch execution failed: {e}")
             # Check if this is a connection error by looking at the exception type or message
-            if (isinstance(e, DatabaseConnectionError) or 
-                "connection" in str(e).lower() or 
-                "connect" in str(e).lower() or
-                "unable to connect" in str(e).lower() or
-                "connection refused" in str(e).lower() or
-                "timeout" in str(e).lower()):
+            if (
+                isinstance(e, DatabaseConnectionError)
+                or "connection" in str(e).lower()
+                or "connect" in str(e).lower()
+                or "unable to connect" in str(e).lower()
+                or "connection refused" in str(e).lower()
+                or "timeout" in str(e).lower()
+            ):
                 raise DatabaseConnectionError(f"Database connection failed: {str(e)}") from e
             else:
                 # For other errors, return a single error result instead of raising
@@ -257,7 +289,11 @@ class UnifiedDatabaseEngine(DatabaseEngine):
                     "error": str(e),
                 }]
 
-    def _execute_batch_statements(self, conn: DatabaseConnection, sql_query: str) -> List[Dict[str, Any]]:
+    def _execute_batch_statements(
+        self,
+        conn: DatabaseConnection,
+        sql_query: str,
+    ) -> List[Dict[str, Any]]:
         """
         Execute a batch of SQL statements and return results for each.
         Stops and rolls back on the first error.
@@ -280,35 +316,29 @@ class UnifiedDatabaseEngine(DatabaseEngine):
                 if stmt_type == FETCH_STATEMENT:
                     # Execute as fetch operation
                     rows = conn.fetch_all(stmt)
-                    results.append(
-                        {
-                            "statement": stmt,
-                            "statement_type": FETCH_STATEMENT,
-                            "result": rows,
-                            "row_count": len(rows),
-                        }
-                    )
+                    results.append({
+                        "statement": stmt,
+                        "statement_type": FETCH_STATEMENT,
+                        "result": rows,
+                        "row_count": len(rows),
+                    })
                 else:
                     # Execute as non-SELECT operation
                     result = conn.execute(stmt)
-                    results.append(
-                        {
-                            "statement": stmt,
-                            "statement_type": EXECUTE_STATEMENT,
-                            "result": True,
-                            "row_count": None,
-                        }
-                    )
+                    results.append({
+                        "statement": stmt,
+                        "statement_type": EXECUTE_STATEMENT,
+                        "result": True,
+                        "row_count": None,
+                    })
             conn.commit()
         except Exception as e:
             conn.rollback()
-            results.append(
-                {
-                    "statement": stmt,
-                    "statement_type": ERROR_STATEMENT,
-                    "error": str(e),
-                }
-            )
+            results.append({
+                "statement": stmt,
+                "statement_type": ERROR_STATEMENT,
+                "error": str(e),
+            })
         return results
 
     def close(self) -> None:

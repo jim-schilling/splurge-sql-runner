@@ -15,7 +15,7 @@ alwaysApply: true
 - Prefer absolute import paths.
 - Group imports at top of module: standard -> third-party -> local.
 - Avoid inline comments.
-- Avoid noisy comments for refactors or redesign.
+- Avoid noisy comments for refactors or redesign, except to explain complex logic or clarify intent.
 - Avoid side effects in module-level code.
 - Optimize loops.
 - Use pytest and pytest-cov for testing, defaulting to -x -v with pytest-cov.

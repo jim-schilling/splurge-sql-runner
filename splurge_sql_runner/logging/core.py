@@ -19,6 +19,14 @@ from splurge_sql_runner.errors import ConfigValidationError
 _LOGGING_CONFIGURED = False
 _LOGGING_CONFIG = {}
 
+# Private constants
+_DEFAULT_LOG_LEVEL: str = "INFO"
+_DEFAULT_BACKUP_COUNT: int = 7
+_DEFAULT_LOG_FILENAME: str = "splurge_sql_runner.log"
+_DEFAULT_LOG_SUBDIR: str = ".splurge_sql_runner"
+_DEFAULT_LOG_DIR: str = "logs"
+_VALID_LOG_LEVELS: set[str] = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+
 
 def setup_logging(
     *,
@@ -50,9 +58,10 @@ def setup_logging(
     global _LOGGING_CONFIGURED, _LOGGING_CONFIG
 
     # Validate log level
-    valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
-    if log_level.upper() not in valid_levels:
-        raise ConfigValidationError(f"Invalid log level: {log_level}. Must be one of {valid_levels}")
+    if log_level.upper() not in _VALID_LOG_LEVELS:
+        raise ConfigValidationError(
+            f"Invalid log level: {log_level}. Must be one of {_VALID_LOG_LEVELS}"
+        )
 
     # Store configuration
     _LOGGING_CONFIG = {
@@ -70,13 +79,13 @@ def setup_logging(
     elif log_dir:
         log_dir_path = Path(log_dir)
         log_dir_path.mkdir(parents=True, exist_ok=True)
-        log_path = log_dir_path / "splurge_sql_runner.log"
+        log_path = log_dir_path / _DEFAULT_LOG_FILENAME
     else:
         # Default to user's home directory
         home_dir = Path.home()
-        log_dir_path = home_dir / ".splurge_sql_runner" / "logs"
+        log_dir_path = home_dir / _DEFAULT_LOG_SUBDIR / _DEFAULT_LOG_DIR
         log_dir_path.mkdir(parents=True, exist_ok=True)
-        log_path = log_dir_path / "splurge_sql_runner.log"
+        log_path = log_dir_path / _DEFAULT_LOG_FILENAME
 
     # Create logger
     logger = logging.getLogger("splurge_sql_runner")
@@ -106,7 +115,10 @@ def setup_logging(
         file_formatter = JsonFormatter()
     else:
         file_formatter = logging.Formatter(
-            fmt=("%(asctime)s - %(name)s - %(levelname)s - " "%(module)s:%(funcName)s:%(lineno)d - %(message)s"),
+            fmt=(
+                "%(asctime)s - %(name)s - %(levelname)s - "
+                "%(module)s:%(funcName)s:%(lineno)d - %(message)s"
+            ),
             datefmt="%Y-%m-%d %H:%M:%S",
         )
 
@@ -124,7 +136,8 @@ def setup_logging(
 
         # Console formatter (always human-readable)
         console_formatter = logging.Formatter(
-            fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%H:%M:%S"
+            fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            datefmt="%H:%M:%S",
         )
 
         # Always wrap with resilient handler for error recovery
@@ -180,7 +193,11 @@ def configure_module_logging(
     main_logger = logging.getLogger("splurge_sql_runner")
     if not main_logger.handlers:
         # Use provided parameters or defaults
-        setup_logging(log_level=log_level or "INFO", log_file=log_file, log_dir=log_dir)
+        setup_logging(
+            log_level=log_level or _DEFAULT_LOG_LEVEL,
+            log_file=log_file,
+            log_dir=log_dir,
+        )
 
     # Return module-specific logger
     return get_logger(f"splurge_sql_runner.{module_name}")

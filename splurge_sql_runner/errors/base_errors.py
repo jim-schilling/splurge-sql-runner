@@ -16,7 +16,11 @@ from typing import Any, Dict
 class SplurgeSqlRunnerError(Exception):
     """Base exception for all splurge-sql-runner errors."""
 
-    def __init__(self, message: str, context: Dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        context: Dict[str, Any] | None = None,
+    ) -> None:
         """
         Initialize the base error.
 

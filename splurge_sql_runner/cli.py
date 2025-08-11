@@ -16,14 +16,14 @@ import sys
 from pathlib import Path
 from typing import List, Dict, Any
 
-from splurge_sql_runner.database.engines import UnifiedDatabaseEngine
-from splurge_sql_runner.config.database_config import DatabaseConfig
-from splurge_sql_runner.errors.database_errors import (
-    DatabaseConnectionError,
-    DatabaseBatchError,
-    DatabaseEngineError,
+from splurge_sql_runner.config import ConfigManager
+from splurge_sql_runner.config.constants import (
+    DEFAULT_MAX_FILE_SIZE_MB,
+    DEFAULT_MAX_STATEMENTS_PER_FILE,
 )
-from splurge_sql_runner.sql_helper import split_sql_file
+from splurge_sql_runner.config.database_config import DatabaseConfig
+from splurge_sql_runner.config.security_config import SecurityConfig
+from splurge_sql_runner.database.engines import UnifiedDatabaseEngine
 from splurge_sql_runner.errors import (
     CliError,
     CliArgumentError,
@@ -34,17 +34,17 @@ from splurge_sql_runner.errors import (
     SqlValidationError,
     DatabaseConnectionError,
     DatabaseBatchError,
+    DatabaseEngineError,
     SecurityValidationError,
     SecurityUrlError,
 )
-from splurge_sql_runner.security import SecurityValidator
 from splurge_sql_runner.logging import configure_module_logging
-from splurge_sql_runner.config import ConfigManager
-from splurge_sql_runner.config.security_config import SecurityConfig
-from splurge_sql_runner.config.constants import DEFAULT_MAX_FILE_SIZE_MB, DEFAULT_MAX_STATEMENTS_PER_FILE
+from splurge_sql_runner.security import SecurityValidator
+from splurge_sql_runner.sql_helper import split_sql_file
 from tabulate import tabulate
 
 
+# Private constants
 _DEFAULT_COLUMN_WIDTH: int = 10
 _SEPARATOR_LENGTH: int = 60
 _DASH_SEPARATOR_LENGTH: int = 40
@@ -64,11 +64,14 @@ CLI for splurge-sql-runner
 
 Usage:
     python -m splurge_sql_runner -c "sqlite:///database.db" -f "script.sql"
-python -m splurge_sql_runner -c "sqlite:///database.db" -p "*.sql"
+    python -m splurge_sql_runner -c "sqlite:///database.db" -p "*.sql"
 """
 
 
-def simple_table_format(headers: List[str], rows: List[List]) -> str:
+def simple_table_format(
+    headers: List[str],
+    rows: List[List],
+) -> str:
     """
     Simple table formatting when tabulate is not available.
 
@@ -111,7 +114,10 @@ def simple_table_format(headers: List[str], rows: List[List]) -> str:
     return "\n".join(lines)
 
 
-def pretty_print_results(results: List[Dict[str, Any]], file_path: str | None = None) -> None:
+def pretty_print_results(
+    results: List[Dict[str, Any]],
+    file_path: str | None = None,
+) -> None:
     """
     Pretty print the results of SQL execution.
 
@@ -278,9 +284,18 @@ Examples:
         help='File pattern to match multiple SQL files (e.g., "*.sql")',
     )
 
-    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable verbose output",
+    )
 
-    parser.add_argument("--debug", action="store_true", help="Enable SQLAlchemy debug mode")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable SQLAlchemy debug mode",
+    )
 
     parser.add_argument(
         "--disable-security",
@@ -288,14 +303,25 @@ Examples:
         help="Disable security validation (not recommended)",
     )
 
-    parser.add_argument("--max-file-size", type=int, default=DEFAULT_MAX_FILE_SIZE_MB, help=f"Maximum file size in MB (default: {DEFAULT_MAX_FILE_SIZE_MB})")
+    parser.add_argument(
+        "--max-file-size",
+        type=int,
+        default=DEFAULT_MAX_FILE_SIZE_MB,
+        help=f"Maximum file size in MB (default: {DEFAULT_MAX_FILE_SIZE_MB})",
+    )
 
-    parser.add_argument("--max-statements", type=int, default=DEFAULT_MAX_STATEMENTS_PER_FILE, help=f"Maximum statements per file (default: {DEFAULT_MAX_STATEMENTS_PER_FILE})")
+    parser.add_argument(
+        "--max-statements",
+        type=int,
+        default=DEFAULT_MAX_STATEMENTS_PER_FILE,
+        help=f"Maximum statements per file (default: {DEFAULT_MAX_STATEMENTS_PER_FILE})",
+    )
 
     args = parser.parse_args()
 
     logger.debug(
-        f"CLI arguments: file={args.file}, pattern={args.pattern}, " f"verbose={args.verbose}, debug={args.debug}"
+        f"CLI arguments: file={args.file}, pattern={args.pattern}, "
+        f"verbose={args.verbose}, debug={args.debug}"
     )
 
     if not args.file and not args.pattern:
@@ -324,7 +350,9 @@ Examples:
                 logger.error(f"Security validation failed: {e}")
                 raise CliSecurityError(str(e))
         else:
-            logger.warning("Security validation disabled - this is not recommended for production use")
+            logger.warning(
+                "Security validation disabled - this is not recommended for production use"
+            )
             print("⚠️  Security validation disabled - this is not recommended for production use")
 
         logger.info(f"Initializing database engine for connection: {args.connection}")
@@ -333,7 +361,7 @@ Examples:
 
         db_config = DatabaseConfig(
             url=args.connection,
-            enable_debug=args.debug
+            enable_debug=args.debug,
         )
         db_engine = UnifiedDatabaseEngine(db_config)
         logger.info("Database engine initialized successfully")
@@ -378,7 +406,9 @@ Examples:
             else:
                 logger.error(f"Failed to process file: {file_path}")
 
-        logger.info(f"Processing complete: {success_count}/{len(files_to_process)} files processed successfully")
+        logger.info(
+            f"Processing complete: {success_count}/{len(files_to_process)} files processed successfully"
+        )
         print(f"\n{'='*60}")
         print(f"Summary: {success_count}/{len(files_to_process)} files processed successfully")
         print(f"{'='*60}")
