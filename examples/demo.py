@@ -12,7 +12,6 @@ import tempfile
 import time
 from pathlib import Path
 
-# Add the project root to Python path for development
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -73,7 +72,6 @@ def main():
     print("splurge-sql-runner CLI Demonstration")
     print("="*60)
     
-    # Check if splurge-sql-runner is available
     try:
         import splurge_sql_runner
         print("✅ splurge-sql-runner is available")
@@ -84,14 +82,12 @@ def main():
         print("For development, make sure you're in the project root directory")
         sys.exit(1)
     
-    # Create a temporary database
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp_db:
         db_path = tmp_db.name
     
     try:
         print(f"\nUsing temporary database: {db_path}")
         
-        # Step 1: Basic setup
         setup_sql = """
 -- Basic setup demonstration
 CREATE TABLE IF NOT EXISTS demo_users (
@@ -125,7 +121,6 @@ SELECT COUNT(*) as user_count FROM demo_users;
             print("❌ Setup failed, stopping demonstration")
             return
         
-        # Step 2: Migration
         migration_sql = """
 -- Migration demonstration
 ALTER TABLE demo_users ADD COLUMN role TEXT DEFAULT 'user';
@@ -170,7 +165,6 @@ SELECT role, COUNT(*) as count FROM demo_users GROUP BY role;
             print("❌ Migration failed, stopping demonstration")
             return
         
-        # Step 3: Data Analysis
         analysis_sql = """
 -- Data analysis demonstration
 SELECT '=== DATA ANALYSIS DEMONSTRATION ===' as section;
@@ -218,7 +212,6 @@ ORDER BY post_count DESC;
             print("❌ Analysis failed, stopping demonstration")
             return
         
-        # Step 4: Pattern matching demonstration
         print(f"\n{'='*60}")
         print("Step 4: Pattern Matching Demonstration")
         print(f"{'='*60}")
@@ -253,12 +246,10 @@ SELECT 'File 3 executed' as result;
             "-v"
         ], "Processing multiple files with pattern matching")
         
-        # Step 5: Error handling demonstration
         print(f"\n{'='*60}")
         print("Step 5: Error Handling Demonstration")
         print(f"{'='*60}")
         
-        # Test with non-existent file
         print("Testing with non-existent file...")
         run_command([
             sys.executable, "-m", "splurge_sql_runner",
@@ -266,7 +257,6 @@ SELECT 'File 3 executed' as result;
             "-f", "nonexistent.sql"
         ], "Error handling: Non-existent file")
         
-        # Test with invalid SQL
         invalid_sql = """
 -- Invalid SQL demonstration
 SELECT * FROM nonexistent_table;
@@ -282,7 +272,6 @@ INSERT INTO demo_users (invalid_column) VALUES ('test');
             "-v"
         ], "Error handling: Invalid SQL")
         
-        # Step 6: Security features demonstration
         print(f"\n{'='*60}")
         print("Step 6: Security Features Demonstration")
         print(f"{'='*60}")
@@ -295,7 +284,6 @@ SELECT 'This query should execute normally' as result;
         
         security_file = create_demo_sql_file(security_sql, "security.sql")
         
-        # With security enabled (default)
         run_command([
             sys.executable, "-m", "splurge_sql_runner",
             "-c", f"sqlite:///{db_path}",
@@ -303,7 +291,6 @@ SELECT 'This query should execute normally' as result;
             "-v"
         ], "Security: Default validation")
         
-        # With security disabled
         run_command([
             sys.executable, "-m", "splurge_sql_runner",
             "-c", f"sqlite:///{db_path}",
@@ -312,7 +299,6 @@ SELECT 'This query should execute normally' as result;
             "-v"
         ], "Security: Validation disabled")
         
-        # Step 7: Final verification
         verification_sql = """
 -- Final verification
 SELECT '=== FINAL VERIFICATION ===' as section;
@@ -343,7 +329,6 @@ SELECT 'Demonstration completed successfully!' as final_status;
             "-v"
         ], "Step 7: Final Verification")
         
-        # Summary
         print(f"\n{'='*60}")
         print("DEMONSTRATION SUMMARY")
         print(f"{'='*60}")
@@ -365,11 +350,9 @@ SELECT 'Demonstration completed successfully!' as final_status;
         print("4. Check examples/cli_examples.md for more examples")
         
     finally:
-        # Cleanup
         if os.path.exists(db_path):
             os.unlink(db_path)
         
-        # Clean up temporary files
         for temp_file in [setup_file, migration_file, analysis_file, invalid_file, security_file, verification_file]:
             if os.path.exists(temp_file):
                 os.unlink(temp_file)

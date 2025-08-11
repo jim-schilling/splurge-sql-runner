@@ -57,12 +57,10 @@ def test_basic_setup():
     print("TESTING BASIC SETUP")
     print("="*60)
     
-    # Create a temporary database
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp_db:
         db_path = tmp_db.name
     
     try:
-        # Run basic setup
         result = run_cli_command([
             "-c", f"sqlite:///{db_path}",
             "-f", "examples/basic_setup.sql",
@@ -72,21 +70,17 @@ def test_basic_setup():
         if result.returncode == 0:
             print("✅ Basic setup test passed")
             
-            # Verify the database was created and has data
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             
-            # Check if tables exist
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             tables = [row[0] for row in cursor.fetchall()]
             print(f"Tables created: {tables}")
             
-            # Check user count
             cursor.execute("SELECT COUNT(*) FROM users")
             user_count = cursor.fetchone()[0]
             print(f"Users created: {user_count}")
             
-            # Check post count
             cursor.execute("SELECT COUNT(*) FROM posts")
             post_count = cursor.fetchone()[0]
             print(f"Posts created: {post_count}")
@@ -96,7 +90,6 @@ def test_basic_setup():
             print(f"❌ Basic setup test failed: {result.stderr}")
             
     finally:
-        # Clean up
         if os.path.exists(db_path):
             os.unlink(db_path)
 
@@ -107,12 +100,10 @@ def test_migration():
     print("TESTING MIGRATION")
     print("="*60)
     
-    # Create a temporary database
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp_db:
         db_path = tmp_db.name
     
     try:
-        # First run basic setup
         result1 = run_cli_command([
             "-c", f"sqlite:///{db_path}",
             "-f", "examples/basic_setup.sql"
@@ -122,7 +113,6 @@ def test_migration():
             print(f"❌ Basic setup failed: {result1.stderr}")
             return
         
-        # Then run migration
         result2 = run_cli_command([
             "-c", f"sqlite:///{db_path}",
             "-f", "examples/migration_example.sql",
@@ -132,21 +122,17 @@ def test_migration():
         if result2.returncode == 0:
             print("✅ Migration test passed")
             
-            # Verify migration was applied
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             
-            # Check if new tables exist
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             tables = [row[0] for row in cursor.fetchall()]
             print(f"All tables: {tables}")
             
-            # Check if migration was recorded
             cursor.execute("SELECT COUNT(*) FROM migration_history")
             migration_count = cursor.fetchone()[0]
             print(f"Migrations recorded: {migration_count}")
             
-            # Check if users have roles
             cursor.execute("SELECT COUNT(*) FROM users WHERE role IS NOT NULL")
             users_with_roles = cursor.fetchone()[0]
             print(f"Users with roles: {users_with_roles}")
@@ -395,7 +381,7 @@ def test_file_patterns():
         if result.returncode == 0:
             print("✅ File pattern test passed")
             if result.stdout:
-                print(f"Output: {result.stdout[:500]}...")  # Show first 500 chars
+                print(f"Output: {result.stdout[:500]}...")
             else:
                 print("Output: (no output)")
         else:

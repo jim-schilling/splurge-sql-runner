@@ -199,15 +199,12 @@ class TestSqlHelper:
         for stmt in statements:
             assert not stmt.endswith(";"), f"Statement should not end with semicolon: {stmt}"
 
-        # Test strip_semicolon=False behavior
         statements_with_semicolons = parse_sql_statements(sql, strip_semicolon=False)
         assert len(statements_with_semicolons) == 3
 
-        # Verify semicolons are preserved
         for stmt in statements_with_semicolons:
             assert stmt.endswith(";"), f"Statement should end with semicolon: {stmt}"
 
-        # Verify the statements are correct
         assert statements_with_semicolons[0] == "CREATE TABLE users (id INTEGER PRIMARY KEY);"
         assert statements_with_semicolons[1] == "INSERT INTO users VALUES (1, 'John');"
         assert statements_with_semicolons[2] == "SELECT * FROM users;"
@@ -243,7 +240,6 @@ class TestSqlHelper:
         statements = parse_sql_statements(multi_sql)
         expected_count = 24
         assert len(statements) == expected_count
-        # Spot check a few
         assert any(stmt.startswith("CREATE TABLE") for stmt in statements)
         assert any(stmt.startswith("INSERT INTO") for stmt in statements)
         assert any(stmt.startswith("PRAGMA") for stmt in statements)
@@ -521,7 +517,7 @@ class TestSqlHelperEdgeCases:
     def test_remove_sql_comments_empty_input(self):
         """Test comment removal with empty input."""
         assert remove_sql_comments("") == ""
-        assert remove_sql_comments(None) == None
+        assert remove_sql_comments(None) is None
         assert remove_sql_comments("   ") == ""
 
     def test_remove_sql_comments_nested_comments(self):
@@ -531,11 +527,8 @@ class TestSqlHelperEdgeCases:
         SELECT * FROM users; -- Line comment
         """
         clean_sql = remove_sql_comments(sql)
-        # Should handle gracefully without errors
         assert isinstance(clean_sql, str)
-        # Should remove at least some comments
         assert "--" not in clean_sql
-        # May not handle nested comments perfectly, but should not crash
         assert "SELECT * FROM users;" in clean_sql
 
     def test_remove_sql_comments_incomplete_comments(self):
@@ -545,7 +538,6 @@ class TestSqlHelperEdgeCases:
         SELECT * FROM users; /* Incomplete comment
         """
         clean_sql = remove_sql_comments(sql)
-        # Should handle gracefully without errors
         assert isinstance(clean_sql, str)
 
     def test_parse_sql_statements_malformed_sql(self):
@@ -556,7 +548,6 @@ class TestSqlHelperEdgeCases:
         CREATE TABLE users (id INTEGER -- Missing closing parenthesis
         """
         statements = parse_sql_statements(malformed_sql)
-        # Should handle gracefully and return what can be parsed
         assert isinstance(statements, list)
 
     def test_parse_sql_statements_only_semicolons(self):
@@ -602,7 +593,7 @@ class TestSqlHelperEdgeCases:
     def test_split_sql_file_large_file(self):
         """Test splitting large SQL file."""
         large_sql = ""
-        for i in range(250):  # Changed from 1000 to 250
+        for i in range(250):
             large_sql += f"INSERT INTO users VALUES ({i}, 'User{i}');\n"
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".sql", delete=False) as f:
@@ -611,7 +602,7 @@ class TestSqlHelperEdgeCases:
 
         try:
             statements = split_sql_file(temp_file)
-            assert len(statements) == 250  # Changed from 1000 to 250
+            assert len(statements) == 250
             for i, stmt in enumerate(statements):
                 assert f"INSERT INTO users VALUES ({i}, 'User{i}')" in stmt
         finally:
@@ -626,7 +617,7 @@ class TestSqlHelperEdgeCases:
             split_sql_file(None)
 
         with pytest.raises(SqlValidationError):
-            split_sql_file(123)  # Not a string
+            split_sql_file(123)
 
 
 class TestSqlHelperPerformance:
@@ -634,7 +625,6 @@ class TestSqlHelperPerformance:
 
     def test_remove_sql_comments_performance(self):
         """Test performance of comment removal with large SQL."""
-        # Create a large SQL string with many comments and statements
         large_sql = "".join(
             [
                 f"-- This is a comment for statement {i}\n"
@@ -647,7 +637,7 @@ class TestSqlHelperPerformance:
         clean_sql = remove_sql_comments(large_sql)
         end_time = time.time()
 
-        # Should complete in reasonable time (less than 5 second)
+        # Should complete in reasonable time (less than 5 seconds)
         assert end_time - start_time < 5.0
         assert "--" not in clean_sql
         assert "/*" not in clean_sql
@@ -660,9 +650,8 @@ class TestSqlHelperPerformance:
         statements = parse_sql_statements(many_statements)
         end_time = time.time()
 
-        # Should complete in reasonable time (less than 5 second)
         assert end_time - start_time < 5.0
-        assert len(statements) == 250  # Changed from 1000 to 250
+        assert len(statements) == 250
 
     def test_detect_statement_type_performance(self):
         """Test performance of statement type detection with complex SQL."""
@@ -681,11 +670,10 @@ class TestSqlHelperPerformance:
         ORDER BY cte.id;
         """
         start_time = time.time()
-        for _ in range(250):  # Use 250 iterations as requested
+        for _ in range(250):
             result = detect_statement_type(complex_sql)
         end_time = time.time()
 
-        # Should complete 250 iterations in reasonable time (less than 5 second)
         assert end_time - start_time < 5.0
         assert result == "fetch"
 
@@ -715,17 +703,14 @@ class TestSqlHelperIntegration:
         SELECT * FROM users WHERE email LIKE '%@example.com';
         """
 
-        # Step 1: Remove comments
         clean_sql = remove_sql_comments(complex_sql)
         assert "--" not in clean_sql
         assert "/*" not in clean_sql
         assert "*/" not in clean_sql
 
-        # Step 2: Parse statements
         statements = parse_sql_statements(clean_sql)
         assert len(statements) == 5
 
-        # Step 3: Detect types for each statement
         expected_types = ["execute", "execute", "execute", "execute", "fetch"]
         for i, stmt in enumerate(statements):
             stmt_type = detect_statement_type(stmt)
@@ -800,7 +785,6 @@ class TestSqlHelperCoverage:
 
     def test_detect_statement_type_with_very_long_sql(self) -> None:
         """Test detect_statement_type with very long SQL."""
-        # Create a very long SQL statement
         long_sql = "SELECT " + "1, " * 1000 + "1"
         result = detect_statement_type(long_sql)
         assert result == "fetch"
@@ -809,7 +793,6 @@ class TestSqlHelperCoverage:
         """Test detect_statement_type with malformed SQL."""
         malformed_sql = "SELECT * FROM table WHERE column = 'unclosed string"
         result = detect_statement_type(malformed_sql)
-        # Should still return a valid result despite malformed SQL
         assert result in ["fetch", "execute"]
 
     def test_detect_statement_type_with_nested_comments(self) -> None:
@@ -821,8 +804,6 @@ class TestSqlHelperCoverage:
         SELECT * FROM table
         """
         result = detect_statement_type(sql)
-        # Nested block comments are not supported in standard SQL
-        # The function correctly returns 'execute' for this malformed input
         assert result == "execute"
 
     def test_detect_statement_type_with_string_literals_containing_keywords(self) -> None:
@@ -1119,12 +1100,10 @@ class TestSqlHelperCoverage:
         """
 
         statements = parse_sql_statements(sql)
-        # Should handle comment-only input gracefully
         assert isinstance(statements, list)
 
     def test_parse_sql_statements_with_very_long_statements(self) -> None:
         """Test parse_sql_statements with very long statements."""
-        # Create a very long SQL statement
         long_select = "SELECT " + "1, " * 1000 + "1"
         sql = f"{long_select}; SELECT 2;"
 
@@ -1141,7 +1120,6 @@ class TestSqlHelperCoverage:
         """
 
         statements = parse_sql_statements(malformed_sql)
-        # Should handle malformed SQL gracefully
         assert isinstance(statements, list)
 
     def test_parse_sql_statements_with_nested_comments(self) -> None:
@@ -1196,7 +1174,6 @@ class TestSqlHelperCoverage:
 
     def test_parse_sql_statements_performance(self) -> None:
         """Test parse_sql_statements performance with large input."""
-        # Create a large SQL string with many statements
         statements = []
         for i in range(100):
             statements.append(f"SELECT {i} as num;")
@@ -1208,7 +1185,6 @@ class TestSqlHelperCoverage:
         end_time = time.time()
 
         assert len(result) == 100
-        # Should complete in reasonable time (less than 1 second)
         assert end_time - start_time < 1.0
 
     def test_detect_statement_type_performance(self) -> None:
@@ -1228,35 +1204,29 @@ class TestSqlHelperCoverage:
         ORDER BY cte.id;
         """
         start_time = time.time()
-        for _ in range(250):  # Use 250 iterations as requested
+        for _ in range(250):
             result = detect_statement_type(complex_sql)
         end_time = time.time()
 
-        # Should complete 250 iterations in reasonable time (less than 5 second)
         assert end_time - start_time < 5.0
         assert result == "fetch"
 
     def test_detect_statement_type_edge_cases(self) -> None:
         """Test detect_statement_type with edge cases to improve coverage."""
-        # Test with None input
         result = detect_statement_type(None)
         assert result == "execute"
 
-        # Test with empty string
         result = detect_statement_type("")
         assert result == "execute"
 
-        # Test with whitespace only
         result = detect_statement_type("   \n\t   ")
         assert result == "execute"
 
-        # Test with malformed SQL that sqlparse can't parse
         result = detect_statement_type("INVALID SQL WITH UNCLOSED STRING 'test")
         assert result == "execute"
 
     def test_detect_statement_type_with_complex_cte_edge_cases(self) -> None:
         """Test detect_statement_type with complex CTE edge cases."""
-        # Test CTE with no main statement (invalid SQL, but function detects SELECT inside CTE)
         sql = """
         WITH cte AS (
             SELECT 1 as n
@@ -1265,7 +1235,6 @@ class TestSqlHelperCoverage:
         result = detect_statement_type(sql)
         assert result == "fetch"
 
-        # Test CTE with multiple CTEs but no main statement (invalid SQL, but function detects SELECT inside CTE)
         sql = """
         WITH cte1 AS (SELECT 1),
              cte2 AS (SELECT 2)
@@ -1273,7 +1242,6 @@ class TestSqlHelperCoverage:
         result = detect_statement_type(sql)
         assert result == "fetch"
 
-        # Test CTE with complex nesting that might confuse the parser
         sql = """
         WITH cte AS (
             SELECT * FROM (
@@ -1287,71 +1255,55 @@ class TestSqlHelperCoverage:
 
     def test_split_sql_file_error_handling(self) -> None:
         """Test split_sql_file error handling to improve coverage."""
-        # Test with None file_path
         with pytest.raises(SqlValidationError):
             split_sql_file(None)
 
-        # Test with invalid file_path type
         with pytest.raises(SqlValidationError):
             split_sql_file(123)
 
-        # Test with empty file_path
         with pytest.raises(SqlValidationError):
             split_sql_file("")
 
-        # Test with non-existent file
         with pytest.raises(SqlFileError):
             split_sql_file("non_existent_file.sql")
 
     def test_parse_sql_statements_edge_cases(self) -> None:
         """Test parse_sql_statements with edge cases to improve coverage."""
-        # Test with None input
         result = parse_sql_statements(None)
         assert result == []
 
-        # Test with empty string
         result = parse_sql_statements("")
         assert result == []
 
-        # Test with only semicolons
         result = parse_sql_statements(";;;;")
         assert result == []
 
-        # Test with only comments
         result = parse_sql_statements("-- comment\n/* another comment */")
         assert result == []
 
     def test_remove_sql_comments_edge_cases(self) -> None:
         """Test remove_sql_comments with edge cases to improve coverage."""
-        # Test with None input
         result = remove_sql_comments(None)
-        assert result == None
+        assert result is None
 
-        # Test with empty string
         result = remove_sql_comments("")
         assert result == ""
 
-        # Test with sqlparse returning None
-        # This is hard to trigger directly, but we can test the edge case
         result = remove_sql_comments("   ")
         assert isinstance(result, str)
 
     def test_detect_statement_type_with_token_edge_cases(self) -> None:
         """Test detect_statement_type with token edge cases."""
-        # Test with SQL that has no non-whitespace, non-comment tokens
         sql = "   \n\t   -- comment\n/* comment */"
         result = detect_statement_type(sql)
         assert result == "execute"
 
-        # Test with SQL that has only whitespace and comments
         sql = "   \n\t   "
         result = detect_statement_type(sql)
         assert result == "execute"
 
     def test_detect_statement_type_with_cte_fallback(self) -> None:
         """Test detect_statement_type CTE fallback logic."""
-        # Test CTE where _find_main_statement_after_ctes returns None
-        # and _find_first_dml_keyword_top_level is used as fallback
         sql = """
         WITH cte AS (
             SELECT 1 as n
@@ -1361,7 +1313,6 @@ class TestSqlHelperCoverage:
         result = detect_statement_type(sql)
         assert result == "fetch"
 
-        # Test CTE with INSERT that should return execute
         sql = """
         WITH cte AS (
             SELECT 1 as n
@@ -1373,7 +1324,6 @@ class TestSqlHelperCoverage:
 
     def test_detect_statement_type_with_complex_parens_in_cte(self) -> None:
         """Test detect_statement_type with complex parentheses in CTE."""
-        # Test CTE with complex nested parentheses that might confuse the parser
         sql = """
         WITH cte AS (
             SELECT * FROM (
@@ -1389,7 +1339,6 @@ class TestSqlHelperCoverage:
 
     def test_detect_statement_type_with_multiple_ctes_and_complex_structure(self) -> None:
         """Test detect_statement_type with multiple CTEs and complex structure."""
-        # Test multiple CTEs with complex structure
         sql = """
         WITH cte1 AS (
             SELECT 1 as n
@@ -1403,7 +1352,6 @@ class TestSqlHelperCoverage:
         result = detect_statement_type(sql)
         assert result == "fetch"
 
-        # Test multiple CTEs with INSERT
         sql = """
         WITH cte1 AS (SELECT 1), cte2 AS (SELECT 2)
         INSERT INTO table SELECT * FROM cte1
@@ -1413,8 +1361,6 @@ class TestSqlHelperCoverage:
 
     def test_detect_statement_type_with_unknown_statement_after_cte(self) -> None:
         """Test detect_statement_type with unknown statement type after CTE."""
-        # Test CTE with statement that's not in our known types
-        # Function detects SELECT inside CTE, so returns 'fetch'
         sql = """
         WITH cte AS (SELECT 1)
         UNKNOWN_STATEMENT_TYPE
@@ -1424,7 +1370,6 @@ class TestSqlHelperCoverage:
 
     def test_detect_statement_type_with_fetch_statement_after_cte(self) -> None:
         """Test detect_statement_type with fetch statement after CTE."""
-        # Test CTE with VALUES statement (which is a fetch statement)
         sql = """
         WITH cte AS (SELECT 1)
         VALUES (1, 2, 3)
@@ -1432,7 +1377,6 @@ class TestSqlHelperCoverage:
         result = detect_statement_type(sql)
         assert result == "fetch"
 
-        # Test CTE with SHOW statement
         sql = """
         WITH cte AS (SELECT 1)
         SHOW TABLES
@@ -1440,7 +1384,6 @@ class TestSqlHelperCoverage:
         result = detect_statement_type(sql)
         assert result == "fetch"
 
-        # Test CTE with EXPLAIN statement
         sql = """
         WITH cte AS (SELECT 1)
         EXPLAIN SELECT * FROM table

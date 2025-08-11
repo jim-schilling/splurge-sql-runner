@@ -115,7 +115,7 @@ class SecurityValidator:
             SecurityValidationError: If SQL contains dangerous patterns or is invalid
         """
         if not sql_content:
-            return  # Empty content is safe
+            return  
 
         # Check for dangerous SQL patterns
         sql_upper = sql_content.upper()

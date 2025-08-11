@@ -45,7 +45,6 @@ from splurge_sql_runner.config.constants import DEFAULT_MAX_FILE_SIZE_MB, DEFAUL
 from tabulate import tabulate
 
 
-# Private constants for CLI formatting and configuration
 _DEFAULT_COLUMN_WIDTH: int = 10
 _SEPARATOR_LENGTH: int = 60
 _DASH_SEPARATOR_LENGTH: int = 40
@@ -83,19 +82,16 @@ def simple_table_format(headers: List[str], rows: List[List]) -> str:
     if not headers or not rows:
         return "(No data)"
 
-    # Calculate column widths
     col_widths = []
     for i, header in enumerate(headers):
         max_width = len(str(header))
         for row in rows:
             if i < len(row):
                 max_width = max(max_width, len(str(row[i])))
-        col_widths.append(max_width + 2)  # Add padding
+        col_widths.append(max_width + 2)
 
-    # Build table
     lines = []
 
-    # Header
     header_line = "|"
     separator_line = "|"
     for header, width in zip(headers, col_widths):
@@ -105,7 +101,6 @@ def simple_table_format(headers: List[str], rows: List[List]) -> str:
     lines.append(header_line)
     lines.append(separator_line)
 
-    # Rows
     for row in rows:
         row_line = "|"
         for i, value in enumerate(row):
@@ -139,7 +134,6 @@ def pretty_print_results(results: List[Dict[str, Any]], file_path: str | None = 
         elif result["statement_type"] == _STATEMENT_TYPE_FETCH:
             print(f"{_SUCCESS_EMOJI} Rows returned: {result['row_count']}")
             if result["result"]:
-                # Use tabulate for pretty table output if available, otherwise use simple formatting
                 headers = list(result["result"][0].keys()) if result["result"] else []
                 rows = [list(row.values()) for row in result["result"]]
 
@@ -177,7 +171,6 @@ def process_sql_file(
 
     try:
         logger.debug(f"Starting to process SQL file: {file_path}")
-        # Security validation (unless disabled)
         if not disable_security:
             logger.debug("Performing file path security validation")
             try:
@@ -194,7 +187,6 @@ def process_sql_file(
         if verbose:
             print(f"Processing file: {file_path}")
 
-        # Split file into individual statements
         logger.debug("Splitting SQL file into statements")
         statements = split_sql_file(file_path, strip_semicolon=False)
         logger.debug(f"Found {len(statements)} SQL statements")
@@ -205,11 +197,9 @@ def process_sql_file(
                 print(f"No valid SQL statements found in {file_path}")
             return True
 
-        # Join statements back together for batch processing
         sql_content = ";\n".join(statements) + ";"
         logger.debug(f"Combined SQL content length: {len(sql_content)} characters")
 
-        # Validate SQL content for dangerous operations (unless disabled)
         if not disable_security:
             logger.debug("Performing SQL content security validation")
             try:
@@ -223,12 +213,10 @@ def process_sql_file(
             if verbose:
                 print(f"⚠️  SQL content validation disabled for file: {file_path}")
 
-        # Execute batch
         logger.info(f"Executing {len(statements)} SQL statements from file: {file_path}")
         results = db_engine.batch(sql_content)
         logger.debug(f"Batch execution completed with {len(results)} result sets")
 
-        # Pretty print results
         pretty_print_results(results, file_path)
         logger.info(f"Successfully processed file: {file_path}")
 
@@ -254,16 +242,13 @@ def process_sql_file(
 
 def main() -> None:
     """Main CLI entry point."""
-    # Configure console encoding for Unicode support
     try:
         sys.stdout.reconfigure(encoding='utf-8')
         sys.stderr.reconfigure(encoding='utf-8')
     except AttributeError:
-        # Python < 3.7 doesn't have reconfigure method
         pass
     
-    # Set up logging
-    log_level = _DEFAULT_LOG_LEVEL  # Default to DEBUG for CLI
+    log_level = _DEFAULT_LOG_LEVEL
     logger = configure_module_logging("cli", log_level=log_level)
 
     logger.info("Starting splurge-sql-runner CLI")
@@ -313,7 +298,6 @@ Examples:
         f"CLI arguments: file={args.file}, pattern={args.pattern}, " f"verbose={args.verbose}, debug={args.debug}"
     )
 
-    # Validate arguments
     if not args.file and not args.pattern:
         logger.error("Neither file nor pattern specified")
         parser.error("Either -f/--file or -p/--pattern must be specified")
@@ -323,7 +307,6 @@ Examples:
         parser.error("Cannot specify both -f/--file and -p/--pattern")
 
     try:
-        # Load configuration
         config_manager = ConfigManager()
         cli_config = {
             "database_url": args.connection,
@@ -332,7 +315,6 @@ Examples:
         }
         config = config_manager.load_config(cli_config)
         
-        # Security validation (unless disabled)
         if not args.disable_security:
             logger.info("Performing security validation")
             try:
@@ -345,12 +327,10 @@ Examples:
             logger.warning("Security validation disabled - this is not recommended for production use")
             print("⚠️  Security validation disabled - this is not recommended for production use")
 
-        # Initialize database engine
         logger.info(f"Initializing database engine for connection: {args.connection}")
         if args.verbose:
             print(f"Connecting to database: {args.connection}")
 
-        # Create database configuration from URL
         db_config = DatabaseConfig(
             url=args.connection,
             enable_debug=args.debug
@@ -358,7 +338,6 @@ Examples:
         db_engine = UnifiedDatabaseEngine(db_config)
         logger.info("Database engine initialized successfully")
 
-        # Determine files to process
         files_to_process = []
 
         if args.file:
@@ -373,19 +352,17 @@ Examples:
             if not files_to_process:
                 logger.error(f"No files found matching pattern: {args.pattern}")
                 raise CliFileError(f"No files found matching pattern: {args.pattern}")
-            files_to_process.sort()  # Process files in alphabetical order
+            files_to_process.sort()
             logger.debug(f"Found {len(files_to_process)} files matching pattern")
 
         if args.verbose:
             print(f"Found {len(files_to_process)} file(s) to process")
 
-        # Process each file
         success_count = 0
         logger.info(f"Starting to process {len(files_to_process)} files")
 
         for file_path in files_to_process:
             logger.info(f"Processing file: {file_path}")
-            # Prepare arguments for process_sql_file
             verbose = args.verbose
             disable_security = args.disable_security
             success = process_sql_file(
@@ -401,7 +378,6 @@ Examples:
             else:
                 logger.error(f"Failed to process file: {file_path}")
 
-        # Summary
         logger.info(f"Processing complete: {success_count}/{len(files_to_process)} files processed successfully")
         print(f"\n{'='*60}")
         print(f"Summary: {success_count}/{len(files_to_process)} files processed successfully")
@@ -432,7 +408,6 @@ Examples:
         print(f"❌ Unexpected error: {e}")
         sys.exit(1)
     finally:
-        # Clean up
         if "db_engine" in locals():
             logger.info("Closing database engine")
             db_engine.close()

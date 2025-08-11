@@ -9,7 +9,6 @@ Copyright (c) 2025, Jim Schilling
 This module is licensed under the MIT License.
 """
 
-# New refactored imports
 from splurge_sql_runner.config import (
     ConfigManager,
     DatabaseConfig,
