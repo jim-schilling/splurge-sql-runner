@@ -1,5 +1,5 @@
-# jpy-sql-runner
-Jim's Python SQL Runner
+# splurge-sql-runner
+Splurge Python SQL Runner
 
 A Python utility for executing SQL files against databases with support for multiple statements, comments, and pretty-printed results.
 
@@ -12,11 +12,16 @@ A Python utility for executing SQL files against databases with support for mult
 - Batch processing of multiple files
 - Transaction support with rollback on errors
 - Clean CLI interface with comprehensive error handling
+- Security validation for database URLs and file operations
+- Comprehensive error handling with circuit breaker patterns
+- Configuration management with JSON-based config files
+- Advanced logging with multiple output formats
+- Resilience patterns for production deployments
 
 ## Installation
 
 ```bash
-pip install jpy-sql-runner
+pip install splurge-sql-runner
 ```
 
 ## CLI Usage
@@ -27,13 +32,16 @@ The main interface is through the command-line tool:
 
 ```bash
 # Execute a single SQL file
-python -m jpy_sql_runner -c "sqlite:///database.db" -f "script.sql"
+python -m splurge_sql_runner -c "sqlite:///database.db" -f "script.sql"
 
 # Execute multiple SQL files using a pattern
-python -m jpy_sql_runner -c "sqlite:///database.db" -p "*.sql"
+python -m splurge_sql_runner -c "sqlite:///database.db" -p "*.sql"
 
 # With verbose output
-python -m jpy_sql_runner -c "sqlite:///database.db" -f "script.sql" -v
+python -m splurge_sql_runner -c "sqlite:///database.db" -f "script.sql" -v
+
+# Using the installed script (after pip install)
+splurge-sql-runner -c "sqlite:///database.db" -f "script.sql"
 ```
 
 ### Command Line Options
@@ -51,46 +59,122 @@ python -m jpy_sql_runner -c "sqlite:///database.db" -f "script.sql" -v
   
 - `--debug`: Enable SQLAlchemy debug mode
 
+- `--disable-security`: Disable security validation (not recommended for production)
+
+- `--max-file-size`: Maximum file size in MB (default: 10)
+
+- `--max-statements`: Maximum statements per file (default: 100)
+
 ### Examples
 
 ```bash
 # SQLite example
-python -m jpy_sql_runner -c "sqlite:///test.db" -f "setup.sql"
+python -m splurge_sql_runner -c "sqlite:///test.db" -f "setup.sql"
 
 # PostgreSQL example
-python -m jpy_sql_runner -c "postgresql://user:pass@localhost/mydb" -p "migrations/*.sql"
+python -m splurge_sql_runner -c "postgresql://user:pass@localhost/mydb" -p "migrations/*.sql"
 
 # MySQL example with verbose output
-python -m jpy_sql_runner -c "mysql://user:pass@localhost/mydb" -f "data.sql" -v
+python -m splurge_sql_runner -c "mysql://user:pass@localhost/mydb" -f "data.sql" -v
 
 # Process all SQL files in current directory
-python -m jpy_sql_runner -c "sqlite:///database.db" -p "*.sql"
+python -m splurge_sql_runner -c "sqlite:///database.db" -p "*.sql"
+
+# With security validation disabled (not recommended)
+python -m splurge_sql_runner -c "sqlite:///database.db" -f "script.sql" --disable-security
 ```
 
 ## Programmatic Usage
 
+### Basic Usage
+
 ```python
-from jpy_sql_runner.db_helper import DbEngine
-from jpy_sql_runner.sql_helper import split_sql_file
+from splurge_sql_runner.database.engines import UnifiedDatabaseEngine
+from splurge_sql_runner.config.security_config import SecurityConfig
 
-# Initialize database engine
-db = DbEngine("sqlite:///database.db")
+# Initialize the database engine
+engine = UnifiedDatabaseEngine("sqlite:///database.db")
 
-# Execute SQL from file
-sql_statements = split_sql_file("script.sql")
-sql_content = ";\n".join(sql_statements) + ";"
-results = db.batch(sql_content)
+# Create security configuration
+security_config = SecurityConfig(
+    max_file_size_mb=10,
+    max_statements_per_file=100
+)
 
-# Process results
-for result in results:
-    if result['type'] == 'fetch':
-        print(f"Query returned {result['row_count']} rows")
-    elif result['type'] == 'execute':
-        print("Statement executed successfully")
-    elif result['type'] == 'error':
-        print(f"Error: {result['error']}")
+# Execute SQL with security validation
+try:
+    results = engine.execute_file("script.sql", security_config)
+    for result in results:
+        print(f"Statement executed: {result.success}")
+except Exception as e:
+    print(f"Execution failed: {e}")
 
-db.shutdown()
+engine.shutdown()
+```
+
+### Advanced Usage with New Architecture
+
+```python
+from splurge_sql_runner.config import ConfigManager, AppConfig
+from splurge_sql_runner.database import SqlRepository, UnifiedDatabaseEngine
+from splurge_sql_runner.errors import ErrorHandler, CircuitBreakerConfig
+
+# Load configuration
+config_manager = ConfigManager("config.json")
+config = config_manager.load_config()
+
+# Create database repository with error handling
+error_handler = ErrorHandler(
+    circuit_breaker_config=CircuitBreakerConfig(
+        failure_threshold=5,
+        recovery_timeout=60
+    )
+)
+
+repository = SqlRepository(config)
+
+# Execute SQL with resilience
+try:
+    results = repository.execute_batch("script.sql", config)
+    for result in results:
+        print(f"Statement executed: {result.success}")
+except Exception as e:
+    print(f"Execution failed: {e}")
+```
+
+
+
+## Configuration
+
+The library supports JSON-based configuration files for advanced usage:
+
+```json
+{
+    "database": {
+        "url": "sqlite:///database.db",
+        "type": "sqlite",
+        "connection": {
+            "timeout": 30,
+            "max_connections": 5
+        },
+        "pool": {
+            "size": 5,
+            "max_overflow": 0,
+            "recycle_time": 3600
+        }
+    },
+    "security": {
+        "enable_validation": true,
+        "max_file_size_mb": 10,
+        "max_statements_per_file": 100
+    },
+    "logging": {
+        "level": "INFO",
+        "format": "TEXT",
+        "enable_console": true,
+        "enable_file": false
+    }
+}
 ```
 
 ## SQL File Format
@@ -132,32 +216,44 @@ The CLI provides formatted output showing:
 - Failed statements are reported with error details
 - Database connections are properly cleaned up
 - Exit codes indicate success/failure
+- Circuit breaker patterns for handling repeated failures
+- Retry strategies with exponential backoff
+- Comprehensive error context and recovery mechanisms
+- Security validation with configurable thresholds
 
 ## License
 
 MIT License - see LICENSE file for details.
 
+## Development
+
+### Installation for Development
+
+```bash
+# Clone the repository
+git clone https://github.com/jim-schilling/splurge-sql-runner.git
+cd splurge-sql-runner
+
+# Install in development mode with all dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest -x -v
+
+# Run linting
+flake8 splurge_sql_runner/
+black splurge_sql_runner/
+mypy splurge_sql_runner/
+```
+
 ## Changelog
 
-### 0.1.4 (06-30-2025)
-- **Improved CTE and Statement Type Detection**: Enhanced logic for parsing and detecting main SQL statement types after complex CTEs, including better handling of nested, multi-CTE, and ambiguous keyword scenarios.
-- **Expanded SQL Parsing Robustness**: Improved handling of edge cases, malformed SQL, and advanced SQL features (e.g., window functions, JSON, vendor-specific statements like PRAGMA, SHOW, EXPLAIN, DESC/DESCRIBE).
-- **Comprehensive Test Coverage**: Added and expanded tests for CTE ambiguity, complex/nested SQL, vendor-specific syntax, error handling, and edge cases, ensuring robust detection and parsing across a wide range of SQL inputs.
-- **Documentation**: Updated and clarified docstrings and comments for maintainability and developer clarity.
+### 2025.2.0 (08-10-2025)
 
-### 0.1.3 (06-29-2025)
-- **Major CLI Refactoring**: Separated CLI logic into dedicated `cli.py` module for better code organization
-- **Improved Architecture**: Made `__main__.py` a simple stub that delegates to the CLI module
-- **Enhanced Test Coverage**: Added comprehensive tests for CLI functionality, achieving 90% overall coverage
-- **Better Error Handling**: Improved CLI error messages and validation
-- **Code Quality**: Fixed deprecation warnings in `pyproject.toml` license format
-- **Documentation**: Updated README with improved installation instructions and CLI examples
+- **Breaking Changes**: `DbEngine` class has been removed entirely
+- **New**: `UnifiedDatabaseEngine` is the only database engine for programmatic usage
+- **New**: Centralized configuration constants in `splurge_sql_runner.config.constants`
+- **Improved**: Security validation now uses centralized `SecurityConfig` from `splurge_sql_runner.config.security_config`
+- **Code Quality**: Eliminated code duplication across the codebase
 
-### 0.1.2 (06-29-2025)
-- Update sql_helper.py
-
-### 0.1.1 (06-28-2025)
-- Refactored `detect_statement_type` into smaller, modular helper functions for clarity and maintainability.
-- Improved code readability and reduced duplication in SQL type detection logic.
-- Added comprehensive tests for complex, nested, malformed, and database-specific SQL cases.
-- Ensured robust handling of edge cases and advanced SQL features.
+### Initial Commit
