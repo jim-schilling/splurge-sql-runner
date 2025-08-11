@@ -35,8 +35,3 @@ class DatabaseRepository(ABC):
     def begin_transaction(self) -> AbstractContextManager:
         """Begin a database transaction."""
         pass
-
-    @abstractmethod
-    def health_check(self) -> bool:
-        """Check database health."""
-        pass

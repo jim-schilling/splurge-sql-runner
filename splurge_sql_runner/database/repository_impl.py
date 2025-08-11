@@ -21,6 +21,7 @@ from splurge_sql_runner.errors.database_errors import (
     DatabaseConnectionError,
     DatabaseOperationError,
     DatabaseBatchError,
+    DatabaseError,
 )
 from splurge_sql_runner.errors.error_handler import (
     ErrorHandler,
@@ -88,7 +89,7 @@ class SqlRepository(DatabaseRepository):
         self._error_handler = self._setup_error_handler()
         self._logger = configure_module_logging("database.repository")
 
-        self._logger.info(f"Initialized SQL repository for {config.type.value}")
+        self._logger.info(f"Initialized SQL repository for {config.url}")
 
     def _setup_error_handler(self) -> ErrorHandler:
         """Set up error handler with resilience patterns."""
@@ -425,9 +426,7 @@ class SqlRepository(DatabaseRepository):
             if connection:
                 self._connection_pool.return_connection(connection)
 
-    def health_check(self) -> bool:
-        """Check database health."""
-        return self._connection_pool.health_check()
+
 
     def get_database_info(self) -> Dict[str, Any]:
         """Get database information."""
@@ -435,14 +434,23 @@ class SqlRepository(DatabaseRepository):
 
     def close(self) -> None:
         """Close the repository and cleanup resources."""
+        # Close connection pool
         try:
             self._connection_pool.close_all()
-            self._engine.close()
-            self._logger.info("SQL repository closed successfully")
         except (DatabaseOperationError, DatabaseConnectionError) as e:
-            self._logger.error(f"Failed to close SQL repository: {e}")
+            self._logger.error(f"Failed to close connection pool: {e}")
         except Exception as e:
-            self._logger.error(f"Unexpected error closing SQL repository: {e}")
+            self._logger.error(f"Unexpected error closing connection pool: {e}")
+        
+        # Close engine
+        try:
+            self._engine.close()
+        except (DatabaseOperationError, DatabaseConnectionError) as e:
+            self._logger.error(f"Failed to close engine: {e}")
+        except Exception as e:
+            self._logger.error(f"Unexpected error closing engine: {e}")
+        
+        self._logger.info("SQL repository closed successfully")
 
     def __enter__(self):
         """Context manager entry."""

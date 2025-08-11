@@ -14,6 +14,10 @@ import sqlite3
 from pathlib import Path
 from typing import List, Dict, Any
 
+# Add the project root to Python path for development
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 
 def run_cli_command(args: List[str], capture_output: bool = True) -> subprocess.CompletedProcess:
     """
@@ -34,6 +38,8 @@ def run_cli_command(args: List[str], capture_output: bool = True) -> subprocess.
             cmd,
             capture_output=capture_output,
             text=True,
+            encoding='utf-8',
+            errors='replace',
             timeout=30
         )
         return result

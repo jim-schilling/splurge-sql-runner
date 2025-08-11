@@ -12,6 +12,10 @@ import tempfile
 import time
 from pathlib import Path
 
+# Add the project root to Python path for development
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 
 def run_command(cmd: list, description: str = "") -> bool:
     """Run a command and display the result."""
@@ -27,6 +31,8 @@ def run_command(cmd: list, description: str = "") -> bool:
             cmd,
             capture_output=True,
             text=True,
+            encoding='utf-8',
+            errors='replace',
             timeout=30
         )
         
@@ -71,10 +77,11 @@ def main():
     try:
         import splurge_sql_runner
         print("✅ splurge-sql-runner is available")
-    except ImportError:
-        print("❌ splurge-sql-runner is not installed")
+    except ImportError as e:
+        print(f"❌ splurge-sql-runner is not available: {e}")
         print("Please install it with: pip install splurge-sql-runner")
         print("Or run from the project root directory")
+        print("For development, make sure you're in the project root directory")
         sys.exit(1)
     
     # Create a temporary database

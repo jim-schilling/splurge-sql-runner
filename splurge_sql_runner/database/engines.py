@@ -45,7 +45,8 @@ class SqlAlchemyConnection(DatabaseConnection):
             if parameters and "?" in sql:
                 # Convert named parameters to positional for SQLite-style placeholders
                 param_list = list(parameters.values())
-                result = self._connection.execute(text(sql), param_list)
+                # SQLAlchemy expects parameters as individual arguments for positional placeholders
+                result = self._connection.execute(text(sql), *param_list)
             elif parameters:
                 # Use named parameters
                 result = self._connection.execute(text(sql), parameters)
@@ -132,15 +133,7 @@ class SqlAlchemyConnectionPool(ConnectionPool):
         except Exception as e:
             self._logger.error(f"Failed to close connection pool: {e}")
 
-    def health_check(self) -> bool:
-        """Check if the pool is healthy."""
-        try:
-            with self._engine.connect() as conn:
-                conn.execute(text("SELECT 1"))
-            return True
-        except Exception as e:
-            self._logger.error(f"Connection pool health check failed: {e}")
-            return False
+
 
 
 class UnifiedDatabaseEngine(DatabaseEngine):

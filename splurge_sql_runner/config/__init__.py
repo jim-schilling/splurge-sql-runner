@@ -9,11 +9,7 @@ Copyright (c) 2025, Jim Schilling
 This module is licensed under the MIT License.
 """
 
-from splurge_sql_runner.errors import (
-    ConfigurationError,
-    ConfigValidationError,
-    ConfigFileError,
-)
+# Error classes are imported directly from their modules to avoid circular imports
 from splurge_sql_runner.config.config_manager import (
     ConfigManager,
     AppConfig,
@@ -52,9 +48,6 @@ from splurge_sql_runner.config.constants import (
 
 __all__ = [
     "ConfigManager",
-    "ConfigurationError",
-    "ConfigValidationError",
-    "ConfigFileError",
     "AppConfig",
     "DatabaseConfig",
     "ConnectionConfig",

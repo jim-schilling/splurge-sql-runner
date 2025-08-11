@@ -30,8 +30,3 @@ class ConnectionPool(ABC):
     def close_all(self) -> None:
         """Close all connections in the pool."""
         pass
-
-    @abstractmethod
-    def health_check(self) -> bool:
-        """Check if the pool is healthy."""
-        pass

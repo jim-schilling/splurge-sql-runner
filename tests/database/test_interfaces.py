@@ -118,10 +118,6 @@ class TestConnectionPool:
         assert hasattr(pool, 'get_connection')
         assert hasattr(pool, 'return_connection')
         assert hasattr(pool, 'close_all')
-        assert hasattr(pool, 'health_check')
-        
-        # Test basic functionality
-        assert pool.health_check()
         
         # Test connection management
         connection1 = pool.get_connection()
@@ -319,9 +315,6 @@ class TestProtocolCompliance:
         
         # return_connection(self, connection: DatabaseConnection) -> None
         pool.return_connection(connection)
-        
-        # health_check(self) -> bool
-        assert isinstance(pool.health_check(), bool)
         
         # close_all(self) -> None
         pool.close_all()

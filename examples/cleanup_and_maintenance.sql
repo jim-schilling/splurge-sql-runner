@@ -9,7 +9,8 @@
 SELECT '=== CLEANING UP EXPIRED SESSIONS ===' as operation;
 
 -- First, let's add some expired sessions for demonstration
-INSERT INTO user_sessions (user_id, session_token, ip_address, user_agent, expires_at, is_active) VALUES 
+-- Use INSERT OR IGNORE to avoid conflicts with existing sessions
+INSERT OR IGNORE INTO user_sessions (user_id, session_token, ip_address, user_agent, expires_at, is_active) VALUES 
     (1, 'expired_token_1', '192.168.1.100', 'Mozilla/5.0...', datetime('now', '-1 day'), FALSE),
     (2, 'expired_token_2', '192.168.1.101', 'Mozilla/5.0...', datetime('now', '-2 days'), TRUE),
     (3, 'expired_token_3', '192.168.1.102', 'Mozilla/5.0...', datetime('now', '-1 week'), TRUE);
