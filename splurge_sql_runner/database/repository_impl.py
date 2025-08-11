@@ -1,24 +1,26 @@
 """
-SQL Repository implementation for splurge-sql-runner.
+SQL Repository implementation.
 
-Provides a high-level interface for SQL operations with proper error handling,
-resilience patterns, and separation of concerns.
+Provides a concrete implementation of the DatabaseRepository interface
+with SQL-specific functionality and error handling.
 
 Copyright (c) 2025, Jim Schilling
 
 This module is licensed under the MIT License.
 """
 
+import time
 from contextlib import contextmanager
 from typing import Any, Dict, List
 from dataclasses import dataclass
 
-from splurge_sql_runner.database.interfaces import DatabaseRepository
-from splurge_sql_runner.database.engines import DatabaseEngineFactory
+from splurge_sql_runner.database.database_repository import DatabaseRepository
+from splurge_sql_runner.database.engines import UnifiedDatabaseEngine
 from splurge_sql_runner.config.database_config import DatabaseConfig
 from splurge_sql_runner.errors.database_errors import (
-    DatabaseError,
     DatabaseConnectionError,
+    DatabaseOperationError,
+    DatabaseBatchError,
 )
 from splurge_sql_runner.errors.error_handler import (
     ErrorHandler,
@@ -27,6 +29,7 @@ from splurge_sql_runner.errors.error_handler import (
     RetryConfig,
 )
 from splurge_sql_runner.sql_helper import (
+    split_sql_file,
     detect_statement_type,
     FETCH_STATEMENT,
     EXECUTE_STATEMENT,
@@ -80,7 +83,7 @@ class SqlRepository(DatabaseRepository):
             config: Database configuration
         """
         self._config = config
-        self._engine = DatabaseEngineFactory.create_engine(config)
+        self._engine = UnifiedDatabaseEngine(config)
         self._connection_pool = self._engine.create_connection_pool(self._config.pool.size)
         self._error_handler = self._setup_error_handler()
         self._logger = configure_module_logging("database.repository")
@@ -198,8 +201,6 @@ class SqlRepository(DatabaseRepository):
         with self._get_connection() as conn:
             for i, statement in enumerate(sql_statements):
                 try:
-                    import time
-
                     start_time = time.time()
 
                     # Determine statement type
@@ -236,9 +237,26 @@ class SqlRepository(DatabaseRepository):
                             }
                         )
 
-                except Exception as e:
+                except (DatabaseOperationError, DatabaseConnectionError) as e:
                     execution_time = time.time() - start_time
                     self._logger.error(f"Statement {i+1} failed: {e}")
+
+                    results.append(
+                        {
+                            "statement": statement,
+                            "statement_type": ERROR_STATEMENT,
+                            "error": str(e),
+                            "success": False,
+                            "execution_time": execution_time,
+                        }
+                    )
+
+                    # Rollback on error
+                    conn.rollback()
+                    break
+                except Exception as e:
+                    execution_time = time.time() - start_time
+                    self._logger.error(f"Unexpected error in statement {i+1}: {e}")
 
                     results.append(
                         {
@@ -286,8 +304,6 @@ class SqlRepository(DatabaseRepository):
 
     def _execute_batch_with_transaction_internal(self, sql_statements: List[str]) -> BatchExecutionResult:
         """Internal transaction-based batch execution."""
-        import time
-
         start_time = time.time()
         results = []
 
@@ -333,7 +349,7 @@ class SqlRepository(DatabaseRepository):
                 # Commit transaction
                 conn.commit()
 
-            except Exception as e:
+            except (DatabaseOperationError, DatabaseConnectionError) as e:
                 # Rollback on error
                 conn.rollback()
 
@@ -349,6 +365,22 @@ class SqlRepository(DatabaseRepository):
                 )
 
                 self._logger.error(f"Batch execution failed: {e}")
+            except Exception as e:
+                # Rollback on error
+                conn.rollback()
+
+                execution_time = time.time() - statement_start
+                results.append(
+                    ExecutionResult(
+                        statement=statement,
+                        statement_type=ERROR_STATEMENT,
+                        success=False,
+                        error=str(e),
+                        execution_time=execution_time,
+                    )
+                )
+
+                self._logger.error(f"Unexpected error in batch execution: {e}")
 
         total_time = time.time() - start_time
         successful = sum(1 for r in results if r.success)
@@ -381,10 +413,14 @@ class SqlRepository(DatabaseRepository):
             connection = self._connection_pool.get_connection()
             yield connection
             connection.commit()
-        except Exception:
+        except (DatabaseOperationError, DatabaseConnectionError):
             if connection:
                 connection.rollback()
             raise
+        except Exception as e:
+            if connection:
+                connection.rollback()
+            raise DatabaseOperationError(f"Transaction failed: {e}") from e
         finally:
             if connection:
                 self._connection_pool.return_connection(connection)
@@ -403,8 +439,10 @@ class SqlRepository(DatabaseRepository):
             self._connection_pool.close_all()
             self._engine.close()
             self._logger.info("SQL repository closed successfully")
-        except Exception as e:
+        except (DatabaseOperationError, DatabaseConnectionError) as e:
             self._logger.error(f"Failed to close SQL repository: {e}")
+        except Exception as e:
+            self._logger.error(f"Unexpected error closing SQL repository: {e}")
 
     def __enter__(self):
         """Context manager entry."""

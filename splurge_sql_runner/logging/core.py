@@ -13,6 +13,7 @@ from typing import Dict, Any
 from splurge_sql_runner.logging.filters import CorrelationIdFilter, PasswordFilter
 from splurge_sql_runner.logging.formatters import JsonFormatter
 from splurge_sql_runner.logging.handlers import ResilientLogHandler
+from splurge_sql_runner.errors import ConfigValidationError
 
 # Global configuration registry to prevent multiple setups
 _LOGGING_CONFIGURED = False
@@ -51,7 +52,7 @@ def setup_logging(
     # Validate log level
     valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
     if log_level.upper() not in valid_levels:
-        raise ValueError(f"Invalid log level: {log_level}. Must be one of {valid_levels}")
+        raise ConfigValidationError(f"Invalid log level: {log_level}. Must be one of {valid_levels}")
 
     # Store configuration
     _LOGGING_CONFIG = {

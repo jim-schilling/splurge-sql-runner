@@ -1,11 +1,17 @@
 """
-Integration tests for logging functionality.
+Test suite for splurge-sql-runner logging integration module.
 
-Tests how different logging components work together.
+Comprehensive integration tests for logging components working together,
+including password filtering, correlation context, and performance logging.
+
+Copyright (c) 2025, Jim Schilling
+
+This module is licensed under the MIT License.
 """
 
 import json
 import logging
+import time
 from pathlib import Path
 
 import pytest
@@ -194,7 +200,6 @@ class TestPerformanceLoggingIntegration:
         
         # Test performance logging
         def test_operation() -> str:
-            import time
             time.sleep(0.01)  # Small delay
             return "operation completed"
         
@@ -221,7 +226,6 @@ class TestPerformanceLoggingIntegration:
         )
         
         def failing_operation() -> None:
-            import time
             time.sleep(0.01)  # Small delay
             raise ValueError("Operation failed")
         
@@ -323,7 +327,6 @@ class TestMultiComponentIntegration:
         
         with correlation_context("perf-correlation-999"):
             def timed_operation() -> str:
-                import time
                 time.sleep(0.01)
                 contextual_logger.info("Operation in progress")
                 return "success"

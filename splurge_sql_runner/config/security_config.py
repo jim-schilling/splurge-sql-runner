@@ -21,6 +21,7 @@ from splurge_sql_runner.config.constants import (
     DEFAULT_MAX_STATEMENTS_PER_FILE,
     DEFAULT_MAX_STATEMENT_LENGTH,
 )
+from splurge_sql_runner.errors import ConfigValidationError
 
 
 @dataclass
@@ -53,16 +54,17 @@ class SecurityConfig:
     def __post_init__(self) -> None:
         """Validate security configuration."""
         if self.max_file_size_mb <= 0:
-            raise ValueError("Max file size must be positive")
+            raise ConfigValidationError("Max file size must be positive")
         if self.max_statements_per_file <= 0:
-            raise ValueError("Max statements per file must be positive")
+            raise ConfigValidationError("Max statements per file must be positive")
         if not self.allowed_file_extensions:
-            raise ValueError("At least one allowed file extension must be specified")
+            raise ConfigValidationError("At least one allowed file extension must be specified")
 
     @property
     def max_file_size_bytes(self) -> int:
         """Get max file size in bytes."""
-        return self.max_file_size_mb * 1024 * 1024
+        _BYTES_PER_MB: int = 1024 * 1024
+        return self.max_file_size_mb * _BYTES_PER_MB
 
     def is_file_extension_allowed(self, file_path: str) -> bool:
         """Check if file extension is allowed."""

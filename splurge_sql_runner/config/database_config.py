@@ -1,9 +1,8 @@
 """
-Database configuration classes for splurge-sql-runner.
+Database configuration module.
 
-Provides type-safe configuration classes for database connections,
-connection pools, and database-specific settings that work with
-SQLAlchemy's unified engine approach.
+Defines database configuration classes and utilities for
+configuring database connections and connection pools.
 
 Copyright (c) 2025, Jim Schilling
 
@@ -11,41 +10,54 @@ This module is licensed under the MIT License.
 """
 
 from dataclasses import dataclass, field
+from typing import Any, Dict
+from sqlalchemy.pool import StaticPool
+from splurge_sql_runner.errors import ConfigValidationError
+
+
+# Private constants for database configuration
+_DEFAULT_TIMEOUT: int = 30
+_DEFAULT_MAX_CONNECTIONS: int = 5
+_DEFAULT_APPLICATION_NAME: str = "splurge-sql-runner"
+_DEFAULT_POOL_SIZE: int = 5
+_DEFAULT_MAX_OVERFLOW: int = 0
+_DEFAULT_RECYCLE_TIME: int = 3600  # 1 hour
+_DEFAULT_PRE_PING: bool = True
 
 
 @dataclass
 class ConnectionConfig:
     """Database connection configuration."""
 
-    timeout: int = 30
-    max_connections: int = 5
-    application_name: str = "splurge-sql-runner"
+    timeout: int = _DEFAULT_TIMEOUT
+    max_connections: int = _DEFAULT_MAX_CONNECTIONS
+    application_name: str = _DEFAULT_APPLICATION_NAME
 
     def __post_init__(self) -> None:
         """Validate connection configuration."""
         if self.timeout <= 0:
-            raise ValueError("Connection timeout must be positive")
+            raise ConfigValidationError("Connection timeout must be positive")
         if self.max_connections <= 0:
-            raise ValueError("Max connections must be positive")
+            raise ConfigValidationError("Max connections must be positive")
 
 
 @dataclass
 class PoolConfig:
     """Connection pool configuration."""
 
-    size: int = 5
-    max_overflow: int = 0
-    recycle_time: int = 3600  # 1 hour
-    pre_ping: bool = True
+    size: int = _DEFAULT_POOL_SIZE
+    max_overflow: int = _DEFAULT_MAX_OVERFLOW
+    recycle_time: int = _DEFAULT_RECYCLE_TIME  # 1 hour
+    pre_ping: bool = _DEFAULT_PRE_PING
 
     def __post_init__(self) -> None:
         """Validate pool configuration."""
         if self.size <= 0:
-            raise ValueError("Pool size must be positive")
+            raise ConfigValidationError("Pool size must be positive")
         if self.max_overflow < 0:
-            raise ValueError("Max overflow must be non-negative")
+            raise ConfigValidationError("Max overflow must be non-negative")
         if self.recycle_time <= 0:
-            raise ValueError("Recycle time must be positive")
+            raise ConfigValidationError("Recycle time must be positive")
 
 
 @dataclass
@@ -66,7 +78,7 @@ class DatabaseConfig:
     def __post_init__(self) -> None:
         """Validate database configuration."""
         if not self.url:
-            raise ValueError("Database URL is required")
+            raise ConfigValidationError("Database URL is required")
 
     def get_connect_args(self) -> dict:
         """
@@ -107,8 +119,6 @@ class DatabaseConfig:
         Returns engine configuration that works across all database types.
         SQLAlchemy handles database-specific optimizations automatically.
         """
-        from sqlalchemy.pool import StaticPool
-        
         kwargs = {
             "pool_pre_ping": self.pool.pre_ping,
             "echo": self.enable_debug,

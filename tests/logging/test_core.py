@@ -1,10 +1,16 @@
 """
-Unit tests for core logging functionality.
+Test suite for splurge-sql-runner logging core module.
 
-Tests the setup_logging, get_logger, and configure_module_logging functions.
+Comprehensive unit tests for logging setup, configuration,
+and core logging functionality.
+
+Copyright (c) 2025, Jim Schilling
+
+This module is licensed under the MIT License.
 """
 
 import logging
+import json
 from pathlib import Path
 
 import pytest
@@ -16,6 +22,7 @@ from splurge_sql_runner.logging.core import (
     get_logging_config,
     is_logging_configured,
 )
+from splurge_sql_runner.errors import ConfigValidationError
 
 
 class TestSetupLogging:
@@ -23,7 +30,7 @@ class TestSetupLogging:
     
     def test_setup_logging_with_invalid_level(self) -> None:
         """Test setup_logging with invalid log level."""
-        with pytest.raises(ValueError, match="Invalid log level"):
+        with pytest.raises(ConfigValidationError, match="Invalid log level"):
             setup_logging(log_level="INVALID")
     
     def test_setup_logging_with_custom_file(self, tmp_path: Path) -> None:
@@ -77,7 +84,6 @@ class TestSetupLogging:
         # Check that log file contains JSON
         with open(log_file, 'r', encoding='utf-8') as f:
             log_line = f.readline().strip()
-            import json
             log_entry = json.loads(log_line)
             assert log_entry["level"] == "INFO"
             assert log_entry["message"] == "Test JSON message"

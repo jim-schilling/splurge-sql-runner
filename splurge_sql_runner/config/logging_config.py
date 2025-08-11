@@ -1,16 +1,19 @@
 """
-Logging configuration classes for splurge-sql-runner.
+Logging configuration module.
 
-Provides type-safe configuration classes for logging settings,
-formats, and output destinations.
+Defines logging configuration classes and utilities for
+configuring logging behavior in the application.
 
 Copyright (c) 2025, Jim Schilling
 
 This module is licensed under the MIT License.
 """
 
+import os
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict
+from splurge_sql_runner.errors import ConfigValidationError
 
 
 class LogLevel(Enum):
@@ -61,10 +64,10 @@ class LoggingConfig:
     def __post_init__(self) -> None:
         """Validate logging configuration."""
         if self.backup_count < 0:
-            raise ValueError("Backup count must be non-negative")
+            raise ConfigValidationError("Backup count must be non-negative")
 
         if self.enable_file and not self.log_file and not self.log_dir:
-            raise ValueError("Log file or directory must be specified when file logging is enabled")
+            raise ConfigValidationError("Log file or directory must be specified when file logging is enabled")
 
     @classmethod
     def from_dict(cls, config_dict: dict) -> "LoggingConfig":
@@ -117,7 +120,5 @@ class LoggingConfig:
             return self.log_file
         elif self.log_dir:
             # Generate a default log file name in the log directory
-            import os
-
             return os.path.join(self.log_dir, "splurge_sql_runner.log")
         return None

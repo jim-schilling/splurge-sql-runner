@@ -16,8 +16,7 @@ alwaysApply: true
 - Group imports at top of module: standard -> third-party -> local.
 - Avoid side effects in module-level code.
 - Optimize loops.
-- Use pytest and pytest-cov for testing.
-- Unittests shall be runnable using pytest and unittest.
+- Use pytest and pytest-cov for testing, defaulting to -x -v with pytest-cov.
 - Prioritize error handling.
 - Use guard clauses to handle preconditions and invalid state early.
 - Place the happy path last in the function.

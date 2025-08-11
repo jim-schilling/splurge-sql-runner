@@ -1,8 +1,8 @@
 """
-Database engine implementations for splurge-sql-runner.
+Database engines module.
 
-Provides a unified database engine implementation that leverages SQLAlchemy's
-built-in multi-engine support through URL-based engine creation.
+Provides database engine implementations and connection management
+for various database types using SQLAlchemy.
 
 Copyright (c) 2025, Jim Schilling
 
@@ -11,17 +11,16 @@ This module is licensed under the MIT License.
 
 from typing import Any, Dict, List
 from sqlalchemy import create_engine, text
-
 from sqlalchemy.engine import Connection, Engine
 
 from splurge_sql_runner.database.interfaces import DatabaseEngine, DatabaseConnection, ConnectionPool
 from splurge_sql_runner.config.database_config import DatabaseConfig
 from splurge_sql_runner.errors.database_errors import (
-    DatabaseEngineError,
     DatabaseConnectionError,
     DatabaseOperationError,
 )
 from splurge_sql_runner.logging import configure_module_logging
+from splurge_sql_runner.sql_helper import parse_sql_statements, detect_statement_type, FETCH_STATEMENT, EXECUTE_STATEMENT, ERROR_STATEMENT
 
 
 class SqlAlchemyConnection(DatabaseConnection):
@@ -178,7 +177,7 @@ class UnifiedDatabaseEngine(DatabaseEngine):
             return create_engine(self._config.url, connect_args=connect_args, **engine_kwargs)
         except Exception as e:
             self._logger.error(f"Failed to create database engine: {e}")
-            raise DatabaseEngineError(f"Failed to create database engine: {e}") from e
+            raise DatabaseOperationError(f"Failed to create database engine: {e}") from e
 
     def create_connection(self) -> DatabaseConnection:
         """Create a new database connection."""
@@ -239,8 +238,6 @@ class UnifiedDatabaseEngine(DatabaseEngine):
         Raises:
             DatabaseConnectionError: If database connection fails
         """
-        from splurge_sql_runner.sql_helper import parse_sql_statements, detect_statement_type, FETCH_STATEMENT, EXECUTE_STATEMENT, ERROR_STATEMENT
-
         self._logger.info(f"Starting batch execution of SQL query (length: {len(sql_query)} characters)")
         
         try:
@@ -279,8 +276,6 @@ class UnifiedDatabaseEngine(DatabaseEngine):
         Returns:
             List of results for each statement (up to and including the error)
         """
-        from splurge_sql_runner.sql_helper import parse_sql_statements, detect_statement_type, FETCH_STATEMENT, EXECUTE_STATEMENT, ERROR_STATEMENT
-
         statements = parse_sql_statements(sql_query)
         results = []
         
@@ -331,52 +326,3 @@ class UnifiedDatabaseEngine(DatabaseEngine):
                 self._engine = None
             except Exception as e:
                 self._logger.error(f"Failed to close engine: {e}")
-
-
-class DatabaseEngineFactory:
-    """
-    Simplified factory for creating database engines.
-
-    Now uses a single UnifiedDatabaseEngine class that leverages
-    SQLAlchemy's built-in multi-engine support.
-    """
-
-    @classmethod
-    def create_engine(cls, config: DatabaseConfig) -> DatabaseEngine:
-        """
-        Create database engine based on configuration.
-
-        Args:
-            config: Database configuration
-
-        Returns:
-            Unified database engine instance that supports any SQLAlchemy-compatible database
-
-        Raises:
-            DatabaseEngineError: If configuration is invalid
-        """
-        return UnifiedDatabaseEngine(config)
-
-    @classmethod
-    def get_supported_types(cls) -> List[str]:
-        """
-        Get list of supported database types.
-
-        Returns:
-            List of database types supported by SQLAlchemy
-        """
-        # SQLAlchemy supports many more databases than we explicitly list
-        return [
-            "sqlite",
-            "postgresql",
-            "mysql",
-            "mariadb",
-            "oracle",
-            "mssql",
-            "firebird",
-            "sybase",
-            "informix",
-            "db2",
-            "access",
-            "sqlite3",
-        ]

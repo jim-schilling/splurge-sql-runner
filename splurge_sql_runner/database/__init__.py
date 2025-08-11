@@ -17,11 +17,10 @@ from splurge_sql_runner.database.interfaces import (
 )
 from splurge_sql_runner.database.engines import (
     UnifiedDatabaseEngine,
-    DatabaseEngineFactory,
 )
 
 # Connection and executor modules will be implemented later
-from splurge_sql_runner.database.repository import (
+from splurge_sql_runner.database.repository_impl import (
     SqlRepository,
     BatchExecutionResult,
 )
@@ -34,7 +33,6 @@ __all__ = [
     "ConnectionPool",
     # Engines
     "UnifiedDatabaseEngine",
-    "DatabaseEngineFactory",
     # Repository
     "SqlRepository",
     "BatchExecutionResult",

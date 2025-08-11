@@ -1,11 +1,18 @@
 """
-Unit tests for logging formatters.
+Test suite for splurge-sql-runner logging formatters module.
 
-Tests the JsonFormatter functionality.
+Comprehensive unit tests for log formatting functionality,
+including JSON and text formatters.
+
+Copyright (c) 2025, Jim Schilling
+
+This module is licensed under the MIT License.
 """
 
 import json
 import logging
+import datetime
+from unittest.mock import patch
 
 import pytest
 
@@ -126,7 +133,6 @@ class TestJsonFormatter:
         log_entry = json.loads(formatted)
         
         # Check that timestamp is a valid ISO format
-        import datetime
         timestamp = datetime.datetime.fromisoformat(log_entry["timestamp"].replace('Z', '+00:00'))
         assert isinstance(timestamp, datetime.datetime)
     

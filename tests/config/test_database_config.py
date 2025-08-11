@@ -1,16 +1,35 @@
 """
-Tests for config.database_config module.
+Test suite for splurge-sql-runner database configuration module.
 
-Tests the database configuration classes.
+Comprehensive unit tests for database configuration classes,
+including connection and pool configuration validation.
+
+Copyright (c) 2025, Jim Schilling
+
+This module is licensed under the MIT License.
 """
 
 import pytest
+from sqlalchemy.pool import StaticPool
 
 from splurge_sql_runner.config.database_config import (
+    DatabaseConfig,
     ConnectionConfig,
     PoolConfig,
-    DatabaseConfig,
 )
+from splurge_sql_runner.errors import ConfigValidationError
+
+
+# Private constants for test configuration
+_DEFAULT_TIMEOUT: int = 30
+_DEFAULT_MAX_CONNECTIONS: int = 5
+_DEFAULT_POOL_SIZE: int = 5
+_DEFAULT_MAX_OVERFLOW: int = 0
+_DEFAULT_RECYCLE_TIME: int = 3600
+_CUSTOM_TIMEOUT: int = 60
+_CUSTOM_MAX_CONNECTIONS: int = 10
+_CUSTOM_POOL_SIZE: int = 10
+_CUSTOM_RECYCLE_TIME: int = 1800
 
 
 class TestConnectionConfig:
@@ -19,35 +38,35 @@ class TestConnectionConfig:
     def test_default_config(self) -> None:
         """Test ConnectionConfig default values."""
         config = ConnectionConfig()
-        assert config.timeout == 30
-        assert config.max_connections == 5
+        assert config.timeout == _DEFAULT_TIMEOUT
+        assert config.max_connections == _DEFAULT_MAX_CONNECTIONS
         assert config.application_name == "splurge-sql-runner"
 
     def test_custom_config(self) -> None:
         """Test ConnectionConfig with custom values."""
         config = ConnectionConfig(
-            timeout=60,
-            max_connections=10,
+                    timeout=_CUSTOM_TIMEOUT,
+        max_connections=_CUSTOM_MAX_CONNECTIONS,
             application_name="test-app",
         )
-        assert config.timeout == 60
-        assert config.max_connections == 10
+        assert config.timeout == _CUSTOM_TIMEOUT
+        assert config.max_connections == _CUSTOM_MAX_CONNECTIONS
         assert config.application_name == "test-app"
 
     def test_invalid_timeout(self) -> None:
         """Test ConnectionConfig with invalid timeout."""
-        with pytest.raises(ValueError, match="Connection timeout must be positive"):
+        with pytest.raises(ConfigValidationError, match="Connection timeout must be positive"):
             ConnectionConfig(timeout=0)
 
-        with pytest.raises(ValueError, match="Connection timeout must be positive"):
+        with pytest.raises(ConfigValidationError, match="Connection timeout must be positive"):
             ConnectionConfig(timeout=-1)
 
     def test_invalid_max_connections(self) -> None:
         """Test ConnectionConfig with invalid max_connections."""
-        with pytest.raises(ValueError, match="Max connections must be positive"):
+        with pytest.raises(ConfigValidationError, match="Max connections must be positive"):
             ConnectionConfig(max_connections=0)
 
-        with pytest.raises(ValueError, match="Max connections must be positive"):
+        with pytest.raises(ConfigValidationError, match="Max connections must be positive"):
             ConnectionConfig(max_connections=-1)
 
 
@@ -59,41 +78,41 @@ class TestPoolConfig:
         config = PoolConfig()
         assert config.size == 5
         assert config.max_overflow == 0
-        assert config.recycle_time == 3600
+        assert config.recycle_time == _DEFAULT_RECYCLE_TIME
         assert config.pre_ping is True
 
     def test_custom_config(self) -> None:
         """Test PoolConfig with custom values."""
         config = PoolConfig(
-            size=10,
-            max_overflow=5,
-            recycle_time=1800,
+                    size=_CUSTOM_POOL_SIZE,
+        max_overflow=5,
+        recycle_time=_CUSTOM_RECYCLE_TIME,
             pre_ping=False,
         )
-        assert config.size == 10
+        assert config.size == _CUSTOM_POOL_SIZE
         assert config.max_overflow == 5
-        assert config.recycle_time == 1800
+        assert config.recycle_time == _CUSTOM_RECYCLE_TIME
         assert config.pre_ping is False
 
     def test_invalid_size(self) -> None:
         """Test PoolConfig with invalid size."""
-        with pytest.raises(ValueError, match="Pool size must be positive"):
+        with pytest.raises(ConfigValidationError, match="Pool size must be positive"):
             PoolConfig(size=0)
 
-        with pytest.raises(ValueError, match="Pool size must be positive"):
+        with pytest.raises(ConfigValidationError, match="Pool size must be positive"):
             PoolConfig(size=-1)
 
     def test_invalid_max_overflow(self) -> None:
         """Test PoolConfig with invalid max_overflow."""
-        with pytest.raises(ValueError, match="Max overflow must be non-negative"):
+        with pytest.raises(ConfigValidationError, match="Max overflow must be non-negative"):
             PoolConfig(max_overflow=-1)
 
     def test_invalid_recycle_time(self) -> None:
         """Test PoolConfig with invalid recycle_time."""
-        with pytest.raises(ValueError, match="Recycle time must be positive"):
+        with pytest.raises(ConfigValidationError, match="Recycle time must be positive"):
             PoolConfig(recycle_time=0)
 
-        with pytest.raises(ValueError, match="Recycle time must be positive"):
+        with pytest.raises(ConfigValidationError, match="Recycle time must be positive"):
             PoolConfig(recycle_time=-1)
 
 
@@ -110,7 +129,7 @@ class TestDatabaseConfig:
 
     def test_custom_config(self) -> None:
         """Test DatabaseConfig with custom values."""
-        connection_config = ConnectionConfig(timeout=60, max_connections=10)
+        connection_config = ConnectionConfig(timeout=_CUSTOM_TIMEOUT, max_connections=_CUSTOM_MAX_CONNECTIONS)
         pool_config = PoolConfig(size=10, max_overflow=5)
         
         config = DatabaseConfig(
@@ -120,20 +139,20 @@ class TestDatabaseConfig:
             enable_debug=True,
         )
         assert config.url == "postgresql://user:pass@localhost/db"
-        assert config.connection.timeout == 60
-        assert config.connection.max_connections == 10
+        assert config.connection.timeout == _CUSTOM_TIMEOUT
+        assert config.connection.max_connections == _CUSTOM_MAX_CONNECTIONS
         assert config.pool.size == 10
         assert config.pool.max_overflow == 5
         assert config.enable_debug is True
 
     def test_empty_url(self) -> None:
         """Test DatabaseConfig with empty URL."""
-        with pytest.raises(ValueError, match="Database URL is required"):
+        with pytest.raises(ConfigValidationError, match="Database URL is required"):
             DatabaseConfig(url="")
 
     def test_none_url(self) -> None:
         """Test DatabaseConfig with None URL."""
-        with pytest.raises(ValueError, match="Database URL is required"):
+        with pytest.raises(ConfigValidationError, match="Database URL is required"):
             DatabaseConfig(url=None)  # type: ignore
 
     def test_get_connect_args_sqlite(self) -> None:
@@ -141,7 +160,7 @@ class TestDatabaseConfig:
         config = DatabaseConfig(url="sqlite:///test.db")
         connect_args = config.get_connect_args()
         
-        assert connect_args["timeout"] == 30
+        assert connect_args["timeout"] == _DEFAULT_TIMEOUT
         assert connect_args["check_same_thread"] is False
         assert "connect_timeout" not in connect_args
 
@@ -150,7 +169,7 @@ class TestDatabaseConfig:
         config = DatabaseConfig(url="postgresql://user:pass@localhost/db")
         connect_args = config.get_connect_args()
         
-        assert connect_args["connect_timeout"] == 30
+        assert connect_args["connect_timeout"] == _DEFAULT_TIMEOUT
         assert connect_args["application_name"] == "splurge-sql-runner"
 
     def test_get_connect_args_mysql(self) -> None:
@@ -158,7 +177,7 @@ class TestDatabaseConfig:
         config = DatabaseConfig(url="mysql://user:pass@localhost/db")
         connect_args = config.get_connect_args()
         
-        assert connect_args["connect_timeout"] == 30
+        assert connect_args["connect_timeout"] == _DEFAULT_TIMEOUT
         assert connect_args["charset"] == "utf8mb4"
 
     def test_get_connect_args_mariadb(self) -> None:
@@ -166,7 +185,7 @@ class TestDatabaseConfig:
         config = DatabaseConfig(url="mariadb://user:pass@localhost/db")
         connect_args = config.get_connect_args()
         
-        assert connect_args["connect_timeout"] == 30
+        assert connect_args["connect_timeout"] == _DEFAULT_TIMEOUT
         assert connect_args["charset"] == "utf8mb4"
 
     def test_get_connect_args_unknown(self) -> None:
@@ -174,13 +193,11 @@ class TestDatabaseConfig:
         config = DatabaseConfig(url="oracle://user:pass@localhost/db")
         connect_args = config.get_connect_args()
         
-        assert connect_args["connect_timeout"] == 30
+        assert connect_args["connect_timeout"] == _DEFAULT_TIMEOUT
         assert len(connect_args) == 1  # Only timeout
 
     def test_get_engine_kwargs_sqlite(self) -> None:
         """Test get_engine_kwargs for SQLite."""
-        from sqlalchemy.pool import StaticPool
-        
         config = DatabaseConfig(url="sqlite:///test.db")
         kwargs = config.get_engine_kwargs()
         
@@ -197,7 +214,7 @@ class TestDatabaseConfig:
         assert kwargs["echo"] is False
         assert kwargs["pool_size"] == 5
         assert kwargs["max_overflow"] == 0
-        assert kwargs["pool_recycle"] == 3600
+        assert kwargs["pool_recycle"] == _DEFAULT_RECYCLE_TIME
 
     def test_get_engine_kwargs_with_debug(self) -> None:
         """Test get_engine_kwargs with debug enabled."""
@@ -217,4 +234,4 @@ class TestDatabaseConfig:
         
         assert kwargs["pool_size"] == 10
         assert kwargs["max_overflow"] == 5
-        assert kwargs["pool_recycle"] == 1800
+        assert kwargs["pool_recycle"] == _CUSTOM_RECYCLE_TIME

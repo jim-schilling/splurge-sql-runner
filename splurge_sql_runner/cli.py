@@ -1,4 +1,15 @@
 #!/usr/bin/env python3
+"""
+Command-line interface for splurge-sql-runner.
+
+Provides CLI functionality for executing SQL files against databases with
+support for single files, file patterns, and verbose output modes.
+
+Copyright (c) 2025, Jim Schilling
+
+This module is licensed under the MIT License.
+"""
+
 import argparse
 import glob
 import sys
@@ -23,6 +34,8 @@ from splurge_sql_runner.errors import (
     SqlValidationError,
     DatabaseConnectionError,
     DatabaseBatchError,
+    SecurityValidationError,
+    SecurityUrlError,
 )
 from splurge_sql_runner.security import SecurityValidator
 from splurge_sql_runner.logging import configure_module_logging
@@ -32,16 +45,20 @@ from splurge_sql_runner.config.constants import DEFAULT_MAX_FILE_SIZE_MB, DEFAUL
 from tabulate import tabulate
 
 
-"""
-Command-line interface for splurge-sql-runner.
+# Private constants for CLI formatting and configuration
+_DEFAULT_COLUMN_WIDTH: int = 10
+_SEPARATOR_LENGTH: int = 60
+_DASH_SEPARATOR_LENGTH: int = 40
+_STATEMENT_TYPE_ERROR: str = "error"
+_STATEMENT_TYPE_FETCH: str = "fetch"
+_STATEMENT_TYPE_EXECUTE: str = "execute"
+_DEFAULT_LOG_LEVEL: str = "DEBUG"
+_ERROR_EMOJI: str = "❌"
+_SUCCESS_EMOJI: str = "✅"
+_WARNING_EMOJI: str = "⚠️"
+_NO_ROWS_MESSAGE: str = "(No rows returned)"
+_SUCCESS_MESSAGE: str = "Statement executed successfully"
 
-Provides CLI functionality for executing SQL files against databases with
-support for single files, file patterns, and verbose output modes.
-
-Copyright (c) 2025, Jim Schilling
-
-This module is licensed under the MIT License.
-"""
 
 """
 CLI for splurge-sql-runner
@@ -92,7 +109,7 @@ def simple_table_format(headers: List[str], rows: List[List]) -> str:
     for row in rows:
         row_line = "|"
         for i, value in enumerate(row):
-            width = col_widths[i] if i < len(col_widths) else 10
+            width = col_widths[i] if i < len(col_widths) else _DEFAULT_COLUMN_WIDTH
             row_line += f" {str(value):<{width-1}}|"
         lines.append(row_line)
 
@@ -108,19 +125,19 @@ def pretty_print_results(results: List[Dict[str, Any]], file_path: str | None = 
         file_path: Optional file path for context
     """
     if file_path:
-        print(f"\n{'='*60}")
+        print(f"\n{'='*_SEPARATOR_LENGTH}")
         print(f"Results for: {file_path}")
-        print(f"{'='*60}")
+        print(f"{'='*_SEPARATOR_LENGTH}")
 
     for i, result in enumerate(results):
         print(f"\nStatement {i + 1}:")
         print(f"Type: {result['statement_type']}")
         print(f"SQL: {result['statement']}")
 
-        if result["statement_type"] == "error":
-            print(f"❌ Error: {result['error']}")
-        elif result["statement_type"] == "fetch":
-            print(f"✅ Rows returned: {result['row_count']}")
+        if result["statement_type"] == _STATEMENT_TYPE_ERROR:
+            print(f"{_ERROR_EMOJI} Error: {result['error']}")
+        elif result["statement_type"] == _STATEMENT_TYPE_FETCH:
+            print(f"{_SUCCESS_EMOJI} Rows returned: {result['row_count']}")
             if result["result"]:
                 # Use tabulate for pretty table output if available, otherwise use simple formatting
                 headers = list(result["result"][0].keys()) if result["result"] else []
@@ -128,11 +145,11 @@ def pretty_print_results(results: List[Dict[str, Any]], file_path: str | None = 
 
                 print(tabulate(rows, headers=headers, tablefmt="grid"))
             else:
-                print("(No rows returned)")
-        elif result["statement_type"] == "execute":
-            print("✅ Statement executed successfully")
+                print(_NO_ROWS_MESSAGE)
+        elif result["statement_type"] == _STATEMENT_TYPE_EXECUTE:
+            print(f"{_SUCCESS_EMOJI} {_SUCCESS_MESSAGE}")
 
-        print("-" * 40)
+        print("-" * _DASH_SEPARATOR_LENGTH)
 
 
 def process_sql_file(
@@ -172,7 +189,7 @@ def process_sql_file(
         else:
             logger.warning(f"Security validation disabled for file: {file_path}")
             if verbose:
-                print(f"⚠️  Security validation disabled for file: {file_path}")
+                print(f"{_WARNING_EMOJI}  Security validation disabled for file: {file_path}")
 
         if verbose:
             print(f"Processing file: {file_path}")
@@ -246,7 +263,7 @@ def main() -> None:
         pass
     
     # Set up logging
-    log_level = "DEBUG"  # Default to DEBUG for CLI
+    log_level = _DEFAULT_LOG_LEVEL  # Default to DEBUG for CLI
     logger = configure_module_logging("cli", log_level=log_level)
 
     logger.info("Starting splurge-sql-runner CLI")
@@ -321,7 +338,7 @@ Examples:
             try:
                 SecurityValidator.validate_database_url(args.connection, config.security)
                 logger.debug("Security validation passed")
-            except ValueError as e:
+            except (SecurityValidationError, SecurityUrlError) as e:
                 logger.error(f"Security validation failed: {e}")
                 raise CliSecurityError(str(e))
         else:

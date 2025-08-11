@@ -1,8 +1,8 @@
 """
-Configuration manager for splurge-sql-runner.
+Configuration management module.
 
-Provides centralized configuration management with support for JSON configuration files,
-environment variables, and CLI arguments with proper validation and error handling.
+Provides centralized configuration management for the application,
+supporting multiple configuration sources (JSON, environment, CLI).
 
 Copyright (c) 2025, Jim Schilling
 
@@ -28,7 +28,7 @@ from splurge_sql_runner.errors import (
     ConfigValidationError,
     ConfigFileError,
 )
-from splurge_sql_runner.config.logging_config import LoggingConfig
+from splurge_sql_runner.config.logging_config import LoggingConfig, LogLevel, LogFormat
 
 
 @dataclass
@@ -167,8 +167,6 @@ class ConfigManager:
             log_config = config_data["logging"]
             log_level = log_config.get("level", "INFO")
             log_format = log_config.get("format", "TEXT")
-
-            from splurge_sql_runner.config.logging_config import LogLevel, LogFormat
 
             try:
                 log_level = LogLevel(log_level)

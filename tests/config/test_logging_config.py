@@ -12,6 +12,7 @@ from splurge_sql_runner.config.logging_config import (
     LogFormat,
     LoggingConfig,
 )
+from splurge_sql_runner.errors import ConfigValidationError
 
 
 class TestLogLevel:
@@ -91,12 +92,12 @@ class TestLoggingConfig:
 
     def test_invalid_backup_count(self) -> None:
         """Test LoggingConfig with invalid backup count."""
-        with pytest.raises(ValueError, match="Backup count must be non-negative"):
+        with pytest.raises(ConfigValidationError, match="Backup count must be non-negative"):
             LoggingConfig(backup_count=-1)
 
     def test_file_logging_without_file_or_dir(self) -> None:
         """Test LoggingConfig with file logging enabled but no file/dir specified."""
-        with pytest.raises(ValueError, match="Log file or directory must be specified"):
+        with pytest.raises(ConfigValidationError, match="Log file or directory must be specified"):
             LoggingConfig(enable_file=True)
 
     def test_file_logging_with_file(self) -> None:

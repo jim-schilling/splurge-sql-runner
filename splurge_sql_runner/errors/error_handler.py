@@ -1,8 +1,8 @@
 """
-Error handling and resilience patterns for splurge-sql-runner.
+Error handling module.
 
-Provides circuit breaker, retry strategies, and error recovery mechanisms
-for robust error handling across the application.
+Provides comprehensive error handling, recovery strategies,
+circuit breakers, and retry mechanisms for resilient applications.
 
 Copyright (c) 2025, Jim Schilling
 
@@ -11,6 +11,7 @@ This module is licensed under the MIT License.
 
 import time
 import threading
+import random
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -211,8 +212,6 @@ class RetryStrategy:
         delay = min(delay, self._config.max_delay)
 
         if self._config.jitter:
-            import random
-
             delay *= random.uniform(0.5, 1.5)
 
         return delay

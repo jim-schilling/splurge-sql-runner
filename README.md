@@ -116,7 +116,7 @@ engine.shutdown()
 
 ```python
 from splurge_sql_runner.config import ConfigManager, AppConfig
-from splurge_sql_runner.database import SqlRepository, DatabaseEngineFactory
+from splurge_sql_runner.database import SqlRepository, UnifiedDatabaseEngine
 from splurge_sql_runner.errors import ErrorHandler, CircuitBreakerConfig
 
 # Load configuration
@@ -131,10 +131,7 @@ error_handler = ErrorHandler(
     )
 )
 
-repository = SqlRepository(
-    engine_factory=DatabaseEngineFactory(),
-    error_handler=error_handler
-)
+repository = SqlRepository(config)
 
 # Execute SQL with resilience
 try:

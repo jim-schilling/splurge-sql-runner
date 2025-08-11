@@ -1,15 +1,23 @@
 """
-Tests for config.security_config module.
+Unit tests for security configuration.
 
-Tests the security configuration classes.
+Tests the security configuration classes and their validation.
 """
 
 import pytest
 
-from splurge_sql_runner.config.security_config import (
-    ValidationConfig,
-    SecurityConfig,
-)
+from splurge_sql_runner.config.security_config import SecurityConfig, ValidationConfig
+from splurge_sql_runner.errors import ConfigValidationError
+
+
+# Private constants for test configuration
+_DEFAULT_MAX_STATEMENT_LENGTH: int = 10000
+_CUSTOM_MAX_STATEMENT_LENGTH: int = 5000
+_DEFAULT_MAX_FILE_SIZE_MB: int = 10
+_DEFAULT_MAX_STATEMENTS_PER_FILE: int = 100
+_CUSTOM_MAX_FILE_SIZE_MB: int = 20
+_CUSTOM_MAX_STATEMENTS_PER_FILE: int = 50
+_BYTES_PER_MB: int = 1024 * 1024
 
 
 class TestValidationConfig:
@@ -21,7 +29,7 @@ class TestValidationConfig:
         assert ".." in config.dangerous_path_patterns
         assert "DROP DATABASE" in config.dangerous_sql_patterns
         assert "--" in config.dangerous_url_patterns
-        assert config.max_statement_length == 10000
+        assert config.max_statement_length == _DEFAULT_MAX_STATEMENT_LENGTH
 
     def test_custom_config(self) -> None:
         """Test ValidationConfig with custom values."""
@@ -29,12 +37,12 @@ class TestValidationConfig:
             dangerous_path_patterns=("..", "~"),
             dangerous_sql_patterns=("DROP DATABASE",),
             dangerous_url_patterns=("--",),
-            max_statement_length=5000,
+            max_statement_length=_CUSTOM_MAX_STATEMENT_LENGTH,
         )
         assert config.dangerous_path_patterns == ("..", "~")
         assert config.dangerous_sql_patterns == ("DROP DATABASE",)
         assert config.dangerous_url_patterns == ("--",)
-        assert config.max_statement_length == 5000
+        assert config.max_statement_length == _CUSTOM_MAX_STATEMENT_LENGTH
 
 
 class TestSecurityConfig:
@@ -44,52 +52,52 @@ class TestSecurityConfig:
         """Test SecurityConfig default values."""
         config = SecurityConfig()
         assert config.enable_validation is True
-        assert config.max_file_size_mb == 10
-        assert config.max_statements_per_file == 100
+        assert config.max_file_size_mb == _DEFAULT_MAX_FILE_SIZE_MB
+        assert config.max_statements_per_file == _DEFAULT_MAX_STATEMENTS_PER_FILE
         assert config.allowed_file_extensions == [".sql"]
         assert isinstance(config.validation, ValidationConfig)
 
     def test_custom_config(self) -> None:
         """Test SecurityConfig with custom values."""
-        validation_config = ValidationConfig(max_statement_length=5000)
+        validation_config = ValidationConfig(max_statement_length=_CUSTOM_MAX_STATEMENT_LENGTH)
         config = SecurityConfig(
             enable_validation=False,
-            max_file_size_mb=20,
-            max_statements_per_file=50,
+            max_file_size_mb=_CUSTOM_MAX_FILE_SIZE_MB,
+            max_statements_per_file=_CUSTOM_MAX_STATEMENTS_PER_FILE,
             allowed_file_extensions=[".sql", ".txt"],
             validation=validation_config,
         )
         assert config.enable_validation is False
-        assert config.max_file_size_mb == 20
-        assert config.max_statements_per_file == 50
+        assert config.max_file_size_mb == _CUSTOM_MAX_FILE_SIZE_MB
+        assert config.max_statements_per_file == _CUSTOM_MAX_STATEMENTS_PER_FILE
         assert config.allowed_file_extensions == [".sql", ".txt"]
-        assert config.validation.max_statement_length == 5000
+        assert config.validation.max_statement_length == _CUSTOM_MAX_STATEMENT_LENGTH
 
     def test_invalid_max_file_size(self) -> None:
         """Test SecurityConfig with invalid max_file_size_mb."""
-        with pytest.raises(ValueError, match="Max file size must be positive"):
+        with pytest.raises(ConfigValidationError, match="Max file size must be positive"):
             SecurityConfig(max_file_size_mb=0)
 
-        with pytest.raises(ValueError, match="Max file size must be positive"):
+        with pytest.raises(ConfigValidationError, match="Max file size must be positive"):
             SecurityConfig(max_file_size_mb=-1)
 
     def test_invalid_max_statements(self) -> None:
         """Test SecurityConfig with invalid max_statements_per_file."""
-        with pytest.raises(ValueError, match="Max statements per file must be positive"):
+        with pytest.raises(ConfigValidationError, match="Max statements per file must be positive"):
             SecurityConfig(max_statements_per_file=0)
 
-        with pytest.raises(ValueError, match="Max statements per file must be positive"):
+        with pytest.raises(ConfigValidationError, match="Max statements per file must be positive"):
             SecurityConfig(max_statements_per_file=-1)
 
     def test_empty_allowed_extensions(self) -> None:
         """Test SecurityConfig with empty allowed_file_extensions."""
-        with pytest.raises(ValueError, match="At least one allowed file extension must be specified"):
+        with pytest.raises(ConfigValidationError, match="At least one allowed file extension must be specified"):
             SecurityConfig(allowed_file_extensions=[])
 
     def test_max_file_size_bytes(self) -> None:
         """Test max_file_size_bytes property."""
         config = SecurityConfig(max_file_size_mb=5)
-        assert config.max_file_size_bytes == 5 * 1024 * 1024
+        assert config.max_file_size_bytes == 5 * _BYTES_PER_MB
 
     def test_is_file_extension_allowed_valid(self) -> None:
         """Test is_file_extension_allowed with valid extensions."""

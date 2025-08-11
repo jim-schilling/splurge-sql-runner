@@ -10,8 +10,8 @@ This module is licensed under the MIT License.
 
 import os
 import tempfile
-import unittest
 import time
+import pytest
 from splurge_sql_runner.sql_helper import (
     detect_statement_type,
     parse_sql_statements,
@@ -24,7 +24,7 @@ from splurge_sql_runner.sql_helper import (
 )
 
 
-class TestSqlHelper(unittest.TestCase):
+class TestSqlHelper:
     """Unit tests for SQL helper functions."""
 
     def test_remove_sql_comments_single_line(self) -> None:
@@ -34,9 +34,9 @@ class TestSqlHelper(unittest.TestCase):
         INSERT INTO users VALUES (1, 'John'); -- Another comment
         """
         clean_sql = remove_sql_comments(sql)
-        self.assertNotIn("--", clean_sql)
-        self.assertIn("SELECT * FROM users;", clean_sql)
-        self.assertIn("INSERT INTO users VALUES (1, 'John');", clean_sql)
+        assert "--" not in clean_sql
+        assert "SELECT * FROM users;" in clean_sql
+        assert "INSERT INTO users VALUES (1, 'John');" in clean_sql
 
     def test_remove_sql_comments_multi_line(self) -> None:
         """Test removing multi-line comments."""
@@ -48,9 +48,9 @@ class TestSqlHelper(unittest.TestCase):
         );
         """
         clean_sql = remove_sql_comments(sql)
-        self.assertNotIn("/*", clean_sql)
-        self.assertNotIn("*/", clean_sql)
-        self.assertIn("CREATE TABLE users", clean_sql)
+        assert "/*" not in clean_sql
+        assert "*/" not in clean_sql
+        assert "CREATE TABLE users" in clean_sql
 
     def test_remove_sql_comments_preserve_strings(self) -> None:
         """Test that comments within string literals are preserved."""
@@ -59,8 +59,8 @@ class TestSqlHelper(unittest.TestCase):
         UPDATE users SET name = 'Jane /* This is not a comment */';
         """
         clean_sql = remove_sql_comments(sql)
-        self.assertIn("'John -- This is not a comment'", clean_sql)
-        self.assertIn("'Jane /* This is not a comment */'", clean_sql)
+        assert "'John -- This is not a comment'" in clean_sql
+        assert "'Jane /* This is not a comment */'" in clean_sql
 
     def test_parse_sql_statements_simple(self) -> None:
         """Test parsing simple SQL statements."""
@@ -70,10 +70,10 @@ class TestSqlHelper(unittest.TestCase):
         SELECT * FROM users;
         """
         statements = parse_sql_statements(sql)
-        self.assertEqual(len(statements), 3)
-        self.assertIn("CREATE TABLE users (id INTEGER PRIMARY KEY);", statements)
-        self.assertIn("INSERT INTO users VALUES (1, 'John');", statements)
-        self.assertIn("SELECT * FROM users;", statements)
+        assert len(statements) == 3
+        assert "CREATE TABLE users (id INTEGER PRIMARY KEY);" in statements
+        assert "INSERT INTO users VALUES (1, 'John');" in statements
+        assert "SELECT * FROM users;" in statements
 
     def test_parse_sql_statements_with_comments(self) -> None:
         """Test parsing SQL statements with comments."""
@@ -83,12 +83,12 @@ class TestSqlHelper(unittest.TestCase):
         SELECT * FROM users; -- Get all users
         """
         statements = parse_sql_statements(sql)
-        self.assertEqual(len(statements), 3)
+        assert len(statements) == 3
         for stmt in statements:
-            self.assertNotIn("--", stmt)
-            self.assertNotIn("/*", stmt)
-            self.assertNotIn("*/", stmt)
-            self.assertTrue(stmt.endswith(";"))
+            assert "--" not in stmt
+            assert "/*" not in stmt
+            assert "*/" not in stmt
+            assert stmt.endswith(";")
 
     def test_parse_sql_statements_preserve_semicolons_in_strings(self) -> None:
         """Test that semicolons in string literals are preserved."""
@@ -97,20 +97,20 @@ class TestSqlHelper(unittest.TestCase):
         UPDATE users SET name = 'Jane; Smith' WHERE id = 1;
         """
         statements = parse_sql_statements(sql)
-        self.assertEqual(len(statements), 2)
-        self.assertIn("'John; Doe'", statements[0])
-        self.assertIn("'Jane; Smith'", statements[1])
-        self.assertTrue(statements[0].endswith(";"))
-        self.assertTrue(statements[1].endswith(";"))
+        assert len(statements) == 2
+        assert "'John; Doe'" in statements[0]
+        assert "'Jane; Smith'" in statements[1]
+        assert statements[0].endswith(";")
+        assert statements[1].endswith(";")
 
     def test_parse_sql_statements_empty(self) -> None:
         """Test parsing empty SQL."""
         statements = parse_sql_statements("")
-        self.assertEqual(statements, [])
+        assert statements == []
         statements = parse_sql_statements("   ")
-        self.assertEqual(statements, [])
+        assert statements == []
         statements = parse_sql_statements("-- Only comments\n/* More comments */")
-        self.assertEqual(statements, [])
+        assert statements == []
 
     def test_split_sql_file(self) -> None:
         """Test reading and parsing a SQL file."""
@@ -124,14 +124,14 @@ class TestSqlHelper(unittest.TestCase):
             temp_file = f.name
         try:
             statements = split_sql_file(temp_file)
-            self.assertEqual(len(statements), 3)
-            self.assertIn("CREATE TABLE users (id INTEGER PRIMARY KEY);", statements)
+            assert len(statements) == 3
+            assert "CREATE TABLE users (id INTEGER PRIMARY KEY);" in statements
         finally:
             os.unlink(temp_file)
 
     def test_split_sql_file_not_found(self) -> None:
         """Test handling of non-existent file."""
-        with self.assertRaises(SqlFileError):
+        with pytest.raises(SqlFileError):
             split_sql_file("non_existent_file.sql")
 
     def test_complex_sql_parsing(self) -> None:
@@ -156,15 +156,15 @@ class TestSqlHelper(unittest.TestCase):
         SELECT * FROM users WHERE email LIKE '%@example.com';
         """
         statements = parse_sql_statements(complex_sql)
-        self.assertEqual(len(statements), 5)
+        assert len(statements) == 5
         for stmt in statements:
-            self.assertNotIn("--", stmt)
-            self.assertNotIn("/*", stmt)
-            self.assertNotIn("*/", stmt)
-        self.assertTrue(any("CREATE TABLE users" in stmt for stmt in statements))
-        self.assertTrue(any("INSERT INTO users" in stmt for stmt in statements))
-        self.assertTrue(any("CREATE INDEX" in stmt for stmt in statements))
-        self.assertTrue(any("SELECT * FROM users" in stmt for stmt in statements))
+            assert "--" not in stmt
+            assert "/*" not in stmt
+            assert "*/" not in stmt
+        assert any("CREATE TABLE users" in stmt for stmt in statements)
+        assert any("INSERT INTO users" in stmt for stmt in statements)
+        assert any("CREATE INDEX" in stmt for stmt in statements)
+        assert any("SELECT * FROM users" in stmt for stmt in statements)
 
     def test_parse_sql_statements_with_begin_end_blocks(self) -> None:
         """Test parsing SQL statements with BEGIN...END blocks (triggers)."""
@@ -179,14 +179,14 @@ class TestSqlHelper(unittest.TestCase):
         INSERT INTO users VALUES (1, 'John');
         """
         statements = parse_sql_statements(sql_with_triggers)
-        self.assertEqual(len(statements), 3)
+        assert len(statements) == 3
         trigger_statement = [stmt for stmt in statements if "CREATE TRIGGER" in stmt][0]
-        self.assertIn("BEGIN", trigger_statement)
-        self.assertIn("END", trigger_statement)
-        self.assertIn("UPDATE users SET name", trigger_statement)
-        self.assertIn("INSERT INTO audit_log", trigger_statement)
-        self.assertTrue(any("CREATE TABLE users" in stmt for stmt in statements))
-        self.assertTrue(any("INSERT INTO users VALUES" in stmt for stmt in statements))
+        assert "BEGIN" in trigger_statement
+        assert "END" in trigger_statement
+        assert "UPDATE users SET name" in trigger_statement
+        assert "INSERT INTO audit_log" in trigger_statement
+        assert any("CREATE TABLE users" in stmt for stmt in statements)
+        assert any("INSERT INTO users VALUES" in stmt for stmt in statements)
 
     def test_parse_sql_statements_strip_semicolons(self):
         """Test that trailing semicolons are stripped from parsed statements by default."""
@@ -197,20 +197,20 @@ class TestSqlHelper(unittest.TestCase):
         """
         statements = parse_sql_statements(sql, strip_semicolon=True)
         for stmt in statements:
-            self.assertFalse(stmt.endswith(";"), f"Statement should not end with semicolon: {stmt}")
+            assert not stmt.endswith(";"), f"Statement should not end with semicolon: {stmt}"
 
         # Test strip_semicolon=False behavior
         statements_with_semicolons = parse_sql_statements(sql, strip_semicolon=False)
-        self.assertEqual(len(statements_with_semicolons), 3)
+        assert len(statements_with_semicolons) == 3
 
         # Verify semicolons are preserved
         for stmt in statements_with_semicolons:
-            self.assertTrue(stmt.endswith(";"), f"Statement should end with semicolon: {stmt}")
+            assert stmt.endswith(";"), f"Statement should end with semicolon: {stmt}"
 
         # Verify the statements are correct
-        self.assertEqual(statements_with_semicolons[0], "CREATE TABLE users (id INTEGER PRIMARY KEY);")
-        self.assertEqual(statements_with_semicolons[1], "INSERT INTO users VALUES (1, 'John');")
-        self.assertEqual(statements_with_semicolons[2], "SELECT * FROM users;")
+        assert statements_with_semicolons[0] == "CREATE TABLE users (id INTEGER PRIMARY KEY);"
+        assert statements_with_semicolons[1] == "INSERT INTO users VALUES (1, 'John');"
+        assert statements_with_semicolons[2] == "SELECT * FROM users;"
 
     def test_parse_all_sqlite_statements(self):
         """Test parsing a multi-statement SQL string with all major SQLite statement types."""
@@ -242,12 +242,12 @@ class TestSqlHelper(unittest.TestCase):
         """
         statements = parse_sql_statements(multi_sql)
         expected_count = 24
-        self.assertEqual(len(statements), expected_count)
+        assert len(statements) == expected_count
         # Spot check a few
-        self.assertTrue(any(stmt.startswith("CREATE TABLE") for stmt in statements))
-        self.assertTrue(any(stmt.startswith("INSERT INTO") for stmt in statements))
-        self.assertTrue(any(stmt.startswith("PRAGMA") for stmt in statements))
-        self.assertTrue(any(stmt.startswith("EXPLAIN") for stmt in statements))
+        assert any(stmt.startswith("CREATE TABLE") for stmt in statements)
+        assert any(stmt.startswith("INSERT INTO") for stmt in statements)
+        assert any(stmt.startswith("PRAGMA") for stmt in statements)
+        assert any(stmt.startswith("EXPLAIN") for stmt in statements)
 
     def test_split_sql_file_with_semicolons(self):
         """Test split_sql_file with strip_semicolon parameter."""
@@ -262,27 +262,27 @@ class TestSqlHelper(unittest.TestCase):
         try:
             statements = split_sql_file(temp_file, strip_semicolon=False)
             for stmt in statements:
-                self.assertTrue(stmt.endswith(";"))
+                assert stmt.endswith(";")
             statements_stripped = split_sql_file(temp_file, strip_semicolon=True)
             for stmt in statements_stripped:
-                self.assertFalse(stmt.endswith(";"))
+                assert not stmt.endswith(";")
         finally:
             os.unlink(temp_file)
 
 
-class TestDetectStatementType(unittest.TestCase):
+class TestDetectStatementType:
     """Test cases for detect_statement_type function."""
 
     def test_detect_statement_type_select(self):
         """Test SELECT statement detection."""
         sql = "SELECT * FROM users"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
         sql = "SELECT id, name FROM users WHERE id = 1"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
         sql = "SELECT COUNT(*) FROM users"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
     def test_detect_statement_type_cte_with_select(self):
         """Test CTE (WITH ... SELECT) statement detection."""
@@ -294,7 +294,7 @@ class TestDetectStatementType(unittest.TestCase):
         )
         SELECT * FROM user_counts
         """
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
         sql = """
         WITH recursive_cte AS (
@@ -304,14 +304,14 @@ class TestDetectStatementType(unittest.TestCase):
         )
         SELECT * FROM recursive_cte
         """
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
         sql = """
         WITH cte1 AS (SELECT 1 as a),
              cte2 AS (SELECT 2 as b)
         SELECT a, b FROM cte1, cte2
         """
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
     def test_detect_statement_type_cte_with_insert(self):
         """Test CTE with INSERT statement detection."""
@@ -321,7 +321,7 @@ class TestDetectStatementType(unittest.TestCase):
         )
         INSERT INTO users (name, email) SELECT name, email FROM user_data
         """
-        self.assertEqual(detect_statement_type(sql), "execute")
+        assert detect_statement_type(sql) == "execute"
 
         sql = """
         WITH temp_data AS (
@@ -329,7 +329,7 @@ class TestDetectStatementType(unittest.TestCase):
         )
         INSERT INTO target_table SELECT * FROM temp_data
         """
-        self.assertEqual(detect_statement_type(sql), "execute")
+        assert detect_statement_type(sql) == "execute"
 
     def test_detect_statement_type_cte_with_update(self):
         """Test CTE with UPDATE statement detection."""
@@ -339,7 +339,7 @@ class TestDetectStatementType(unittest.TestCase):
         )
         UPDATE users SET name = new_name FROM user_updates WHERE users.id = user_updates.id
         """
-        self.assertEqual(detect_statement_type(sql), "execute")
+        assert detect_statement_type(sql) == "execute"
 
     def test_detect_statement_type_cte_with_delete(self):
         """Test CTE with DELETE statement detection."""
@@ -349,140 +349,140 @@ class TestDetectStatementType(unittest.TestCase):
         )
         DELETE FROM users WHERE id IN (SELECT id FROM users_to_delete)
         """
-        self.assertEqual(detect_statement_type(sql), "execute")
+        assert detect_statement_type(sql) == "execute"
 
     def test_detect_statement_type_values(self):
         """Test VALUES statement detection."""
         sql = "VALUES (1, 'John'), (2, 'Jane')"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
         sql = "VALUES (1, 'John')"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
     def test_detect_statement_type_show(self):
         """Test SHOW statement detection."""
         sql = "SHOW TABLES"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
         sql = "SHOW DATABASES"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
         sql = "SHOW CREATE TABLE users"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
     def test_detect_statement_type_explain(self):
         """Test EXPLAIN statement detection."""
         sql = "EXPLAIN SELECT * FROM users"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
         sql = "EXPLAIN QUERY PLAN SELECT * FROM users"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
     def test_detect_statement_type_pragma(self):
         """Test PRAGMA statement detection."""
         sql = "PRAGMA table_info(users)"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
         sql = "PRAGMA foreign_key_list(users)"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
         sql = "PRAGMA journal_mode=WAL"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
     def test_detect_statement_type_describe(self):
         """Test DESCRIBE/DESC statement detection."""
         sql = "DESCRIBE users"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
         sql = "DESC users"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
     def test_detect_statement_type_insert(self):
         """Test INSERT statement detection."""
         sql = "INSERT INTO users (name) VALUES ('John')"
-        self.assertEqual(detect_statement_type(sql), "execute")
+        assert detect_statement_type(sql) == "execute"
 
         sql = "INSERT INTO users SELECT * FROM temp_users"
-        self.assertEqual(detect_statement_type(sql), "execute")
+        assert detect_statement_type(sql) == "execute"
 
     def test_detect_statement_type_update(self):
         """Test UPDATE statement detection."""
         sql = "UPDATE users SET name = 'John' WHERE id = 1"
-        self.assertEqual(detect_statement_type(sql), "execute")
+        assert detect_statement_type(sql) == "execute"
 
     def test_detect_statement_type_delete(self):
         """Test DELETE statement detection."""
         sql = "DELETE FROM users WHERE id = 1"
-        self.assertEqual(detect_statement_type(sql), "execute")
+        assert detect_statement_type(sql) == "execute"
 
     def test_detect_statement_type_create(self):
         """Test CREATE statement detection."""
         sql = "CREATE TABLE users (id INTEGER PRIMARY KEY)"
-        self.assertEqual(detect_statement_type(sql), "execute")
+        assert detect_statement_type(sql) == "execute"
 
         sql = "CREATE INDEX idx_name ON users(name)"
-        self.assertEqual(detect_statement_type(sql), "execute")
+        assert detect_statement_type(sql) == "execute"
 
         sql = "CREATE VIEW v_users AS SELECT * FROM users"
-        self.assertEqual(detect_statement_type(sql), "execute")
+        assert detect_statement_type(sql) == "execute"
 
     def test_detect_statement_type_alter(self):
         """Test ALTER statement detection."""
         sql = "ALTER TABLE users ADD COLUMN email TEXT"
-        self.assertEqual(detect_statement_type(sql), "execute")
+        assert detect_statement_type(sql) == "execute"
 
         sql = "ALTER TABLE users DROP COLUMN email"
-        self.assertEqual(detect_statement_type(sql), "execute")
+        assert detect_statement_type(sql) == "execute"
 
     def test_detect_statement_type_drop(self):
         """Test DROP statement detection."""
         sql = "DROP TABLE users"
-        self.assertEqual(detect_statement_type(sql), "execute")
+        assert detect_statement_type(sql) == "execute"
 
         sql = "DROP INDEX idx_name"
-        self.assertEqual(detect_statement_type(sql), "execute")
+        assert detect_statement_type(sql) == "execute"
 
     def test_detect_statement_type_transaction(self):
         """Test transaction statement detection."""
         sql = "BEGIN TRANSACTION"
-        self.assertEqual(detect_statement_type(sql), "execute")
+        assert detect_statement_type(sql) == "execute"
 
         sql = "COMMIT"
-        self.assertEqual(detect_statement_type(sql), "execute")
+        assert detect_statement_type(sql) == "execute"
 
         sql = "ROLLBACK"
-        self.assertEqual(detect_statement_type(sql), "execute")
+        assert detect_statement_type(sql) == "execute"
 
     def test_detect_statement_type_empty_and_whitespace(self):
         """Test empty and whitespace-only statements."""
-        self.assertEqual(detect_statement_type(""), "execute")
-        self.assertEqual(detect_statement_type("   "), "execute")
-        self.assertEqual(detect_statement_type("\n\t"), "execute")
+        assert detect_statement_type("") == "execute"
+        assert detect_statement_type("   ") == "execute"
+        assert detect_statement_type("\n\t") == "execute"
 
     def test_detect_statement_type_with_comments(self):
         """Test statements with comments."""
         sql = "-- This is a comment\nSELECT * FROM users"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
         sql = "/* Comment */ SELECT * FROM users"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
         sql = "WITH cte AS (SELECT 1) -- Comment\nSELECT * FROM cte"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
     def test_detect_statement_type_case_insensitive(self):
         """Test that statement detection is case insensitive."""
         sql = "select * from users"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
         sql = "Select * From users"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
         sql = "with cte as (select 1) select * from cte"
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
         sql = "insert into users values (1, 'John')"
-        self.assertEqual(detect_statement_type(sql), "execute")
+        assert detect_statement_type(sql) == "execute"
 
     def test_detect_statement_type_complex_nested(self):
         """Test complex nested statements."""
@@ -512,17 +512,17 @@ class TestDetectStatementType(unittest.TestCase):
         FROM dept_rankings
         WHERE salary_rank <= 5
         """
-        self.assertEqual(detect_statement_type(sql), "fetch")
+        assert detect_statement_type(sql) == "fetch"
 
 
-class TestSqlHelperEdgeCases(unittest.TestCase):
+class TestSqlHelperEdgeCases:
     """Test edge cases and error conditions in sql_helper module."""
 
     def test_remove_sql_comments_empty_input(self):
         """Test comment removal with empty input."""
-        self.assertEqual(remove_sql_comments(""), "")
-        self.assertEqual(remove_sql_comments(None), None)
-        self.assertEqual(remove_sql_comments("   "), "")
+        assert remove_sql_comments("") == ""
+        assert remove_sql_comments(None) == None
+        assert remove_sql_comments("   ") == ""
 
     def test_remove_sql_comments_nested_comments(self):
         """Test removing nested comments."""
@@ -532,11 +532,11 @@ class TestSqlHelperEdgeCases(unittest.TestCase):
         """
         clean_sql = remove_sql_comments(sql)
         # Should handle gracefully without errors
-        self.assertIsInstance(clean_sql, str)
+        assert isinstance(clean_sql, str)
         # Should remove at least some comments
-        self.assertNotIn("--", clean_sql)
+        assert "--" not in clean_sql
         # May not handle nested comments perfectly, but should not crash
-        self.assertIn("SELECT * FROM users;", clean_sql)
+        assert "SELECT * FROM users;" in clean_sql
 
     def test_remove_sql_comments_incomplete_comments(self):
         """Test handling incomplete comments."""
@@ -546,7 +546,7 @@ class TestSqlHelperEdgeCases(unittest.TestCase):
         """
         clean_sql = remove_sql_comments(sql)
         # Should handle gracefully without errors
-        self.assertIsInstance(clean_sql, str)
+        assert isinstance(clean_sql, str)
 
     def test_parse_sql_statements_malformed_sql(self):
         """Test parsing malformed SQL statements."""
@@ -557,35 +557,35 @@ class TestSqlHelperEdgeCases(unittest.TestCase):
         """
         statements = parse_sql_statements(malformed_sql)
         # Should handle gracefully and return what can be parsed
-        self.assertIsInstance(statements, list)
+        assert isinstance(statements, list)
 
     def test_parse_sql_statements_only_semicolons(self):
         """Test parsing SQL with only semicolons."""
         sql = ";;;;"
         statements = parse_sql_statements(sql)
-        self.assertEqual(statements, [])
+        assert statements == []
 
     def test_parse_sql_statements_whitespace_only(self):
         """Test parsing SQL with only whitespace."""
         sql = "   \n\t   \n"
         statements = parse_sql_statements(sql)
-        self.assertEqual(statements, [])
+        assert statements == []
 
     def test_detect_statement_type_malformed_sql(self):
         """Test detecting statement type in malformed SQL."""
         malformed_sql = "SELECT * FROM users -- Missing semicolon"
         result = detect_statement_type(malformed_sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
         malformed_sql = "INSERT INTO users VALUES (1, 'John' -- Missing closing quote"
         result = detect_statement_type(malformed_sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
     def test_detect_statement_type_very_long_sql(self):
         """Test detecting statement type in very long SQL."""
         long_sql = "SELECT " + "a, " * 1000 + "b FROM very_long_table_name"
         result = detect_statement_type(long_sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
     def test_split_sql_file_empty_file(self):
         """Test splitting empty SQL file."""
@@ -595,7 +595,7 @@ class TestSqlHelperEdgeCases(unittest.TestCase):
 
         try:
             statements = split_sql_file(temp_file)
-            self.assertEqual(statements, [])
+            assert statements == []
         finally:
             os.unlink(temp_file)
 
@@ -611,25 +611,25 @@ class TestSqlHelperEdgeCases(unittest.TestCase):
 
         try:
             statements = split_sql_file(temp_file)
-            self.assertEqual(len(statements), 250)  # Changed from 1000 to 250
+            assert len(statements) == 250  # Changed from 1000 to 250
             for i, stmt in enumerate(statements):
-                self.assertIn(f"INSERT INTO users VALUES ({i}, 'User{i}')", stmt)
+                assert f"INSERT INTO users VALUES ({i}, 'User{i}')" in stmt
         finally:
             os.unlink(temp_file)
 
     def test_split_sql_file_invalid_path(self):
         """Test splitting SQL file with invalid path."""
-        with self.assertRaises(SqlValidationError):
+        with pytest.raises(SqlValidationError):
             split_sql_file("")
 
-        with self.assertRaises(SqlValidationError):
+        with pytest.raises(SqlValidationError):
             split_sql_file(None)
 
-        with self.assertRaises(SqlValidationError):
+        with pytest.raises(SqlValidationError):
             split_sql_file(123)  # Not a string
 
 
-class TestSqlHelperPerformance(unittest.TestCase):
+class TestSqlHelperPerformance:
     """Test performance characteristics of sql_helper functions."""
 
     def test_remove_sql_comments_performance(self):
@@ -648,10 +648,10 @@ class TestSqlHelperPerformance(unittest.TestCase):
         end_time = time.time()
 
         # Should complete in reasonable time (less than 5 second)
-        self.assertLess(end_time - start_time, 5.0)
-        self.assertNotIn("--", clean_sql)
-        self.assertNotIn("/*", clean_sql)
-        self.assertNotIn("*/", clean_sql)
+        assert end_time - start_time < 5.0
+        assert "--" not in clean_sql
+        assert "/*" not in clean_sql
+        assert "*/" not in clean_sql
 
     def test_parse_sql_statements_performance(self):
         """Test performance of SQL parsing with many statements."""
@@ -661,8 +661,8 @@ class TestSqlHelperPerformance(unittest.TestCase):
         end_time = time.time()
 
         # Should complete in reasonable time (less than 5 second)
-        self.assertLess(end_time - start_time, 5.0)
-        self.assertEqual(len(statements), 250)  # Changed from 1000 to 250
+        assert end_time - start_time < 5.0
+        assert len(statements) == 250  # Changed from 1000 to 250
 
     def test_detect_statement_type_performance(self):
         """Test performance of statement type detection with complex SQL."""
@@ -686,11 +686,11 @@ class TestSqlHelperPerformance(unittest.TestCase):
         end_time = time.time()
 
         # Should complete 250 iterations in reasonable time (less than 5 second)
-        self.assertLess(end_time - start_time, 5.0)
-        self.assertEqual(result, "fetch")
+        assert end_time - start_time < 5.0
+        assert result == "fetch"
 
 
-class TestSqlHelperIntegration(unittest.TestCase):
+class TestSqlHelperIntegration:
     """Test integration scenarios combining multiple sql_helper functions."""
 
     def test_full_sql_processing_pipeline(self):
@@ -717,19 +717,19 @@ class TestSqlHelperIntegration(unittest.TestCase):
 
         # Step 1: Remove comments
         clean_sql = remove_sql_comments(complex_sql)
-        self.assertNotIn("--", clean_sql)
-        self.assertNotIn("/*", clean_sql)
-        self.assertNotIn("*/", clean_sql)
+        assert "--" not in clean_sql
+        assert "/*" not in clean_sql
+        assert "*/" not in clean_sql
 
         # Step 2: Parse statements
         statements = parse_sql_statements(clean_sql)
-        self.assertEqual(len(statements), 5)
+        assert len(statements) == 5
 
         # Step 3: Detect types for each statement
         expected_types = ["execute", "execute", "execute", "execute", "fetch"]
         for i, stmt in enumerate(statements):
             stmt_type = detect_statement_type(stmt)
-            self.assertEqual(stmt_type, expected_types[i])
+            assert stmt_type == expected_types[i]
 
     def test_cte_processing_pipeline(self):
         """Test processing pipeline with complex CTEs."""
@@ -761,10 +761,10 @@ class TestSqlHelperIntegration(unittest.TestCase):
         # Process through pipeline
         clean_sql = remove_sql_comments(cte_sql)
         statements = parse_sql_statements(clean_sql)
-        self.assertEqual(len(statements), 1)
+        assert len(statements) == 1
 
         stmt_type = detect_statement_type(statements[0])
-        self.assertEqual(stmt_type, "fetch")
+        assert stmt_type == "fetch"
 
     def test_batch_processing_with_file(self):
         """Test batch processing using file operations."""
@@ -784,18 +784,18 @@ class TestSqlHelperIntegration(unittest.TestCase):
         try:
             # Read and process file
             statements = split_sql_file(temp_file)
-            self.assertEqual(len(statements), 5)
+            assert len(statements) == 5
 
             # Process each statement
             for stmt in statements:
                 clean_stmt = remove_sql_comments(stmt)
                 stmt_type = detect_statement_type(clean_stmt)
-                self.assertIn(stmt_type, ["execute", "fetch"])
+                assert stmt_type in ["execute", "fetch"]
         finally:
             os.unlink(temp_file)
 
 
-class TestSqlHelperCoverage(unittest.TestCase):
+class TestSqlHelperCoverage:
     """Additional tests to improve coverage for sql_helper.py."""
 
     def test_detect_statement_type_with_very_long_sql(self) -> None:
@@ -803,14 +803,14 @@ class TestSqlHelperCoverage(unittest.TestCase):
         # Create a very long SQL statement
         long_sql = "SELECT " + "1, " * 1000 + "1"
         result = detect_statement_type(long_sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
     def test_detect_statement_type_with_malformed_sql(self) -> None:
         """Test detect_statement_type with malformed SQL."""
         malformed_sql = "SELECT * FROM table WHERE column = 'unclosed string"
         result = detect_statement_type(malformed_sql)
         # Should still return a valid result despite malformed SQL
-        self.assertIn(result, ["fetch", "execute"])
+        assert result in ["fetch", "execute"]
 
     def test_detect_statement_type_with_nested_comments(self) -> None:
         """Test detect_statement_type with nested comments."""
@@ -823,17 +823,17 @@ class TestSqlHelperCoverage(unittest.TestCase):
         result = detect_statement_type(sql)
         # Nested block comments are not supported in standard SQL
         # The function correctly returns 'execute' for this malformed input
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
     def test_detect_statement_type_with_string_literals_containing_keywords(self) -> None:
         """Test detect_statement_type with string literals containing SQL keywords."""
         sql = "SELECT * FROM table WHERE column = 'INSERT INTO other_table'"
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
         sql = "SELECT * FROM table WHERE column = 'UPDATE other_table SET'"
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
     def test_detect_statement_type_with_cte_and_multiple_statements(self) -> None:
         """Test detect_statement_type with CTE and multiple statements."""
@@ -845,7 +845,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
         UPDATE table3 SET column = 1;
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
     def test_detect_statement_type_with_complex_nested_parens(self) -> None:
         """Test detect_statement_type with complex nested parentheses."""
@@ -862,7 +862,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
         )
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
     def test_detect_statement_type_with_case_statements(self) -> None:
         """Test detect_statement_type with CASE statements."""
@@ -876,7 +876,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
         FROM table
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
     def test_detect_statement_type_with_window_functions(self) -> None:
         """Test detect_statement_type with window functions."""
@@ -887,7 +887,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
         FROM table
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
     def test_detect_statement_type_with_json_operations(self) -> None:
         """Test detect_statement_type with JSON operations."""
@@ -897,7 +897,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
         FROM table
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
     def test_detect_statement_type_with_recursive_cte(self) -> None:
         """Test detect_statement_type with recursive CTE."""
@@ -910,7 +910,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
         SELECT * FROM cte
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
     def test_detect_statement_type_with_union_queries(self) -> None:
         """Test detect_statement_type with UNION queries."""
@@ -920,7 +920,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
         SELECT * FROM table2
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
         sql = """
         INSERT INTO table1 SELECT * FROM table2
@@ -928,7 +928,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
         INSERT INTO table3 SELECT * FROM table4
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
     def test_detect_statement_type_with_subqueries_in_dml(self) -> None:
         """Test detect_statement_type with subqueries in DML statements."""
@@ -938,14 +938,14 @@ class TestSqlHelperCoverage(unittest.TestCase):
         WHERE id IN (SELECT id FROM table3 WHERE condition = 1)
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
         sql = """
         DELETE FROM table1 
         WHERE id IN (SELECT id FROM table2 WHERE condition = 1)
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
     def test_detect_statement_type_with_aliases_and_keywords(self) -> None:
         """Test detect_statement_type with table aliases and keywords."""
@@ -955,7 +955,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
         JOIN table2 AS t2 ON t1.id = t2.id
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
     def test_detect_statement_type_with_sqlite_specific_functions(self) -> None:
         """Test detect_statement_type with SQLite-specific functions."""
@@ -966,27 +966,27 @@ class TestSqlHelperCoverage(unittest.TestCase):
             datetime('now') as current_time
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
     def test_detect_statement_type_with_index_operations(self) -> None:
         """Test detect_statement_type with index operations."""
         sql = "CREATE INDEX idx_name ON table(column)"
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
         sql = "DROP INDEX idx_name"
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
     def test_detect_statement_type_with_view_operations(self) -> None:
         """Test detect_statement_type with view operations."""
         sql = "CREATE VIEW view_name AS SELECT * FROM table"
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
         sql = "DROP VIEW view_name"
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
     def test_detect_statement_type_with_trigger_operations(self) -> None:
         """Test detect_statement_type with trigger operations."""
@@ -999,49 +999,49 @@ class TestSqlHelperCoverage(unittest.TestCase):
         END
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
         sql = "DROP TRIGGER trigger_name"
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
     def test_detect_statement_type_with_attach_detach(self) -> None:
         """Test detect_statement_type with ATTACH/DETACH operations."""
         sql = "ATTACH DATABASE 'other.db' AS other"
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
         sql = "DETACH DATABASE other"
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
     def test_detect_statement_type_with_savepoint_operations(self) -> None:
         """Test detect_statement_type with savepoint operations."""
         sql = "SAVEPOINT savepoint_name"
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
         sql = "RELEASE SAVEPOINT savepoint_name"
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
         sql = "ROLLBACK TO SAVEPOINT savepoint_name"
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
     def test_detect_statement_type_with_reindex_operation(self) -> None:
         """Test detect_statement_type with REINDEX operation."""
         sql = "REINDEX"
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
         sql = "REINDEX table_name"
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
         sql = "REINDEX table_name.index_name"
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
     def test_parse_sql_statements_with_complex_nesting(self) -> None:
         """Test parse_sql_statements with complex nested structures."""
@@ -1066,10 +1066,10 @@ class TestSqlHelperCoverage(unittest.TestCase):
         """
 
         statements = parse_sql_statements(complex_sql)
-        self.assertEqual(len(statements), 3)
-        self.assertIn("CREATE TABLE", statements[0])
-        self.assertIn("INSERT INTO", statements[1])
-        self.assertIn("SELECT * FROM", statements[2])
+        assert len(statements) == 3
+        assert "CREATE TABLE" in statements[0]
+        assert "INSERT INTO" in statements[1]
+        assert "SELECT * FROM" in statements[2]
 
     def test_parse_sql_statements_with_string_literals_containing_semicolons(self) -> None:
         """Test parse_sql_statements with string literals containing semicolons."""
@@ -1079,9 +1079,9 @@ class TestSqlHelperCoverage(unittest.TestCase):
         """
 
         statements = parse_sql_statements(sql)
-        self.assertEqual(len(statements), 2)
-        self.assertIn("INSERT INTO", statements[0])
-        self.assertIn("SELECT * FROM", statements[1])
+        assert len(statements) == 2
+        assert "INSERT INTO" in statements[0]
+        assert "SELECT * FROM" in statements[1]
 
     def test_parse_sql_statements_with_comments_containing_semicolons(self) -> None:
         """Test parse_sql_statements with comments containing semicolons."""
@@ -1093,9 +1093,9 @@ class TestSqlHelperCoverage(unittest.TestCase):
         """
 
         statements = parse_sql_statements(sql)
-        self.assertEqual(len(statements), 2)
-        self.assertIn("SELECT * FROM table1", statements[0])
-        self.assertIn("SELECT * FROM table2", statements[1])
+        assert len(statements) == 2
+        assert "SELECT * FROM table1" in statements[0]
+        assert "SELECT * FROM table2" in statements[1]
 
     def test_parse_sql_statements_with_empty_statements(self) -> None:
         """Test parse_sql_statements with empty statements."""
@@ -1109,7 +1109,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
 
         statements = parse_sql_statements(sql)
         # Should handle empty statements gracefully
-        self.assertGreaterEqual(len(statements), 2)
+        assert len(statements) >= 2
 
     def test_parse_sql_statements_with_only_comments(self) -> None:
         """Test parse_sql_statements with only comments."""
@@ -1120,7 +1120,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
 
         statements = parse_sql_statements(sql)
         # Should handle comment-only input gracefully
-        self.assertIsInstance(statements, list)
+        assert isinstance(statements, list)
 
     def test_parse_sql_statements_with_very_long_statements(self) -> None:
         """Test parse_sql_statements with very long statements."""
@@ -1129,9 +1129,9 @@ class TestSqlHelperCoverage(unittest.TestCase):
         sql = f"{long_select}; SELECT 2;"
 
         statements = parse_sql_statements(sql)
-        self.assertEqual(len(statements), 2)
-        self.assertIn("SELECT 1", statements[0])
-        self.assertIn("SELECT 2", statements[1])
+        assert len(statements) == 2
+        assert "SELECT 1" in statements[0]
+        assert "SELECT 2" in statements[1]
 
     def test_parse_sql_statements_with_malformed_sql(self) -> None:
         """Test parse_sql_statements with malformed SQL."""
@@ -1142,7 +1142,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
 
         statements = parse_sql_statements(malformed_sql)
         # Should handle malformed SQL gracefully
-        self.assertIsInstance(statements, list)
+        assert isinstance(statements, list)
 
     def test_parse_sql_statements_with_nested_comments(self) -> None:
         """Test parse_sql_statements with nested comments."""
@@ -1156,9 +1156,9 @@ class TestSqlHelperCoverage(unittest.TestCase):
         """
 
         statements = parse_sql_statements(sql)
-        self.assertEqual(len(statements), 2)
-        self.assertIn("SELECT 1", statements[0])
-        self.assertIn("SELECT 2", statements[1])
+        assert len(statements) == 2
+        assert "SELECT 1" in statements[0]
+        assert "SELECT 2" in statements[1]
 
     def test_parse_sql_statements_with_multiline_strings(self) -> None:
         """Test parse_sql_statements with multiline string literals."""
@@ -1172,9 +1172,9 @@ class TestSqlHelperCoverage(unittest.TestCase):
         """
 
         statements = parse_sql_statements(sql)
-        self.assertEqual(len(statements), 2)
-        self.assertIn("INSERT INTO", statements[0])
-        self.assertIn("SELECT * FROM", statements[1])
+        assert len(statements) == 2
+        assert "INSERT INTO" in statements[0]
+        assert "SELECT * FROM" in statements[1]
 
     def test_parse_sql_statements_with_complex_parens(self) -> None:
         """Test parse_sql_statements with complex parentheses."""
@@ -1190,9 +1190,9 @@ class TestSqlHelperCoverage(unittest.TestCase):
         """
 
         statements = parse_sql_statements(sql)
-        self.assertEqual(len(statements), 2)
-        self.assertIn("SELECT * FROM table1", statements[0])
-        self.assertIn("UPDATE table5", statements[1])
+        assert len(statements) == 2
+        assert "SELECT * FROM table1" in statements[0]
+        assert "UPDATE table5" in statements[1]
 
     def test_parse_sql_statements_performance(self) -> None:
         """Test parse_sql_statements performance with large input."""
@@ -1207,9 +1207,9 @@ class TestSqlHelperCoverage(unittest.TestCase):
         result = parse_sql_statements(large_sql)
         end_time = time.time()
 
-        self.assertEqual(len(result), 100)
+        assert len(result) == 100
         # Should complete in reasonable time (less than 1 second)
-        self.assertLess(end_time - start_time, 1.0)
+        assert end_time - start_time < 1.0
 
     def test_detect_statement_type_performance(self) -> None:
         """Test detect_statement_type performance with complex SQL."""
@@ -1233,26 +1233,26 @@ class TestSqlHelperCoverage(unittest.TestCase):
         end_time = time.time()
 
         # Should complete 250 iterations in reasonable time (less than 5 second)
-        self.assertLess(end_time - start_time, 5.0)
-        self.assertEqual(result, "fetch")
+        assert end_time - start_time < 5.0
+        assert result == "fetch"
 
     def test_detect_statement_type_edge_cases(self) -> None:
         """Test detect_statement_type with edge cases to improve coverage."""
         # Test with None input
         result = detect_statement_type(None)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
         # Test with empty string
         result = detect_statement_type("")
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
         # Test with whitespace only
         result = detect_statement_type("   \n\t   ")
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
         # Test with malformed SQL that sqlparse can't parse
         result = detect_statement_type("INVALID SQL WITH UNCLOSED STRING 'test")
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
     def test_detect_statement_type_with_complex_cte_edge_cases(self) -> None:
         """Test detect_statement_type with complex CTE edge cases."""
@@ -1263,7 +1263,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
         )
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
         # Test CTE with multiple CTEs but no main statement (invalid SQL, but function detects SELECT inside CTE)
         sql = """
@@ -1271,7 +1271,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
              cte2 AS (SELECT 2)
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
         # Test CTE with complex nesting that might confuse the parser
         sql = """
@@ -1283,70 +1283,70 @@ class TestSqlHelperCoverage(unittest.TestCase):
         SELECT * FROM cte
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
     def test_split_sql_file_error_handling(self) -> None:
         """Test split_sql_file error handling to improve coverage."""
         # Test with None file_path
-        with self.assertRaises(SqlValidationError):
+        with pytest.raises(SqlValidationError):
             split_sql_file(None)
 
         # Test with invalid file_path type
-        with self.assertRaises(SqlValidationError):
+        with pytest.raises(SqlValidationError):
             split_sql_file(123)
 
         # Test with empty file_path
-        with self.assertRaises(SqlValidationError):
+        with pytest.raises(SqlValidationError):
             split_sql_file("")
 
         # Test with non-existent file
-        with self.assertRaises(SqlFileError):
+        with pytest.raises(SqlFileError):
             split_sql_file("non_existent_file.sql")
 
     def test_parse_sql_statements_edge_cases(self) -> None:
         """Test parse_sql_statements with edge cases to improve coverage."""
         # Test with None input
         result = parse_sql_statements(None)
-        self.assertEqual(result, [])
+        assert result == []
 
         # Test with empty string
         result = parse_sql_statements("")
-        self.assertEqual(result, [])
+        assert result == []
 
         # Test with only semicolons
         result = parse_sql_statements(";;;;")
-        self.assertEqual(result, [])
+        assert result == []
 
         # Test with only comments
         result = parse_sql_statements("-- comment\n/* another comment */")
-        self.assertEqual(result, [])
+        assert result == []
 
     def test_remove_sql_comments_edge_cases(self) -> None:
         """Test remove_sql_comments with edge cases to improve coverage."""
         # Test with None input
         result = remove_sql_comments(None)
-        self.assertEqual(result, None)
+        assert result == None
 
         # Test with empty string
         result = remove_sql_comments("")
-        self.assertEqual(result, "")
+        assert result == ""
 
         # Test with sqlparse returning None
         # This is hard to trigger directly, but we can test the edge case
         result = remove_sql_comments("   ")
-        self.assertIsInstance(result, str)
+        assert isinstance(result, str)
 
     def test_detect_statement_type_with_token_edge_cases(self) -> None:
         """Test detect_statement_type with token edge cases."""
         # Test with SQL that has no non-whitespace, non-comment tokens
         sql = "   \n\t   -- comment\n/* comment */"
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
         # Test with SQL that has only whitespace and comments
         sql = "   \n\t   "
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
     def test_detect_statement_type_with_cte_fallback(self) -> None:
         """Test detect_statement_type CTE fallback logic."""
@@ -1359,7 +1359,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
         SELECT * FROM cte
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
         # Test CTE with INSERT that should return execute
         sql = """
@@ -1369,7 +1369,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
         INSERT INTO table SELECT * FROM cte
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
     def test_detect_statement_type_with_complex_parens_in_cte(self) -> None:
         """Test detect_statement_type with complex parentheses in CTE."""
@@ -1385,7 +1385,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
         SELECT * FROM cte
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
     def test_detect_statement_type_with_multiple_ctes_and_complex_structure(self) -> None:
         """Test detect_statement_type with multiple CTEs and complex structure."""
@@ -1401,7 +1401,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
         SELECT * FROM cte1 UNION SELECT * FROM cte2 UNION SELECT * FROM cte3
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
         # Test multiple CTEs with INSERT
         sql = """
@@ -1409,7 +1409,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
         INSERT INTO table SELECT * FROM cte1
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "execute")
+        assert result == "execute"
 
     def test_detect_statement_type_with_unknown_statement_after_cte(self) -> None:
         """Test detect_statement_type with unknown statement type after CTE."""
@@ -1420,7 +1420,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
         UNKNOWN_STATEMENT_TYPE
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
     def test_detect_statement_type_with_fetch_statement_after_cte(self) -> None:
         """Test detect_statement_type with fetch statement after CTE."""
@@ -1430,7 +1430,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
         VALUES (1, 2, 3)
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
         # Test CTE with SHOW statement
         sql = """
@@ -1438,7 +1438,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
         SHOW TABLES
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
         # Test CTE with EXPLAIN statement
         sql = """
@@ -1446,8 +1446,7 @@ class TestSqlHelperCoverage(unittest.TestCase):
         EXPLAIN SELECT * FROM table
         """
         result = detect_statement_type(sql)
-        self.assertEqual(result, "fetch")
+        assert result == "fetch"
 
 
-if __name__ == "__main__":
-    unittest.main()
+

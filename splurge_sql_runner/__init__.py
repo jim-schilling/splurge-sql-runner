@@ -26,7 +26,6 @@ from splurge_sql_runner.config import (
 from splurge_sql_runner.database import (
     SqlRepository,
     BatchExecutionResult,
-    DatabaseEngineFactory,
     UnifiedDatabaseEngine,
 )
 
@@ -110,7 +109,6 @@ __all__ = [
     # Database
     "SqlRepository",
     "BatchExecutionResult",
-    "DatabaseEngineFactory",
     "UnifiedDatabaseEngine",
     # Errors
     "SplurgeSqlRunnerError",

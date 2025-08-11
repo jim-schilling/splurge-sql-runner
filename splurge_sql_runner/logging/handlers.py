@@ -9,6 +9,15 @@ import sys
 from typing import Any
 
 
+# Private constants for logging handler configuration
+_MAX_FAILURES: int = 10
+_DAY_IN_SECONDS: int = 86400
+_LOGGING_FAILED_PREFIX: str = "[LOGGING FAILED]"
+_LOGGING_DISABLED_MESSAGE: str = "[LOGGING DISABLED] Too many failures, logging disabled for this handler"
+_FALLBACK_FAILURE_MESSAGE: str = " (Primary logging failed: {})"
+_FAILURE_COUNT_MESSAGE: str = " (Failure #{})"
+
+
 class ResilientLogHandler(logging.Handler):
     """
     Log handler that continues working even if logging fails.
@@ -29,7 +38,7 @@ class ResilientLogHandler(logging.Handler):
         self._handler = handler
         self._fallback_to_stderr = fallback_to_stderr
         self._failure_count = 0
-        self._max_failures = 10  # Stop trying after 10 consecutive failures
+        self._max_failures = _MAX_FAILURES  # Stop trying after 10 consecutive failures
 
         # Copy filters from the wrapped handler
         for filter_obj in handler.filters:
@@ -77,11 +86,11 @@ class ResilientLogHandler(logging.Handler):
             if self._fallback_to_stderr and self._failure_count <= self._max_failures:
                 # Fall back to stderr
                 try:
-                    fallback_message = f"[LOGGING FAILED] {record.levelname}: {record.getMessage()}"
+                    fallback_message = f"{_LOGGING_FAILED_PREFIX} {record.levelname}: {record.getMessage()}"
                     if self._failure_count == 1:
-                        fallback_message += f" (Primary logging failed: {e})"
+                        fallback_message += _FALLBACK_FAILURE_MESSAGE.format(e)
                     else:
-                        fallback_message += f" (Failure #{self._failure_count})"
+                        fallback_message += _FAILURE_COUNT_MESSAGE.format(self._failure_count)
 
                     print(fallback_message, file=sys.stderr, flush=True)
                 except Exception:
@@ -91,16 +100,29 @@ class ResilientLogHandler(logging.Handler):
                 # Stop trying after max failures to avoid infinite loops
                 if self._failure_count == self._max_failures + 1:
                     print(
-                        "[LOGGING DISABLED] Too many failures, logging disabled for this handler",
+                        _LOGGING_DISABLED_MESSAGE,
                         file=sys.stderr,
                         flush=True,
                     )
 
     def close(self) -> None:
         """Close the underlying handler."""
-        try:
+        if self._handler:
             self._handler.close()
-        except Exception:
-            # Ignore errors during close
-            pass
-        super().close()
+
+    def flush(self) -> None:
+        """Flush the underlying handler."""
+        if self._handler:
+            self._handler.flush()
+
+    def setFormatter(self, formatter: logging.Formatter) -> None:
+        """Set formatter for the resilient handler."""
+        super().setFormatter(formatter)
+
+    def addFilter(self, filter_obj: logging.Filter) -> None:
+        """Add filter to the resilient handler."""
+        super().addFilter(filter_obj)
+
+    def removeFilter(self, filter_obj: logging.Filter) -> None:
+        """Remove filter from the resilient handler."""
+        super().removeFilter(filter_obj)

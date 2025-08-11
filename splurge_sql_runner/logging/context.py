@@ -1,11 +1,17 @@
 """
-Contextual logging for splurge-sql-runner.
+Logging context module.
 
-Provides correlation ID management and contextual logging capabilities.
+Provides contextual logging functionality including correlation IDs,
+contextual loggers, and context managers for structured logging.
+
+Copyright (c) 2025, Jim Schilling
+
+This module is licensed under the MIT License.
 """
 
 import logging
 import uuid
+import functools
 from contextlib import contextmanager
 from typing import Any, ContextManager
 
@@ -212,7 +218,6 @@ class LogContext:
         def wrapper(*args, **kwargs):
             with self as contextual_logger:
                 # Make the contextual logger available to the function
-                import functools
                 if not hasattr(func, '_contextual_logger'):
                     func._contextual_logger = contextual_logger
                 return func(*args, **kwargs)

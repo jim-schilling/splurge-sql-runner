@@ -14,6 +14,13 @@ import pytest
 from splurge_sql_runner.logging.handlers import ResilientLogHandler
 
 
+# Private constants for test configuration
+_MAX_FAILURES: int = 10
+_DAY_IN_SECONDS: int = 86400
+_BACKUP_COUNT: int = 3
+_TIMED_ROTATION_INTERVAL: int = 1
+
+
 class TestResilientLogHandler:
     """Test resilient log handler functionality."""
     
@@ -27,7 +34,7 @@ class TestResilientLogHandler:
         assert handler._handler == file_handler
         assert handler._fallback_to_stderr is True
         assert handler._failure_count == 0
-        assert handler._max_failures == 10
+        assert handler._max_failures == _MAX_FAILURES
     
     def test_resilient_handler_with_timed_rotation(self, tmp_path: Path) -> None:
         """Test ResilientLogHandler with timed rotation."""
@@ -35,16 +42,16 @@ class TestResilientLogHandler:
         timed_handler = logging.handlers.TimedRotatingFileHandler(
             str(log_file),
             when="MIDNIGHT",
-            interval=1,
-            backupCount=3
+            interval=_TIMED_ROTATION_INTERVAL,
+            backupCount=_BACKUP_COUNT
         )
         handler = ResilientLogHandler(timed_handler)
         
         assert handler._handler is not None
         assert handler._handler == timed_handler
         assert handler._handler.when == "MIDNIGHT"
-        assert handler._handler.interval == 86400  # 1 day in seconds
-        assert handler._handler.backupCount == 3
+        assert handler._handler.interval == _DAY_IN_SECONDS  # 1 day in seconds
+        assert handler._handler.backupCount == _BACKUP_COUNT
     
     def test_resilient_handler_emit_success(self, tmp_path: Path) -> None:
         """Test successful log emission."""
@@ -249,14 +256,14 @@ class TestResilientLogHandler:
         rotating_handler = logging.handlers.RotatingFileHandler(
             str(log_file),
             maxBytes=1024,
-            backupCount=2
+            backupCount=_BACKUP_COUNT
         )
         handler = ResilientLogHandler(rotating_handler)
         
         assert handler._handler is not None
         assert isinstance(handler._handler, logging.handlers.RotatingFileHandler)
         assert handler._handler.maxBytes == 1024
-        assert handler._handler.backupCount == 2
+        assert handler._handler.backupCount == _BACKUP_COUNT
     
     def test_resilient_handler_with_custom_handler(self, tmp_path: Path) -> None:
         """Test ResilientLogHandler with custom handler."""
