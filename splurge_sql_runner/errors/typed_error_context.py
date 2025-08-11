@@ -11,11 +11,187 @@ This module is licensed under the MIT License.
 
 
 from dataclasses import dataclass, field
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 from datetime import datetime
 from pathlib import Path
+import re
+
+import sqlparse
+from sqlparse.tokens import Comment, DML, Punctuation, Name
+from sqlparse.sql import Statement, Token
 
 from splurge_sql_runner.errors.error_handler import ErrorContext
+
+
+def _count_sql_parameters(sql_statement: str) -> int:
+    """
+    Count SQL parameters in a statement using sqlparse.
+    
+    This function properly handles:
+    - Question mark parameters (?)
+    - Named parameters (:param)
+    - Quoted strings (single and double quotes)
+    - SQL comments (-- and /* */)
+    - Complex SQL statements with proper tokenization
+    
+    Args:
+        sql_statement: The SQL statement to analyze
+        
+    Returns:
+        Number of parameters found in the statement
+    """
+    if not sql_statement:
+        return 0
+    
+    try:
+        # Parse the SQL statement using sqlparse
+        parsed = sqlparse.parse(sql_statement)
+        if not parsed:
+            return 0
+        
+        parameter_count = 0
+        
+        # Process each statement
+        for statement in parsed:
+            # Get all tokens from the statement
+            tokens = statement.flatten()
+            
+            for token in tokens:
+                # Skip comments
+                if token.ttype in Comment:
+                    continue
+                
+                # Count all placeholder parameters (both ? and :param)
+                if token.ttype == Name.Placeholder:
+                    parameter_count += 1
+        
+        return parameter_count
+        
+    except Exception:
+        # Fallback to simple counting if sqlparse fails
+        return _fallback_count_parameters(sql_statement)
+
+
+def _fallback_count_parameters(sql_statement: str) -> int:
+    """
+    Fallback parameter counting method for when sqlparse fails.
+    
+    This is a simplified version that handles basic cases.
+    
+    Args:
+        sql_statement: The SQL statement to analyze
+        
+    Returns:
+        Number of parameters found in the statement
+    """
+    if not sql_statement:
+        return 0
+    
+    # Simple counting - this is less accurate but provides a fallback
+    question_mark_count = sql_statement.count('?')
+    
+    # Count named parameters with basic regex
+    named_param_pattern = r':[a-zA-Z_][a-zA-Z0-9_]*'
+    named_params = re.findall(named_param_pattern, sql_statement)
+    
+    return question_mark_count + len(named_params)
+
+
+def _remove_sql_comments(sql_statement: str) -> str:
+    """
+    Remove SQL comments from a statement using sqlparse.
+    
+    Handles both single-line (--) and multi-line (/* */) comments.
+    
+    Args:
+        sql_statement: The SQL statement with comments
+        
+    Returns:
+        SQL statement with comments removed
+    """
+    if not sql_statement:
+        return sql_statement
+    
+    try:
+        # Use sqlparse to remove comments
+        return sqlparse.format(sql_statement, strip_comments=True)
+    except Exception:
+        # Fallback to original statement if sqlparse fails
+        return sql_statement
+
+
+def _extract_sql_statement_type(sql_statement: str) -> str:
+    """
+    Extract the type of SQL statement using sqlparse.
+    
+    Args:
+        sql_statement: The SQL statement to analyze
+        
+    Returns:
+        Statement type in uppercase, or empty string if unknown
+    """
+    if not sql_statement:
+        return ""
+    
+    try:
+        # Parse the SQL statement
+        parsed = sqlparse.parse(sql_statement.strip())
+        if not parsed:
+            return ""
+        
+        # Get the first statement
+        statement = parsed[0]
+        
+        # Get the first token (should be the statement type)
+        tokens = statement.flatten()
+        for token in tokens:
+            # Skip whitespace and comments
+            if token.is_whitespace or token.ttype in Comment:
+                continue
+            
+            # Check if it's a DML token (SELECT, INSERT, UPDATE, DELETE, etc.)
+            if token.ttype in DML:
+                return token.value.upper()
+            
+            # If it's not a DML token but looks like a statement type, return it
+            if token.ttype == Name and token.value.upper() in [
+                'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 
+                'ALTER', 'GRANT', 'REVOKE', 'BEGIN', 'COMMIT', 'ROLLBACK'
+            ]:
+                return token.value.upper()
+            
+            # Return the first non-whitespace, non-comment token
+            return token.value.upper()
+        
+        return ""
+        
+    except Exception:
+        # Fallback to regex-based extraction
+        return _fallback_extract_statement_type(sql_statement)
+
+
+def _fallback_extract_statement_type(sql_statement: str) -> str:
+    """
+    Fallback statement type extraction using regex.
+    
+    Args:
+        sql_statement: The SQL statement to analyze
+        
+    Returns:
+        Statement type in uppercase, or empty string if unknown
+    """
+    if not sql_statement:
+        return ""
+    
+    # Remove comments first
+    clean_sql = _remove_sql_comments(sql_statement.strip())
+    
+    # Extract first word (should be the statement type)
+    match = re.match(r'^\s*(\w+)', clean_sql, re.IGNORECASE)
+    if match:
+        return match.group(1).upper()
+    
+    return ""
 
 
 @dataclass
@@ -122,11 +298,12 @@ class SqlErrorContext(ErrorContext):
         
         if self.sql_statement:
             self.statement_length = len(self.sql_statement)
-            # Simple parameter counting (? or :param style)
-            self.parameter_count = self.sql_statement.count("?") + len([
-                part for part in self.sql_statement.split() 
-                if part.startswith(":")
-            ])
+            # Use robust parameter counting
+            self.parameter_count = _count_sql_parameters(self.sql_statement)
+            
+            # Extract statement type if not provided
+            if not self.statement_type:
+                self.statement_type = _extract_sql_statement_type(self.sql_statement)
 
     def get_file_context(self) -> Dict[str, Any] | None:
         """Get file context information if available."""

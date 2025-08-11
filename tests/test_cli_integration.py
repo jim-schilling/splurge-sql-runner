@@ -251,7 +251,6 @@ class TestCLIIntegration:
                     main()
                     # If we get here, no SystemExit was raised
                     output = mock_stdout.getvalue()
-                    print(f"Unexpected success. Output: {output}")
                     # If it actually succeeded, that's fine - just check the output
                     assert "Summary: 1/1 files processed successfully" in output
                 except SystemExit:
