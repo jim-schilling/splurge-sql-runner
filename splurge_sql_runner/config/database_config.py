@@ -10,7 +10,7 @@ This module is licensed under the MIT License.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict
+
 from sqlalchemy.pool import StaticPool
 from splurge_sql_runner.errors import ConfigValidationError
 

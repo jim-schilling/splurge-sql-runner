@@ -13,8 +13,6 @@ import sqlparse
 from sqlparse.tokens import Comment, DML
 from sqlparse.sql import Statement, Token
 from splurge_sql_runner.errors import (
-    SqlError,
-    SqlParseError,
     SqlFileError,
     SqlValidationError,
 )

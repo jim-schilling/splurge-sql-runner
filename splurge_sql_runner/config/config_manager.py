@@ -187,23 +187,23 @@ class ConfigManager:
         # Parse security configuration
         if "security" in config_data:
             sec_config = config_data["security"]
-            
+
             if "enable_validation" in sec_config:
                 config.security.enable_validation = sec_config["enable_validation"]
-            
+
             if "max_file_size_mb" in sec_config:
                 config.security.max_file_size_mb = sec_config["max_file_size_mb"]
-            
+
             if "max_statements_per_file" in sec_config:
                 config.security.max_statements_per_file = sec_config["max_statements_per_file"]
-            
+
             if "allowed_file_extensions" in sec_config:
                 config.security.allowed_file_extensions = sec_config["allowed_file_extensions"]
 
         # Parse logging configuration
         if "logging" in config_data:
             log_config = config_data["logging"]
-            
+
             if "level" in log_config:
                 try:
                     config.logging.level = LogLevel(log_config["level"])
@@ -234,16 +234,16 @@ class ConfigManager:
         # Parse application settings
         if "app" in config_data:
             app_config = config_data["app"]
-            
+
             if "max_file_size_mb" in app_config:
                 config.max_file_size_mb = app_config["max_file_size_mb"]
-            
+
             if "max_statements_per_file" in app_config:
                 config.max_statements_per_file = app_config["max_statements_per_file"]
-            
+
             if "enable_verbose_output" in app_config:
                 config.enable_verbose_output = app_config["enable_verbose_output"]
-            
+
             if "enable_debug_mode" in app_config:
                 config.enable_debug_mode = app_config["enable_debug_mode"]
 
@@ -298,10 +298,22 @@ class ConfigManager:
     ) -> AppConfig:
         """Merge two configurations, with override taking precedence."""
         # Use override value if it's not None/empty, otherwise use base value
-        max_file_size_mb = override.max_file_size_mb if override.max_file_size_mb is not None else base.max_file_size_mb
-        max_statements_per_file = override.max_statements_per_file if override.max_statements_per_file is not None else base.max_statements_per_file
-        enable_verbose_output = override.enable_verbose_output if override.enable_verbose_output is not None else base.enable_verbose_output
-        enable_debug_mode = override.enable_debug_mode if override.enable_debug_mode is not None else base.enable_debug_mode
+        max_file_size_mb = (
+            override.max_file_size_mb if override.max_file_size_mb is not None 
+            else base.max_file_size_mb
+        )
+        max_statements_per_file = (
+            override.max_statements_per_file if override.max_statements_per_file is not None 
+            else base.max_statements_per_file
+        )
+        enable_verbose_output = (
+            override.enable_verbose_output if override.enable_verbose_output is not None 
+            else base.enable_verbose_output
+        )
+        enable_debug_mode = (
+            override.enable_debug_mode if override.enable_debug_mode is not None 
+            else base.enable_debug_mode
+        )
         
         merged = AppConfig(
             database=self._merge_database_config(base.database, override.database),
@@ -325,9 +337,18 @@ class ConfigManager:
         url = override.url if override.url else base.url
         
         # Handle None values - use base value if override is None
-        timeout = override.connection.timeout if override.connection.timeout is not None else base.connection.timeout
-        application_name = override.connection.application_name if override.connection.application_name is not None else base.connection.application_name
-        enable_debug = override.enable_debug if override.enable_debug is not None else base.enable_debug
+        timeout = (
+            override.connection.timeout if override.connection.timeout is not None 
+            else base.connection.timeout
+        )
+        application_name = (
+            override.connection.application_name if override.connection.application_name is not None 
+            else base.connection.application_name
+        )
+        enable_debug = (
+            override.enable_debug if override.enable_debug is not None 
+            else base.enable_debug
+        )
         
         return DatabaseConfig(
             url=url,
@@ -345,10 +366,23 @@ class ConfigManager:
     ) -> SecurityConfig:
         """Merge security configurations."""
         # Use override value if it's not None/zero, otherwise use base value
-        enable_validation = override.enable_validation if override.enable_validation is not None else base.enable_validation
-        max_file_size_mb = override.max_file_size_mb if override.max_file_size_mb is not None and override.max_file_size_mb > 0 else base.max_file_size_mb
-        max_statements_per_file = override.max_statements_per_file if override.max_statements_per_file is not None and override.max_statements_per_file > 0 else base.max_statements_per_file
-        allowed_file_extensions = override.allowed_file_extensions if override.allowed_file_extensions is not None else base.allowed_file_extensions
+        enable_validation = (
+            override.enable_validation if override.enable_validation is not None 
+            else base.enable_validation
+        )
+        max_file_size_mb = (
+            override.max_file_size_mb if override.max_file_size_mb is not None and override.max_file_size_mb > 0 
+            else base.max_file_size_mb
+        )
+        max_statements_per_file = (
+            override.max_statements_per_file 
+            if override.max_statements_per_file is not None and override.max_statements_per_file > 0 
+            else base.max_statements_per_file
+        )
+        allowed_file_extensions = (
+            override.allowed_file_extensions if override.allowed_file_extensions is not None 
+            else base.allowed_file_extensions
+        )
         
         return SecurityConfig(
             enable_validation=enable_validation,

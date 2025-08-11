@@ -6,7 +6,7 @@ Provides resilient log handlers with error recovery capabilities.
 
 import logging
 import sys
-from typing import Any
+
 
 
 # Private constants for logging handler configuration

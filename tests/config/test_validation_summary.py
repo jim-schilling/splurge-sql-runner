@@ -118,7 +118,7 @@ class TestConfigSourceInfo:
         """Test was_transformed property when values are different."""
         info = ConfigSourceInfo(
             source=ConfigSource.ENVIRONMENT,
-            source_location="SPLURGE_SQL_DATABASE_URL",
+            source_location="SPLURGE_SQL_RUNNER_DATABASE_URL",
             original_value="postgresql://user:pass@localhost/db",
             final_value="postgresql://user:***@localhost/db"
         )
@@ -252,7 +252,7 @@ class TestConfigValidationSummary:
         assert summary.validation_messages == []
         assert isinstance(summary.validation_timestamp, datetime)
         assert summary.config_file_path is None
-        assert summary.environment_prefix == "SPLURGE_SQL_"
+        assert summary.environment_prefix == "SPLURGE_SQL_RUNNER_"
 
     def test_custom_initialization(self) -> None:
         """Test custom initialization with all fields."""
@@ -317,7 +317,7 @@ class TestConfigValidationSummary:
         summary.add_source_info(
             config_key="security.max_file_size",
             source=ConfigSource.ENVIRONMENT,
-            source_location="SPLURGE_SQL_MAX_FILE_SIZE",
+            source_location="SPLURGE_SQL_RUNNER_MAX_FILE_SIZE",
             original_value="10",
             final_value=10
         )
@@ -688,7 +688,7 @@ class TestIntegrationScenarios:
             summary.add_source_info(
                 "database.connection.timeout",
                 ConfigSource.ENVIRONMENT,
-                "SPLURGE_SQL_TIMEOUT",
+                "SPLURGE_SQL_RUNNER_TIMEOUT",
                 "60",
                 60
             )
@@ -776,7 +776,7 @@ class TestIntegrationScenarios:
         summary.add_source_info(
             "security.allowed_extensions",
             ConfigSource.ENVIRONMENT,
-            "SPLURGE_SQL_ALLOWED_EXTENSIONS",
+            "SPLURGE_SQL_RUNNER_ALLOWED_EXTENSIONS",
             "sql,txt",
             ["sql", "txt"]
         )

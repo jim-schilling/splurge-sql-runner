@@ -10,7 +10,7 @@ This module is licensed under the MIT License.
 
 import re
 from pathlib import Path
-from typing import Tuple
+
 from urllib.parse import urlparse
 
 from splurge_sql_runner.config.security_config import SecurityConfig

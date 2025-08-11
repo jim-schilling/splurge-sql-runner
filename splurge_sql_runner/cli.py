@@ -25,10 +25,7 @@ from splurge_sql_runner.config.database_config import DatabaseConfig
 from splurge_sql_runner.config.security_config import SecurityConfig
 from splurge_sql_runner.database.engines import UnifiedDatabaseEngine
 from splurge_sql_runner.errors import (
-    CliError,
-    CliArgumentError,
     CliFileError,
-    CliExecutionError,
     CliSecurityError,
     SqlFileError,
     SqlValidationError,
@@ -253,7 +250,7 @@ def main() -> None:
         sys.stderr.reconfigure(encoding='utf-8')
     except AttributeError:
         pass
-    
+
     log_level = _DEFAULT_LOG_LEVEL
     logger = configure_module_logging("cli", log_level=log_level)
 
@@ -340,7 +337,7 @@ Examples:
             "max_statements_per_file": args.max_statements,
         }
         config = config_manager.load_config(cli_config)
-        
+
         if not args.disable_security:
             logger.info("Performing security validation")
             try:

@@ -17,8 +17,6 @@ from splurge_sql_runner.sql_helper import (
     parse_sql_statements,
     remove_sql_comments,
     split_sql_file,
-    SqlError,
-    SqlParseError,
     SqlFileError,
     SqlValidationError,
 )

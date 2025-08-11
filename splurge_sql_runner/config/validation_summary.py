@@ -11,13 +11,13 @@ This module is licensed under the MIT License.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Any, Optional, Set
+from typing import Dict, List, Any
 from datetime import datetime
 
 
 class ConfigSource(Enum):
     """Enumeration of configuration sources."""
-    
+
     DEFAULT = "default"
     JSON_FILE = "json_file"
     ENVIRONMENT = "environment"
@@ -27,7 +27,7 @@ class ConfigSource(Enum):
 
 class ValidationSeverity(Enum):
     """Enumeration of validation message severities."""
-    
+
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
@@ -37,13 +37,13 @@ class ValidationSeverity(Enum):
 @dataclass
 class ConfigSourceInfo:
     """Information about a configuration value's source."""
-    
+
     source: ConfigSource
     source_location: str  # File path, env var name, CLI arg, etc.
     original_value: Any
     final_value: Any
     timestamp: datetime = field(default_factory=datetime.now)
-    
+
     @property
     def was_transformed(self) -> bool:
         """Check if the value was transformed from its original form."""
@@ -53,13 +53,13 @@ class ConfigSourceInfo:
 @dataclass
 class ValidationMessage:
     """A validation message with context and severity."""
-    
+
     severity: ValidationSeverity
     message: str
     config_key: str
-    source_info: Optional[ConfigSourceInfo] = None
-    suggestion: Optional[str] = None
-    
+    source_info: ConfigSourceInfo | None = None
+    suggestion: str | None = None
+
     @property
     def is_error(self) -> bool:
         """Check if this is an error or critical message."""
@@ -70,34 +70,34 @@ class ValidationMessage:
 class ConfigValidationSummary:
     """
     Comprehensive configuration validation summary.
-    
+
     Tracks configuration sources, validation results, overrides,
     and provides audit information for troubleshooting.
     """
-    
+
     # Source tracking
     source_map: Dict[str, ConfigSourceInfo] = field(default_factory=dict)
     overrides: List[str] = field(default_factory=list)
-    
+
     # Validation results
     validation_messages: List[ValidationMessage] = field(default_factory=list)
-    
+
     # Metadata
     validation_timestamp: datetime = field(default_factory=datetime.now)
-    config_file_path: Optional[str] = None
-    environment_prefix: str = "SPLURGE_SQL_"
+    config_file_path: str | None = None
+    environment_prefix: str = "SPLURGE_SQL_RUNNER_"
     
     def add_source_info(
-        self, 
-        config_key: str, 
-        source: ConfigSource, 
+        self,
+        config_key: str,
+        source: ConfigSource,
         source_location: str,
         original_value: Any,
         final_value: Any
     ) -> None:
         """
         Add source information for a configuration key.
-        
+
         Args:
             config_key: Configuration key (e.g., "database.url")
             source: Source of the configuration value
@@ -111,7 +111,7 @@ class ConfigValidationSummary:
             original_value=original_value,
             final_value=final_value,
         )
-        
+
         # Track overrides (non-default sources)
         if source != ConfigSource.DEFAULT and config_key not in self.overrides:
             self.overrides.append(config_key)
@@ -121,11 +121,11 @@ class ConfigValidationSummary:
         severity: ValidationSeverity,
         message: str,
         config_key: str,
-        suggestion: Optional[str] = None
+        suggestion: str | None = None
     ) -> None:
         """
         Add a validation message.
-        
+
         Args:
             severity: Message severity level
             message: Validation message text
@@ -141,19 +141,19 @@ class ConfigValidationSummary:
             suggestion=suggestion,
         ))
 
-    def add_info(self, message: str, config_key: str, suggestion: Optional[str] = None) -> None:
+    def add_info(self, message: str, config_key: str, suggestion: str | None = None) -> None:
         """Add an info-level validation message."""
         self.add_validation_message(ValidationSeverity.INFO, message, config_key, suggestion)
 
-    def add_warning(self, message: str, config_key: str, suggestion: Optional[str] = None) -> None:
+    def add_warning(self, message: str, config_key: str, suggestion: str | None = None) -> None:
         """Add a warning-level validation message."""
         self.add_validation_message(ValidationSeverity.WARNING, message, config_key, suggestion)
 
-    def add_error(self, message: str, config_key: str, suggestion: Optional[str] = None) -> None:
+    def add_error(self, message: str, config_key: str, suggestion: str | None = None) -> None:
         """Add an error-level validation message."""
         self.add_validation_message(ValidationSeverity.ERROR, message, config_key, suggestion)
 
-    def add_critical(self, message: str, config_key: str, suggestion: Optional[str] = None) -> None:
+    def add_critical(self, message: str, config_key: str, suggestion: str | None = None) -> None:
         """Add a critical-level validation message."""
         self.add_validation_message(ValidationSeverity.CRITICAL, message, config_key, suggestion)
 
@@ -192,7 +192,7 @@ class ConfigValidationSummary:
         """Get validation messages filtered by severity."""
         return [msg for msg in self.validation_messages if msg.severity == severity]
 
-    def get_source_info(self, config_key: str) -> Optional[ConfigSourceInfo]:
+    def get_source_info(self, config_key: str) -> ConfigSourceInfo | None:
         """Get source information for a specific configuration key."""
         return self.source_map.get(config_key)
 

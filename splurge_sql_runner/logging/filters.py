@@ -7,7 +7,7 @@ Provides filters for security (password redaction) and correlation ID management
 import logging
 import re
 import threading
-from typing import Any
+
 
 # Thread-local storage for contextual information
 _thread_local = threading.local()

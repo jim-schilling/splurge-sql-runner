@@ -281,7 +281,7 @@ class UnifiedDatabaseEngine(DatabaseEngine):
                     })
                 else:
                     # Execute as non-SELECT operation
-                    result = conn.execute(stmt)
+                    conn.execute(stmt)
                     results.append({
                         "statement": stmt,
                         "statement_type": EXECUTE_STATEMENT,

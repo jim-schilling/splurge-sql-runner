@@ -9,9 +9,9 @@ Copyright (c) 2025, Jim Schilling
 This module is licensed under the MIT License.
 """
 
-from abc import ABC
+
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List
 from datetime import datetime
 from pathlib import Path
 
@@ -34,21 +34,21 @@ class DatabaseErrorContext(ErrorContext):
     
     # Operation details
     operation_type: str = ""  # query, command, batch, transaction
-    sql_statement: Optional[str] = None
-    statement_parameters: Optional[Dict[str, Any]] = None
+    sql_statement: str | None = None
+    statement_parameters: Dict[str, Any] | None = None
     
     # Transaction context
     transaction_active: bool = False
-    transaction_id: Optional[str] = None
-    savepoint_name: Optional[str] = None
+    transaction_id: str | None = None
+    savepoint_name: str | None = None
     
     # Performance metrics
-    execution_time_ms: Optional[float] = None
-    rows_affected: Optional[int] = None
+    execution_time_ms: float | None = None
+    rows_affected: int | None = None
     
     # Connection pool information
-    pool_size: Optional[int] = None
-    active_connections: Optional[int] = None
+    pool_size: int | None = None
+    active_connections: int | None = None
     
     def __post_init__(self) -> None:
         """Post-initialization to set component if not provided."""
@@ -99,13 +99,13 @@ class SqlErrorContext(ErrorContext):
     statement_index: int = 0  # Index in batch if applicable
     
     # File context
-    file_path: Optional[str] = None
-    line_number: Optional[int] = None
-    column_number: Optional[int] = None
+    file_path: str | None = None
+    line_number: int | None = None
+    column_number: int | None = None
     
     # Parsing context
     parsing_stage: str = ""  # tokenization, parsing, validation, execution
-    syntax_error_position: Optional[int] = None
+    syntax_error_position: int | None = None
     
     # Security context
     security_validation_failed: bool = False
@@ -128,7 +128,7 @@ class SqlErrorContext(ErrorContext):
                 if part.startswith(":")
             ])
 
-    def get_file_context(self) -> Optional[Dict[str, Any]]:
+    def get_file_context(self) -> Dict[str, Any] | None:
         """Get file context information if available."""
         if not self.file_path:
             return None
@@ -189,13 +189,13 @@ class SecurityErrorContext(ErrorContext):
     pattern_categories: List[str] = field(default_factory=list)
     
     # File security context
-    file_path: Optional[str] = None
-    file_size_bytes: Optional[int] = None
-    file_extension: Optional[str] = None
+    file_path: str | None = None
+    file_size_bytes: int | None = None
+    file_extension: str | None = None
     
     # URL security context
-    url_scheme: Optional[str] = None
-    url_host: Optional[str] = None
+    url_scheme: str | None = None
+    url_host: str | None = None
     
     # Mitigation information
     suggested_actions: List[str] = field(default_factory=list)
@@ -266,7 +266,7 @@ class CliErrorContext(ErrorContext):
     # File processing context
     files_to_process: List[str] = field(default_factory=list)
     current_file_index: int = 0
-    current_file_path: Optional[str] = None
+    current_file_path: str | None = None
     
     # Processing statistics
     files_processed: int = 0
@@ -280,7 +280,7 @@ class CliErrorContext(ErrorContext):
     
     # Environment context
     shell_type: str = ""
-    terminal_width: Optional[int] = None
+    terminal_width: int | None = None
     
     def __post_init__(self) -> None:
         """Post-initialization to set component and gather environment info."""
@@ -347,7 +347,7 @@ class CliErrorContext(ErrorContext):
 def create_database_error_context(
     operation: str,
     connection_string: str = "",
-    sql_statement: Optional[str] = None,
+    sql_statement: str | None = None,
     **kwargs: Any
 ) -> DatabaseErrorContext:
     """
@@ -375,7 +375,7 @@ def create_database_error_context(
 def create_sql_error_context(
     operation: str,
     sql_statement: str,
-    file_path: Optional[str] = None,
+    file_path: str | None = None,
     **kwargs: Any
 ) -> SqlErrorContext:
     """
@@ -431,7 +431,7 @@ def create_security_error_context(
 def create_cli_error_context(
     operation: str,
     cli_command: str,
-    cli_arguments: Optional[Dict[str, Any]] = None,
+    cli_arguments: Dict[str, Any] | None = None,
     **kwargs: Any
 ) -> CliErrorContext:
     """
