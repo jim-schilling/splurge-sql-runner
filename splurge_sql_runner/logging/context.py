@@ -11,11 +11,12 @@ This module is licensed under the MIT License.
 
 import logging
 import uuid
-import functools
 from contextlib import contextmanager
-from typing import Any, ContextManager
+from typing import Any
+import threading
 
-from splurge_sql_runner.logging.filters import _thread_local
+# Thread-local storage for logging context
+_thread_local = threading.local()
 
 # Cache for contextual loggers
 _contextual_logger_cache: dict[str, "ContextualLogger"] = {}

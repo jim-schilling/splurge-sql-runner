@@ -10,9 +10,6 @@ import sys
 from pathlib import Path
 from typing import Dict, Any
 
-from splurge_sql_runner.logging.filters import CorrelationIdFilter, PasswordFilter
-from splurge_sql_runner.logging.formatters import JsonFormatter
-from splurge_sql_runner.logging.handlers import ResilientLogHandler
 from splurge_sql_runner.errors import ConfigValidationError
 
 # Global configuration registry to prevent multiple setups
@@ -34,7 +31,7 @@ def setup_logging(
     log_file: str | None = None,
     log_dir: str | None = None,
     enable_console: bool = True,
-    enable_json: bool = True,
+    enable_json: bool = False,
     backup_count: int = 7,
 ) -> logging.Logger:
     """
@@ -94,10 +91,6 @@ def setup_logging(
     # Clear existing handlers
     logger.handlers.clear()
 
-    # Create filters
-    password_filter = PasswordFilter()
-    correlation_filter = CorrelationIdFilter()
-
     # File handler with timed rotation (daily at midnight)
     file_handler = logging.handlers.TimedRotatingFileHandler(
         filename=str(log_path),
@@ -107,23 +100,13 @@ def setup_logging(
         encoding="utf-8",
     )
     file_handler.setLevel(getattr(logging, log_level.upper()))
-    file_handler.addFilter(password_filter)
-    file_handler.addFilter(correlation_filter)
-
-    # Set formatter for file handler
-    if enable_json:
-        file_formatter = JsonFormatter()
-    else:
-        file_formatter = logging.Formatter(
-            fmt=(
-                "%(asctime)s - %(name)s - %(levelname)s - "
-                "%(module)s:%(funcName)s:%(lineno)d - %(message)s"
-            ),
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-
-    # Always wrap with resilient handler for error recovery
-    file_handler = ResilientLogHandler(file_handler)
+    file_formatter = logging.Formatter(
+        fmt=(
+            "%(asctime)s - %(name)s - %(levelname)s - "
+            "%(module)s:%(funcName)s:%(lineno)d - %(message)s"
+        ),
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
 
@@ -131,17 +114,11 @@ def setup_logging(
     if enable_console:
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(getattr(logging, log_level.upper()))
-        console_handler.addFilter(password_filter)
-        console_handler.addFilter(correlation_filter)
-
         # Console formatter (always human-readable)
         console_formatter = logging.Formatter(
             fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             datefmt="%H:%M:%S",
         )
-
-        # Always wrap with resilient handler for error recovery
-        console_handler = ResilientLogHandler(console_handler)
         console_handler.setFormatter(console_formatter)
         logger.addHandler(console_handler)
 

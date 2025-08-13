@@ -2,7 +2,7 @@
 Database configuration module.
 
 Defines database configuration classes and utilities for
-configuring database connections and connection pools.
+configuring database connections for single-threaded CLI usage.
 
 Copyright (c) 2025, Jim Schilling
 
@@ -10,19 +10,14 @@ This module is licensed under the MIT License.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict
-from sqlalchemy.pool import StaticPool
+
+from sqlalchemy.pool import StaticPool, NullPool
 from splurge_sql_runner.errors import ConfigValidationError
 
 
 # Private constants for database configuration
 _DEFAULT_TIMEOUT: int = 30
-_DEFAULT_MAX_CONNECTIONS: int = 5
 _DEFAULT_APPLICATION_NAME: str = "splurge-sql-runner"
-_DEFAULT_POOL_SIZE: int = 5
-_DEFAULT_MAX_OVERFLOW: int = 0
-_DEFAULT_RECYCLE_TIME: int = 3600  # 1 hour
-_DEFAULT_PRE_PING: bool = True
 
 
 @dataclass
@@ -30,34 +25,12 @@ class ConnectionConfig:
     """Database connection configuration."""
 
     timeout: int = _DEFAULT_TIMEOUT
-    max_connections: int = _DEFAULT_MAX_CONNECTIONS
     application_name: str = _DEFAULT_APPLICATION_NAME
 
     def __post_init__(self) -> None:
         """Validate connection configuration."""
-        if self.timeout <= 0:
+        if self.timeout is not None and self.timeout <= 0:
             raise ConfigValidationError("Connection timeout must be positive")
-        if self.max_connections <= 0:
-            raise ConfigValidationError("Max connections must be positive")
-
-
-@dataclass
-class PoolConfig:
-    """Connection pool configuration."""
-
-    size: int = _DEFAULT_POOL_SIZE
-    max_overflow: int = _DEFAULT_MAX_OVERFLOW
-    recycle_time: int = _DEFAULT_RECYCLE_TIME  # 1 hour
-    pre_ping: bool = _DEFAULT_PRE_PING
-
-    def __post_init__(self) -> None:
-        """Validate pool configuration."""
-        if self.size <= 0:
-            raise ConfigValidationError("Pool size must be positive")
-        if self.max_overflow < 0:
-            raise ConfigValidationError("Max overflow must be non-negative")
-        if self.recycle_time <= 0:
-            raise ConfigValidationError("Recycle time must be positive")
 
 
 @dataclass
@@ -72,7 +45,6 @@ class DatabaseConfig:
 
     url: str
     connection: ConnectionConfig = field(default_factory=ConnectionConfig)
-    pool: PoolConfig = field(default_factory=PoolConfig)
     enable_debug: bool = False
 
     def __post_init__(self) -> None:
@@ -120,21 +92,19 @@ class DatabaseConfig:
         SQLAlchemy handles database-specific optimizations automatically.
         """
         kwargs = {
-            "pool_pre_ping": self.pool.pre_ping,
             "echo": self.enable_debug,
         }
 
-        # SQLite doesn't support standard connection pooling
-        if self.url.lower().startswith("sqlite"):
-            kwargs["poolclass"] = StaticPool
+        # Pooling strategy tuned for single-threaded CLI usage:
+        # - SQLite in-memory needs StaticPool to keep the same DB across connects
+        # - All other cases use NullPool to avoid pooling overhead
+        url_lower = self.url.lower()
+        if url_lower.startswith("sqlite"):
+            if ":memory:" in url_lower:
+                kwargs["poolclass"] = StaticPool
+            else:
+                kwargs["poolclass"] = NullPool
         else:
-            # Standard connection pooling for other databases
-            kwargs.update(
-                {
-                    "pool_size": self.pool.size,
-                    "max_overflow": self.pool.max_overflow,
-                    "pool_recycle": self.pool.recycle_time,
-                }
-            )
+            kwargs["poolclass"] = NullPool
 
         return kwargs

@@ -1,21 +1,13 @@
 {
   "database": {
     "url": "sqlite:///example.db",
-    "type": "sqlite",
     "connection": {
-      "timeout": 30,
-      "max_connections": 5
-    },
-    "pool": {
-      "size": 5,
-      "max_overflow": 0,
-      "recycle_time": 3600
+      "timeout": 30
     },
     "enable_debug": false
   },
   "security": {
     "enable_validation": true,
-    "max_file_size_mb": 10,
     "max_statements_per_file": 100,
     "allowed_file_extensions": [".sql"]
   },
@@ -29,7 +21,6 @@
     "backup_count": 7
   },
   "app": {
-    "max_file_size_mb": 10,
     "max_statements_per_file": 100,
     "enable_verbose_output": false,
     "enable_debug_mode": false

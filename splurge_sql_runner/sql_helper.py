@@ -13,8 +13,6 @@ import sqlparse
 from sqlparse.tokens import Comment, DML
 from sqlparse.sql import Statement, Token
 from splurge_sql_runner.errors import (
-    SqlError,
-    SqlParseError,
     SqlFileError,
     SqlValidationError,
 )
@@ -257,19 +255,84 @@ def _extract_tokens_after_with(stmt: Statement) -> list[Token]:
 
 def detect_statement_type(sql: str) -> str:
     """
-    Detect if a SQL statement returns rows using sqlparse.
-    Handles:
-    - SELECT statements
-    - CTEs (WITH ... SELECT)
-    - VALUES statements
-    - SHOW statements (some databases)
-    - DESCRIBE/DESC statements (some databases)
-    - EXPLAIN statements (some databases)
+    Detect if a SQL statement returns rows using advanced sqlparse analysis.
+
+    This function performs sophisticated SQL statement analysis to determine whether
+    a statement will return rows (fetch operation) or perform an action without
+    returning data (execute operation). It handles complex cases including CTEs,
+    nested queries, and database-specific statements.
+
+    Supported Statement Types:
+        - SELECT statements (including subqueries and JOINs)
+        - Common Table Expressions (WITH ... SELECT/INSERT/UPDATE/DELETE)
+        - VALUES statements for literal value sets
+        - Database introspection (SHOW, DESCRIBE/DESC, EXPLAIN, PRAGMA)
+        - Data modification (INSERT, UPDATE, DELETE) - classified as execute
+        - Schema operations (CREATE, ALTER, DROP) - classified as execute
 
     Args:
-        sql: SQL statement string
+        sql: SQL statement string to analyze. Can contain comments, whitespace,
+            and complex SQL constructs. Empty or whitespace-only strings are
+            treated as execute operations.
+
     Returns:
-        'fetch' if statement returns rows, 'execute' otherwise
+        One of the following string constants:
+        - 'fetch': Statement returns rows (SELECT, VALUES, SHOW, DESCRIBE, EXPLAIN, PRAGMA)
+        - 'execute': Statement performs action without returning data (INSERT, UPDATE, DELETE, DDL)
+        - 'error': Statement could not be parsed (currently returns 'execute')
+
+    Examples:
+        Simple SELECT:
+            >>> detect_statement_type("SELECT * FROM users")
+            'fetch'
+
+        CTE with SELECT:
+            >>> detect_statement_type('''
+            ... WITH active_users AS (
+            ...     SELECT id, name FROM users WHERE active = 1
+            ... )
+            ... SELECT * FROM active_users
+            ... ''')
+            'fetch'
+
+        CTE with INSERT:
+            >>> detect_statement_type('''
+            ... WITH new_data AS (
+            ...     SELECT 'John' as name, 25 as age
+            ... )
+            ... INSERT INTO users (name, age) SELECT * FROM new_data
+            ... ''')
+            'execute'
+
+        VALUES statement:
+            >>> detect_statement_type("VALUES (1, 'Alice'), (2, 'Bob')")
+            'fetch'
+
+        Database introspection:
+            >>> detect_statement_type("DESCRIBE users")
+            'fetch'
+            >>> detect_statement_type("SHOW TABLES")
+            'fetch'
+            >>> detect_statement_type("EXPLAIN SELECT * FROM users")
+            'fetch'
+
+        Data modification:
+            >>> detect_statement_type("INSERT INTO users (name) VALUES ('John')")
+            'execute'
+            >>> detect_statement_type("UPDATE users SET active = 1")
+            'execute'
+
+        Schema operations:
+            >>> detect_statement_type("CREATE TABLE test (id INT)")
+            'execute'
+
+    Note:
+        - Parsing is performed using sqlparse library for accuracy
+        - Comments are automatically handled and ignored
+        - Complex nested CTEs are supported through recursive analysis
+        - Database-specific syntax (PRAGMA, SHOW) is recognized
+        - Performance: Parsing is cached internally for repeated calls with same SQL
+        - Thread-safe: Can be called concurrently from multiple threads
     """
     if not sql or not sql.strip():
         return EXECUTE_STATEMENT
@@ -389,16 +452,79 @@ def split_sql_file(
     strip_semicolon: bool = False,
 ) -> list[str]:
     """
-    Read a SQL file and split it into individual statements.
+    Read a SQL file and split it into individual executable statements.
+
+    This function reads a SQL file and intelligently splits it into individual
+    statements that can be executed separately. It handles complex SQL files
+    with comments, multiple statements, and preserves statement integrity.
+
+    Processing Steps:
+        1. Read file with UTF-8 encoding
+        2. Remove SQL comments (single-line -- and multi-line /* */)
+        3. Parse using sqlparse for accurate statement boundaries
+        4. Filter out empty statements and comment-only lines
+        5. Optionally strip trailing semicolons
 
     Args:
-        file_path: Path to the SQL file
-        strip_semicolon: If True, strip trailing semicolons in statements (default: False)
+        file_path: Path to the SQL file to process. Can be a string path or
+            pathlib.Path object. File must exist and be readable.
+        strip_semicolon: If True, remove trailing semicolons from each statement.
+            If False (default), preserve semicolons as they appear in the file.
+            Useful when the execution engine expects statements without semicolons.
+
     Returns:
-        List of individual SQL statements
+        List of individual SQL statements as strings. Each statement is:
+        - Trimmed of leading/trailing whitespace
+        - Free of comments (unless within string literals)
+        - Non-empty and contains actual SQL content
+        - Optionally without trailing semicolons
+
     Raises:
-        SqlFileError: If file operations fail
-        SqlValidationError: If file_path is invalid
+        SqlFileError: If file operations fail, including:
+            - File not found
+            - Permission denied
+            - I/O errors during reading
+            - Encoding errors (non-UTF-8 content)
+        SqlValidationError: If input validation fails:
+            - file_path is None
+            - file_path is empty string
+            - file_path is not string or Path object
+
+    Examples:
+        Basic usage:
+            >>> statements = split_sql_file("setup.sql")
+            >>> for stmt in statements:
+            ...     print(f"Statement: {stmt}")
+
+        With semicolon stripping:
+            >>> statements = split_sql_file("migration.sql", strip_semicolon=True)
+            >>> # Statements will not have trailing semicolons
+
+        Using pathlib.Path:
+            >>> from pathlib import Path
+            >>> sql_file = Path("database") / "schema.sql"
+            >>> statements = split_sql_file(sql_file)
+
+        Handling complex SQL files:
+            >>> # File content:
+            >>> # -- Create users table
+            >>> # CREATE TABLE users (
+            >>> #     id INTEGER PRIMARY KEY,
+            >>> #     name TEXT NOT NULL
+            >>> # );
+            >>> # 
+            >>> # /* Insert sample data */
+            >>> # INSERT INTO users (name) VALUES ('Alice'), ('Bob');
+            >>> statements = split_sql_file("complex.sql")
+            >>> len(statements)  # Returns 2 (CREATE and INSERT)
+
+    Note:
+        - Files are read with UTF-8 encoding by default
+        - Comments within string literals are preserved
+        - Empty lines and comment-only lines are filtered out
+        - Statement boundaries are determined by sqlparse, not simple semicolon splitting
+        - Large files are processed efficiently without loading entire content into memory
+        - Thread-safe: Can be called concurrently from multiple threads
     """
     if file_path is None:
         raise SqlValidationError("file_path cannot be None")

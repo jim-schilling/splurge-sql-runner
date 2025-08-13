@@ -46,21 +46,10 @@ from splurge_sql_runner.errors.cli_errors import (
     CliExecutionError,
     CliSecurityError,
 )
-from splurge_sql_runner.errors.error_handler import (
-    ErrorHandler,
-    ErrorRecoveryStrategy,
-    CircuitBreaker,
-    RetryStrategy,
-    ErrorContext,
-    CircuitBreakerConfig,
-    RetryConfig,
-)
-from splurge_sql_runner.errors.error_recovery import (
-    DatabaseErrorRecovery,
-    SqlErrorRecovery,
-    SecurityErrorRecovery,
-    CliErrorRecovery,
-)
+"""Public error exports for splurge-sql-runner.
+
+Simplified to core error types for a CLI-focused library.
+"""
 
 __all__ = [
     # Base errors
@@ -95,17 +84,4 @@ __all__ = [
     "CliFileError",
     "CliExecutionError",
     "CliSecurityError",
-    # Error handling
-    "ErrorHandler",
-    "ErrorRecoveryStrategy",
-    "CircuitBreaker",
-    "RetryStrategy",
-    "ErrorContext",
-    "CircuitBreakerConfig",
-    "RetryConfig",
-    # Error recovery
-    "DatabaseErrorRecovery",
-    "SqlErrorRecovery",
-    "SecurityErrorRecovery",
-    "CliErrorRecovery",
 ]

@@ -91,10 +91,10 @@ python -m splurge_sql_runner -c "mssql+pyodbc://user:pass@server/db" -f setup.sq
 python -m splurge_sql_runner -c "sqlite:///test.db" -f setup.sql
 
 # Disable security (not recommended for production)
-python -m splurge_sql_runner -c "sqlite:///test.db" -f setup.sql --disable-security
+Security validation is always enabled. To relax limits, configure `security` settings in your JSON config and rerun.
 
-# Custom limits
-python -m splurge_sql_runner -c "sqlite:///test.db" -f setup.sql --max-file-size 5 --max-statements 50
+# Custom limits (statements only)
+python -m splurge_sql_runner -c "sqlite:///test.db" -f setup.sql --max-statements 50
 ```
 
 ## Next Steps

@@ -5,7 +5,7 @@ alwaysApply: true
 ---
 - Write concise, technical Python targeting v3.10-3.12. 
 - Follow PEP8. 
-- Document everything with docstrings. 
+- Document everything with Google style docstrings. 
 - For complex logic, preface block with comment.
 - Type annotate method signatures always.
 - Type annotate variables where clarity is needed. 
@@ -14,7 +14,7 @@ alwaysApply: true
 - Avoid wildcard imports.
 - Prefer absolute import paths.
 - Group imports at top of module: standard -> third-party -> local.
-- Avoid inline comments.
+- Avoid inline comments, except to clarify complex intent.
 - Avoid noisy comments for refactors or redesign, except to explain complex logic or clarify intent.
 - Avoid side effects in module-level code.
 - Optimize loops.
@@ -49,3 +49,5 @@ alwaysApply: true
 - Prefer | instead of Optional or Union.
 - Prefer simple, straightforward design approach instead of over-engineered design.
 - Review codebase and tests for duplicate classes, methods, etc.
+- When possible, prefer shared test helpers for common logic.
+- Test behavior not implementation!

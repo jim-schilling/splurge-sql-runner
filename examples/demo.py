@@ -295,7 +295,7 @@ SELECT 'This query should execute normally' as result;
             sys.executable, "-m", "splurge_sql_runner",
             "-c", f"sqlite:///{db_path}",
             "-f", security_file,
-            "--disable-security",
+            # Security is always enforced; adjust config if needed
             "-v"
         ], "Security: Validation disabled")
         

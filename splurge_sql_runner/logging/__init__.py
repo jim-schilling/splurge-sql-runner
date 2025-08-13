@@ -31,16 +31,6 @@ from splurge_sql_runner.logging.performance import (
     log_performance,
     performance_context,
 )
-from splurge_sql_runner.logging.filters import (
-    PasswordFilter,
-    CorrelationIdFilter,
-)
-from splurge_sql_runner.logging.formatters import (
-    JsonFormatter,
-)
-from splurge_sql_runner.logging.handlers import (
-    ResilientLogHandler,
-)
 
 __all__ = [
     # Core logging
@@ -62,9 +52,5 @@ __all__ = [
     "PerformanceLogger",
     "log_performance",
     "performance_context",
-    # Filters and formatters
-    "PasswordFilter",
-    "CorrelationIdFilter",
-    "JsonFormatter",
-    "ResilientLogHandler",
+    # Minimal CLI logging public API
 ]
