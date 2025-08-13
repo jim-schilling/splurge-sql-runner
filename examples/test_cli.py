@@ -345,7 +345,7 @@ def test_security_features():
         result2 = run_cli_command([
             "-c", f"sqlite:///{db_path}",
             "-f", "examples/basic_setup.sql",
-            "--disable-security",
+            # Security is always enforced
             "-v"
         ])
         

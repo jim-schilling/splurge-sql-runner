@@ -8,7 +8,6 @@
   },
   "security": {
     "enable_validation": true,
-    "max_file_size_mb": 10,
     "max_statements_per_file": 100,
     "allowed_file_extensions": [".sql"]
   },
@@ -22,7 +21,6 @@
     "backup_count": 7
   },
   "app": {
-    "max_file_size_mb": 10,
     "max_statements_per_file": 100,
     "enable_verbose_output": false,
     "enable_debug_mode": false

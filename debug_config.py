@@ -3,7 +3,7 @@
 
 import json
 import tempfile
-from splurge_sql_runner.config.config_manager import ConfigManager
+from splurge_sql_runner.config.app_config import AppConfig
 
 def test_config_loading():
     """Test configuration loading with debug output."""
@@ -21,25 +21,16 @@ def test_config_loading():
         fname = f.name
     
     try:
-        manager = ConfigManager(fname)
-        
         # Test JSON parsing directly
         print("Testing JSON parsing...")
-        json_config = manager._load_json_config()
+        json_config = AppConfig.load_json_file(fname)
         print(f"  JSON URL: {json_config.database.url}")
         print(f"  JSON Timeout: {json_config.database.connection.timeout}")
         print(f"  JSON Debug: {json_config.database.enable_debug}")
         
-        # Test environment config
-        print("\nTesting environment config...")
-        env_config = manager._load_env_config()
-        print(f"  ENV URL: {env_config.database.url}")
-        print(f"  ENV Timeout: {env_config.database.connection.timeout}")
-        print(f"  ENV Debug: {env_config.database.enable_debug}")
-        
         # Test full config loading
         print("\nTesting full config loading...")
-        config = manager.load_config()
+        config = AppConfig.load(fname)
         print(f"  Final URL: {config.database.url}")
         print(f"  Final Timeout: {config.database.connection.timeout}")
         print(f"  Final Debug: {config.database.enable_debug}")

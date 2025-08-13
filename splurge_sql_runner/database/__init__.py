@@ -9,18 +9,8 @@ Copyright (c) 2025, Jim Schilling
 This module is licensed under the MIT License.
 """
 
-from splurge_sql_runner.database.interfaces import (
-    DatabaseConnection,
-    DatabaseEngine,
-)
-from splurge_sql_runner.database.engines import (
-    UnifiedDatabaseEngine,
-)
+from splurge_sql_runner.database.database_client import DatabaseClient
 
 __all__ = [
-    # Interfaces
-    "DatabaseConnection",
-    "DatabaseEngine",
-    # Engines
-    "UnifiedDatabaseEngine",
+    "DatabaseClient",
 ]

@@ -132,6 +132,12 @@ testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "slow: Slow running tests",
+    "database: Tests requiring database",
+]
 
 [tool.coverage.run]
 source = ["splurge_sql_runner"]

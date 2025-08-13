@@ -10,7 +10,6 @@ This module is licensed under the MIT License.
 """
 
 from splurge_sql_runner.config import (
-    ConfigManager,
     DatabaseConfig,
     ConnectionConfig,
     SecurityConfig,
@@ -22,7 +21,7 @@ from splurge_sql_runner.config import (
 )
 
 from splurge_sql_runner.database import (
-    UnifiedDatabaseEngine,
+    DatabaseClient,
 )
 
 from splurge_sql_runner.errors import (
@@ -79,7 +78,7 @@ from splurge_sql_runner.logging import (
 
 __all__ = [
     # Configuration
-    "ConfigManager",
+    # Config manager removed; consolidated into AppConfig
     "ConfigurationError",
     "ConfigValidationError",
     "ConfigFileError",
@@ -92,7 +91,7 @@ __all__ = [
     "LogFormat",
     "AppConfig",
     # Database
-    "UnifiedDatabaseEngine",
+    "DatabaseClient",
     # Errors
     "SplurgeSqlRunnerError",
     "ConfigurationError",

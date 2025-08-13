@@ -46,31 +46,10 @@ from splurge_sql_runner.errors.cli_errors import (
     CliExecutionError,
     CliSecurityError,
 )
-from splurge_sql_runner.errors.error_handler import (
-    ErrorHandler,
-    ErrorRecoveryStrategy,
-    CircuitBreaker,
-    RetryStrategy,
-    ErrorContext,
-    CircuitBreakerConfig,
-    RetryConfig,
-)
-from splurge_sql_runner.errors.error_recovery import (
-    DatabaseErrorRecovery,
-    SqlErrorRecovery,
-    SecurityErrorRecovery,
-    CliErrorRecovery,
-)
-from splurge_sql_runner.errors.typed_error_context import (
-    DatabaseErrorContext,
-    SqlErrorContext,
-    SecurityErrorContext,
-    CliErrorContext,
-    create_database_error_context,
-    create_sql_error_context,
-    create_security_error_context,
-    create_cli_error_context,
-)
+"""Public error exports for splurge-sql-runner.
+
+Simplified to core error types for a CLI-focused library.
+"""
 
 __all__ = [
     # Base errors
@@ -105,26 +84,5 @@ __all__ = [
     "CliFileError",
     "CliExecutionError",
     "CliSecurityError",
-    # Error handling
-    "ErrorHandler",
-    "ErrorRecoveryStrategy",
-    "CircuitBreaker",
-    "RetryStrategy",
-    "ErrorContext",
-    "CircuitBreakerConfig",
-    "RetryConfig",
-    # Error recovery
-    "DatabaseErrorRecovery",
-    "SqlErrorRecovery",
-    "SecurityErrorRecovery",
-    "CliErrorRecovery",
-    # Typed error contexts
-    "DatabaseErrorContext",
-    "SqlErrorContext",
-    "SecurityErrorContext",
-    "CliErrorContext",
-    "create_database_error_context",
-    "create_sql_error_context",
-    "create_security_error_context",
-    "create_cli_error_context",
+    # (Removed) advanced error handling and typed contexts
 ]

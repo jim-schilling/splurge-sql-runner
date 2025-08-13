@@ -60,16 +60,10 @@ class SecurityValidator:
         if not config.is_path_safe(file_path):
             raise SecurityFileError("File path is not safe")
 
-        # Check file size if file exists
+        # Size-based validation removed; rely on statement count and length limits
         try:
-            file_size = Path(file_path).stat().st_size
-            if file_size > config.max_file_size_bytes:
-                raise SecurityFileError(
-                    f"File is too large ({file_size} bytes). "
-                    f"Maximum allowed: {config.max_file_size_bytes} bytes"
-                )
+            Path(file_path).stat()
         except FileNotFoundError:
-            # File doesn't exist yet, which is okay for validation
             pass
 
     @staticmethod
@@ -153,8 +147,9 @@ class SecurityValidator:
                 f"SQL statement too long (max: {config.validation.max_statement_length} chars)"
             )
 
-        # Check number of statements
-        statements = sql_content.split(";")
+        # Check number of statements using proper SQL parsing
+        from splurge_sql_runner.sql_helper import parse_sql_statements
+        statements = parse_sql_statements(sql_content)
         if len(statements) > config.max_statements_per_file:
             raise SecurityValidationError(
                 f"Too many SQL statements ({len(statements)}). "

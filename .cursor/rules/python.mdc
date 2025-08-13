@@ -50,3 +50,4 @@ alwaysApply: true
 - Prefer simple, straightforward design approach instead of over-engineered design.
 - Review codebase and tests for duplicate classes, methods, etc.
 - When possible, prefer shared test helpers for common logic.
+- Test behavior not implementation!

@@ -11,7 +11,7 @@ This module is licensed under the MIT License.
 
 from dataclasses import dataclass, field
 
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import StaticPool, NullPool
 from splurge_sql_runner.errors import ConfigValidationError
 
 
@@ -95,7 +95,16 @@ class DatabaseConfig:
             "echo": self.enable_debug,
         }
 
-        # Use StaticPool for all databases to avoid connection pooling complexity
-        kwargs["poolclass"] = StaticPool
+        # Pooling strategy tuned for single-threaded CLI usage:
+        # - SQLite in-memory needs StaticPool to keep the same DB across connects
+        # - All other cases use NullPool to avoid pooling overhead
+        url_lower = self.url.lower()
+        if url_lower.startswith("sqlite"):
+            if ":memory:" in url_lower:
+                kwargs["poolclass"] = StaticPool
+            else:
+                kwargs["poolclass"] = NullPool
+        else:
+            kwargs["poolclass"] = NullPool
 
         return kwargs

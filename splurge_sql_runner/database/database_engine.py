@@ -1,33 +1,11 @@
 """
-Database engine interface for splurge-sql-runner.
+Deprecated engine interface. Use `DatabaseClient` instead.
 
-Defines the contract for database engines following SOLID principles.
-
-Copyright (c) 2025, Jim Schilling
-
-This module is licensed under the MIT License.
+This file remains as a thin placeholder to avoid import errors in any
+downstream usages during the migration window. All runtime functionality
+has moved to `splurge_sql_runner.database.database_client`.
 """
 
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from __future__ import annotations
 
-from splurge_sql_runner.database.database_connection import DatabaseConnection
-
-
-class DatabaseEngine(ABC):
-    """Abstract database engine interface."""
-
-    @abstractmethod
-    def create_connection(self) -> DatabaseConnection:
-        """Create a new database connection."""
-        pass
-
-    @abstractmethod
-    def batch(self, sql_query: str) -> List[Dict[str, Any]]:
-        """Execute multiple SQL statements in a batch."""
-        pass
-
-    @abstractmethod
-    def close(self) -> None:
-        """Close the database engine."""
-        pass
+# Intentionally no exports; import DatabaseClient directly from database_client.

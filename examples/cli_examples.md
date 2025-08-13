@@ -145,17 +145,14 @@ python -m splurge_sql_runner -c "sqlite:///test.db" -f "setup.sql"
 
 ```bash
 # Disable security validation (use with caution)
-python -m splurge_sql_runner -c "sqlite:///test.db" -f "setup.sql" --disable-security
+Security validation cannot be disabled. Adjust `security` in config instead (e.g., increase `max_statements_per_file`).
 
 # Warning: This bypasses all security checks
 ```
 
-### File Size Limits
+### Statement Limits
 
 ```bash
-# Set custom file size limit (default: 10MB)
-python -m splurge_sql_runner -c "sqlite:///test.db" -f "large_file.sql" --max-file-size 50
-
 # Set custom statement limit (default: 100)
 python -m splurge_sql_runner -c "sqlite:///test.db" -f "complex_script.sql" --max-statements 500
 ```

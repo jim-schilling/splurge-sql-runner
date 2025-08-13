@@ -13,10 +13,8 @@ A Python utility for executing SQL files against databases with support for mult
 - Batch SQL execution with error handling
 - Clean CLI interface with comprehensive error handling
 - Security validation for database URLs and file operations
-- Comprehensive error handling with circuit breaker patterns
 - Configuration management with JSON-based config files
-- Advanced logging with multiple output formats
-- Resilience patterns for production deployments
+- Configurable logging for CLI usage (level, format, console/file output)
 
 ## Installation
 
@@ -42,6 +40,18 @@ python -m splurge_sql_runner -c "sqlite:///database.db" -f "script.sql" -v
 
 # Using the installed script (after pip install)
 splurge-sql-runner -c "sqlite:///database.db" -f "script.sql"
+
+# Load with a JSON config file
+python -m splurge_sql_runner --config config.json -c "sqlite:///database.db" -f "script.sql"
+
+# Output as JSON (for scripting)
+python -m splurge_sql_runner -c "sqlite:///database.db" -f "script.sql" --json
+
+# Disable emoji (useful on limited consoles)
+python -m splurge_sql_runner -c "sqlite:///database.db" -f "script.sql" --no-emoji
+
+# Continue executing statements after an error (per-file)
+python -m splurge_sql_runner -c "sqlite:///database.db" -f "script.sql" --continue-on-error
 ```
 
 ### Command Line Options
@@ -57,11 +67,18 @@ splurge-sql-runner -c "sqlite:///database.db" -f "script.sql"
   
 - `-v, --verbose`: Enable verbose output
   
-- `--debug`: Enable SQLAlchemy debug mode
+- `--debug`: Enable SQLAlchemy debug mode (SQLAlchemy echo)
 
-- `--disable-security`: Disable security validation (not recommended for production)
+- `--config FILE`: Path to JSON config file. Values from the file are merged with defaults and overridden
+  by any CLI arguments.
 
-- `--max-file-size`: Maximum file size in MB (default: 10)
+- `--json`: Output results as JSON (machine-readable).
+
+- `--no-emoji`: Replace emoji glyphs with ASCII tags in output.
+
+- `--continue-on-error`: Continue processing remaining statements after an error (default is stop on first error).
+
+Security validation cannot be disabled. If stricter defaults block your use case, adjust `SecurityConfig` in your JSON config (e.g., `security.max_statements_per_file`, `security.allowed_file_extensions`, or dangerous pattern lists) and rerun.
 
 - `--max-statements`: Maximum statements per file (default: 100)
 
@@ -80,9 +97,62 @@ python -m splurge_sql_runner -c "mysql://user:pass@localhost/mydb" -f "data.sql"
 # Process all SQL files in current directory
 python -m splurge_sql_runner -c "sqlite:///database.db" -p "*.sql"
 
-# With security validation disabled (not recommended)
-python -m splurge_sql_runner -c "sqlite:///database.db" -f "script.sql" --disable-security
+# Adjust security via config (example)
+# config.json
+#{
+#  "security": {
+#    "max_statements_per_file": 500,
+#    "allowed_file_extensions": [".sql", ".ddl"]
+#  }
+#}
+python -m splurge_sql_runner -c "sqlite:///database.db" -f "script.sql"
 ```
+
+## Security Tuning
+
+Security is enforced by default. If your workflow requires broader allowances, tune these fields in your
+JSON configuration file:
+
+- `security.max_statements_per_file` (int): Maximum SQL statements allowed per file. Increase if you run
+  bulk scripts. CLI also accepts `--max-statements` to override per run.
+- `security.validation.max_statement_length` (int): Maximum size in characters for a single statement.
+- `security.allowed_file_extensions` (list[str]): Allowed extensions for SQL files (e.g., `[".sql", ".ddl"]`).
+- `security.validation.dangerous_sql_patterns` (list[str]): Substrings considered dangerous in SQL. Remove
+  or modify with caution.
+- `security.validation.dangerous_path_patterns` (list[str]): Path substrings that are blocked for file safety.
+- `security.validation.dangerous_url_patterns` (list[str]): Connection URL substrings that are blocked.
+
+Example minimal config to relax limits:
+
+```json
+{
+  "security": {
+    "max_statements_per_file": 500,
+    "allowed_file_extensions": [".sql", ".ddl"],
+    "validation": {
+      "max_statement_length": 200000
+    }
+  }
+}
+```
+
+## Logging Behavior
+
+Logging is configured via the `logging` section in your JSON config and is applied automatically on startup:
+
+- `logging.level`: One of `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`.
+- `logging.format`: `TEXT` (human-readable) or `JSON`.
+- `logging.enable_console`: Whether to log to console.
+- `logging.enable_file`: Whether to log to a file.
+- `logging.log_file`/`logging.log_dir`: Exact file or directory to write logs. If only `log_dir` is provided, a default filename is used.
+- `logging.backup_count`: Number of daily-rotated log files to keep.
+
+CLI will bootstrap minimal logging with default values and then reconfigure using your JSON config (if provided) before running.
+
+## Notes on paths and patterns
+
+- The `--file` path is expanded with `~` (home) and resolved to an absolute path before use.
+- The `--pattern` is expanded for `~` and matched with glob; matched files are resolved to absolute paths.
 
 ## Programmatic Usage
 
@@ -91,53 +161,37 @@ python -m splurge_sql_runner -c "sqlite:///database.db" -f "script.sql" --disabl
 ### Basic Usage
 
 ```python
-from splurge_sql_runner.database.engines import UnifiedDatabaseEngine
-from splurge_sql_runner.config.security_config import SecurityConfig
+from splurge_sql_runner.database.database_client import DatabaseClient
+from splurge_sql_runner.config.database_config import DatabaseConfig
 
-# Initialize the database engine
-engine = UnifiedDatabaseEngine("sqlite:///database.db")
+client = DatabaseClient(DatabaseConfig(url="sqlite:///database.db"))
 
-# Create security configuration
-security_config = SecurityConfig(
-    max_file_size_mb=10,
-    max_statements_per_file=100
-)
-
-# Execute SQL with security validation
 try:
-    results = engine.execute_file("script.sql", security_config)
-    for result in results:
-        print(f"Statement executed: {result.success}")
-except Exception as e:
-    print(f"Execution failed: {e}")
-
-engine.shutdown()
+    results = client.execute_batch("SELECT 1;")
+    for r in results:
+        print(r)
+finally:
+    client.close()
 ```
 
 ### Advanced Usage
 
 ```python
-from splurge_sql_runner.config import ConfigManager, AppConfig
-from splurge_sql_runner.database import UnifiedDatabaseEngine
+from splurge_sql_runner.config import AppConfig
+from splurge_sql_runner.database import DatabaseClient
 
-# Load configuration
-config_manager = ConfigManager("config.json")
-config = config_manager.load_config()
+config = AppConfig.load("config.json")
 
-# Create database engine
-engine = UnifiedDatabaseEngine(config.database)
+client = DatabaseClient(config.database)
 
-# Execute SQL batch
 try:
-    results = engine.batch("SELECT 1; INSERT INTO test VALUES (1);")
+    results = client.execute_batch("SELECT 1; INSERT INTO test VALUES (1);")
     for result in results:
         print(f"Statement type: {result['statement_type']}")
         if result['statement_type'] == 'fetch':
             print(f"Rows returned: {result['row_count']}")
-except Exception as e:
-    print(f"Execution failed: {e}")
-
-engine.close()
+finally:
+    client.close()
 ```
 
 
@@ -157,7 +211,6 @@ The library supports JSON-based configuration files for advanced usage:
     },
     "security": {
         "enable_validation": true,
-        "max_file_size_mb": 10,
         "max_statements_per_file": 100
     },
     "logging": {
@@ -208,9 +261,7 @@ The CLI provides formatted output showing:
 - Failed statements are reported with error details
 - Database connections are properly cleaned up
 - Exit codes indicate success/failure
-- Circuit breaker patterns for handling repeated failures
-- Retry strategies with exponential backoff
-- Comprehensive error context and recovery mechanisms
+- (Removed) Circuit breaker/retry error-recovery layers in favor of simple CLI errors
 - Security validation with configurable thresholds
 
 ## License
@@ -245,8 +296,7 @@ mypy splurge_sql_runner/
 - **Documentation**: Updated Programmatic Usage section to clarify that the library is primarily designed for CLI usage
 - **Documentation**: Added note explaining that programmatic API is for advanced use cases and integration scenarios
 - **Documentation**: Emphasized that CLI offers the most comprehensive features and best user experience
-- **Breaking Changes**: `DbEngine` class has been removed entirely
-- **New**: `UnifiedDatabaseEngine` is the only database engine for programmatic usage
+- **Breaking Changes**: Unified engine abstraction replaced by `DatabaseClient`
 - **New**: Centralized configuration constants in `splurge_sql_runner.config.constants`
 - **Improved**: Security validation now uses centralized `SecurityConfig` from `splurge_sql_runner.config.security_config`
 - **Code Quality**: Eliminated code duplication across the codebase
