@@ -78,7 +78,6 @@ from splurge_sql_runner.logging import (
 
 __all__ = [
     # Configuration
-    # Config manager removed; consolidated into AppConfig
     "ConfigurationError",
     "ConfigValidationError",
     "ConfigFileError",

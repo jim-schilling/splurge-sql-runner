@@ -289,11 +289,7 @@ Examples:
         action="store_true",
         help="Disable emoji in CLI output",
     )
-
-    # Security validation is always enforced; no flag to disable it.
-
-    # Removed max file size; statement count/length limits cover large inputs
-
+    
     parser.add_argument(
         "--max-statements",
         type=int,

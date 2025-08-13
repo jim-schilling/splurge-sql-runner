@@ -582,8 +582,6 @@ class TestCliMain:
                 main()
                 mock_exit.assert_not_called()
 
-    # Removed max file size CLI option; covered by statement limits and validation.
-
     def test_main_with_custom_max_statements(self, temp_sql_file, sqlite_db_path):
         """Test main function with custom max statements."""
         with patch('sys.argv', [

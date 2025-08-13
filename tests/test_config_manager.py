@@ -27,29 +27,6 @@ def test_load_defaults_only() -> None:
     assert isinstance(config, AppConfig)
     assert config.database.url == "sqlite:///:memory:"
     assert config.database.connection.timeout == DEFAULT_CONNECTION_TIMEOUT
-    # max_file_size removed
-
-
-@pytest.mark.unit
-def test_validation_summary_removed_defaults_still_load() -> None:
-    """Validation summary removed; defaults load without tracking."""
-    config = AppConfig.load()
-    assert config.database.url == "sqlite:///:memory:"
-
-
-@pytest.mark.unit
-def test_environment_overrides_database_values(reset_environment: None) -> None:
-    """Environment variable loading removed; defaults remain when no JSON/CLI."""
-    config = AppConfig.load()
-    assert config.database.url == "sqlite:///:memory:"
-
-
-@pytest.mark.unit
-def test_environment_invalid_timeout_is_ignored(reset_environment: None) -> None:
-    """Environment parsing removed; default timeout remains."""
-    config = AppConfig.load()
-    assert config.database.connection.timeout == DEFAULT_CONNECTION_TIMEOUT
-
 
 @pytest.mark.unit
 def test_json_config_loading_and_parsing(temp_dir: Path) -> None:
@@ -187,7 +164,7 @@ def test_save_and_reload_round_trip(temp_dir: Path) -> None:
 
 @pytest.mark.unit
 def test_get_config_caches_loaded_config() -> None:
-    """Cache behavior removed; repeated loads return new objects with equal values."""
+    """Repeated loads return new objects with equal values."""
     c1 = AppConfig.load()
     c2 = AppConfig.load()
     assert c1 == c2

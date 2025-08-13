@@ -3,8 +3,6 @@ Minimal database client for single-threaded CLI usage.
 
 Provides a thin wrapper over SQLAlchemy to manage a single engine and
 ephemeral connections for executing batched SQL statements.
-
-This co-exists with the current `UnifiedDatabaseEngine` during migration.
 """
 
 from __future__ import annotations
@@ -26,8 +24,6 @@ from splurge_sql_runner.sql_helper import (
     parse_sql_statements,
     detect_statement_type,
     FETCH_STATEMENT,
-    EXECUTE_STATEMENT,
-    ERROR_STATEMENT,
 )
 
 

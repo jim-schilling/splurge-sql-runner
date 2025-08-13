@@ -25,8 +25,6 @@ from splurge_sql_runner.logging.context import (
     log_context,
     get_contextual_logger,
 )
-# Provide a local thread-local to avoid dependency on removed filters module
-_thread_local = threading.local()
 
 
 class TestCorrelationIdManagement:

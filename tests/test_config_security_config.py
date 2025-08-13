@@ -74,10 +74,7 @@ class TestSecurityConfig:
         assert config.max_statements_per_file == 200
         assert config.allowed_file_extensions == [".sql", ".txt"]
         assert config.validation == validation
-    
-    @pytest.mark.unit
-    # Removed file size checks; rely on statement limits and length.
-    
+           
     @pytest.mark.unit
     def test_zero_max_statements_raises_error(self) -> None:
         """Test that zero max statements raises ConfigValidationError."""
@@ -95,10 +92,7 @@ class TestSecurityConfig:
         """Test that empty allowed extensions raises ConfigValidationError."""
         with pytest.raises(ConfigValidationError, match="At least one allowed file extension must be specified"):
             SecurityConfig(allowed_file_extensions=[])
-    
-    @pytest.mark.unit
-    # Removed max_file_size_bytes property tests.
-    
+            
     @pytest.mark.unit
     def test_is_file_extension_allowed_with_valid_extensions(self) -> None:
         """Test is_file_extension_allowed with valid extensions."""

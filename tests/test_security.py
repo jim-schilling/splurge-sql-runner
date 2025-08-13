@@ -119,10 +119,6 @@ class TestValidateFilePath(TestSecurityValidator):
         with pytest.raises(SecurityFileError, match="File path contains dangerous pattern"):
             SecurityValidator.validate_file_path(unsafe_path, default_security_config)
 
-    def test_large_file_size_is_not_rejected_anymore(self, custom_security_config, large_temp_file):
-        """Size-based rejection removed; large files allowed if otherwise safe."""
-        SecurityValidator.validate_file_path(large_temp_file, custom_security_config)
-
     def test_nonexistent_file_path(self, default_security_config):
         """Test validation of non-existent file path (should pass)."""
         # Non-existent files should pass validation since they don't exist yet

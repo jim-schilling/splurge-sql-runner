@@ -84,5 +84,4 @@ __all__ = [
     "CliFileError",
     "CliExecutionError",
     "CliSecurityError",
-    # (Removed) advanced error handling and typed contexts
 ]

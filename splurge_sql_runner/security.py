@@ -60,7 +60,6 @@ class SecurityValidator:
         if not config.is_path_safe(file_path):
             raise SecurityFileError("File path is not safe")
 
-        # Size-based validation removed; rely on statement count and length limits
         try:
             Path(file_path).stat()
         except FileNotFoundError:

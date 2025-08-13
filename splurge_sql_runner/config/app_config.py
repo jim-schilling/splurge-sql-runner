@@ -181,9 +181,6 @@ class AppConfig:
 
         return config
 
-    # Environment variable configuration has been removed to simplify
-    # configuration management for CLI usage.
-
     @classmethod
     def _load_cli_config(cls, cli_args: Dict[str, Any]) -> "AppConfig":
         """Load configuration from CLI arguments."""
