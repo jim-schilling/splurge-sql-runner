@@ -4,6 +4,8 @@ Pytest configuration and shared fixtures for splurge-sql-runner tests.
 This module provides common test fixtures and configuration for all test modules.
 """
 
+import json
+import logging
 import os
 import tempfile
 import pytest
@@ -94,8 +96,6 @@ def sample_sql_file(temp_dir: Path, sample_sql_content: str) -> Path:
 @pytest.fixture
 def sample_config_file(temp_dir: Path, sample_config_data: Dict[str, Any]) -> Path:
     """Provide a temporary config file with sample data."""
-    import json
-    
     config_file = temp_dir / "test_config.json"
     with open(config_file, 'w') as f:
         json.dump(sample_config_data, f, indent=2)
@@ -105,8 +105,6 @@ def sample_config_file(temp_dir: Path, sample_config_data: Dict[str, Any]) -> Pa
 @pytest.fixture(autouse=True)
 def reset_logging():
     """Reset logging configuration before each test."""
-    import logging
-    
     # Clear any existing handlers
     root_logger = logging.getLogger()
     for handler in root_logger.handlers[:]:
