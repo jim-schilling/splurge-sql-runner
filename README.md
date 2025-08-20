@@ -291,6 +291,8 @@ mypy splurge_sql_runner/
 
 ## Changelog
 
+### 2025.3.1 (08-20-2025)
+
 ### 2025.3.0 (08-11-2025)
 
 - **Documentation**: Updated Programmatic Usage section to clarify that the library is primarily designed for CLI usage

@@ -4,6 +4,7 @@ Unit tests for CLI module.
 Tests the command-line interface functionality using actual objects and real CLI invocations.
 """
 
+import json
 import os
 import sys
 import tempfile
@@ -528,7 +529,6 @@ class TestCliMain:
     def test_main_continue_on_error(self, sqlite_db_path):
         """Test continue-on-error processes statements after a failure."""
         # Create a temp SQL file with one valid, one invalid, one valid
-        import tempfile
         with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
             f.write("SELECT 1;\nINVALID SQL;\nSELECT 2;")
             temp_file = f.name
@@ -549,7 +549,6 @@ class TestCliMain:
                         assert any('Statement 1:' in str(call) for call in calls)
                         assert any('Statement 2:' in str(call) for call in calls)
         finally:
-            import os
             try:
                 os.unlink(temp_file)
             except OSError:
@@ -680,3 +679,134 @@ class TestCliMain:
                     # Check that security error was printed
                     calls = [call[0][0] for call in mock_print.call_args_list]
                     assert any('Security error' in str(call) for call in calls)
+
+    def test_main_security_guidance_hint_too_many_statements(self, sqlite_db_path):
+        """Test main function with security guidance hint for too many statements."""
+        # Create SQL file with 2 statements
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
+            f.write("SELECT 1;\nSELECT 2;")
+            sql_file = f.name
+        
+        try:
+            with patch('sys.argv', [
+                'splurge_sql_runner',
+                '-c', f'sqlite:///{sqlite_db_path}',
+                '-f', sql_file,
+                '--max-statements', '1'
+            ]):
+                with patch('sys.exit') as mock_exit:
+                    with patch('builtins.print') as mock_print:
+                        main()
+                        mock_exit.assert_called_once_with(1)
+                        calls = [call[0][0] for call in mock_print.call_args_list]
+                        # Check for error message pattern
+                        assert any('Too many SQL statements' in str(call) for call in calls)
+                        assert any('Maximum allowed: 1' in str(call) for call in calls)
+        finally:
+            try:
+                os.unlink(sql_file)
+            except OSError:
+                pass
+
+    def test_main_output_json_and_no_emoji_switches(self, temp_sql_file, sqlite_db_path):
+        """Test main function with --json and --no-emoji switches."""
+        with patch('sys.argv', [
+            'splurge_sql_runner',
+            '-c', f'sqlite:///{sqlite_db_path}',
+            '-f', temp_sql_file,
+            '--json',
+            '--no-emoji'
+        ]):
+            with patch('sys.exit') as mock_exit:
+                with patch('builtins.print') as mock_print:
+                    main()
+                    mock_exit.assert_not_called()
+                    calls = [call[0][0] for call in mock_print.call_args_list]
+                    # Check for JSON output format
+                    assert any(str(call).lstrip().startswith('[') for call in calls)
+                    assert any('"statement_type"' in str(call) for call in calls)
+
+    def test_main_pattern_matching_multiple_files_partial_failure(self, sqlite_db_path):
+        """Test main function with pattern matching multiple files with partial failure."""
+        # Create two temp files
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
+            f.write("SELECT 1;")
+            safe_file = f.name
+        
+        # Create a file with dangerous pattern in name
+        dangerous_filename = "test..malicious.sql"
+        dangerous_path = os.path.join(os.path.dirname(safe_file), dangerous_filename)
+        with open(dangerous_path, 'w') as f:
+            f.write("SELECT 2;")
+        
+        try:
+            # Use pattern that matches both files
+            pattern = os.path.join(os.path.dirname(safe_file), "*.sql")
+            
+            with patch('sys.argv', [
+                'splurge_sql_runner',
+                '-c', f'sqlite:///{sqlite_db_path}',
+                '-p', pattern
+            ]):
+                with patch('sys.exit') as mock_exit:
+                    with patch('builtins.print') as mock_print:
+                        main()
+                        mock_exit.assert_called_once_with(1)
+                        calls = [call[0][0] for call in mock_print.call_args_list]
+                        # Check for summary pattern
+                        assert any('Summary:' in str(call) for call in calls)
+                        assert any('/' in str(call) for call in calls)
+        finally:
+            # Cleanup
+            try:
+                os.unlink(safe_file)
+                os.unlink(dangerous_path)
+            except OSError:
+                pass
+
+    def test_main_config_provided_but_missing(self, temp_sql_file, sqlite_db_path):
+        """Test main function with --config provided but file missing."""
+        with patch('sys.argv', [
+            'splurge_sql_runner',
+            '-c', f'sqlite:///{sqlite_db_path}',
+            '-f', temp_sql_file,
+            '--config', 'missing_config.json'
+        ]):
+            with patch('sys.exit') as mock_exit:
+                main()
+                # Should proceed using defaults
+                mock_exit.assert_not_called()
+
+    def test_main_config_provided_and_exists(self, temp_sql_file, sqlite_db_path):
+        """Test main function with --config provided and file exists."""
+        # Create a minimal config file
+        config_data = {
+            "database": {
+                "url": f"sqlite:///{sqlite_db_path}"
+            },
+            "logging": {
+                "level": "INFO"
+            }
+        }
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(config_data, f)
+            config_file = f.name
+        
+        try:
+            with patch('sys.argv', [
+                'splurge_sql_runner',
+                '-c', f'sqlite:///{sqlite_db_path}',
+                '-f', temp_sql_file,
+                '--config', config_file
+            ]):
+                with patch('sys.exit') as mock_exit:
+                    main()
+                    mock_exit.assert_not_called()
+        finally:
+            try:
+                os.unlink(config_file)
+            except OSError:
+                pass
+
+

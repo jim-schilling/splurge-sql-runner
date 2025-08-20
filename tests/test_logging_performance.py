@@ -5,6 +5,7 @@ Tests performance monitoring and timing capabilities using actual data and no mo
 """
 
 import logging
+import threading
 import time
 from io import StringIO
 
@@ -447,8 +448,6 @@ class TestPerformanceIntegration:
 
     def test_performance_logging_thread_safety(self) -> None:
         """Test performance logging is thread-safe."""
-        import threading
-        
         results = []
         errors = []
         

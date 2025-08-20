@@ -245,6 +245,36 @@ class TestDetectStatementType:
         result4 = detect_statement_type("INSERT INTO users VALUES (1)")
         assert result3 == result4 == EXECUTE_STATEMENT
 
+    def test_with_without_parentheses_after_as(self):
+        """Test CTE with malformed syntax - missing parentheses after AS."""
+        sql = "WITH c AS SELECT 1 SELECT 2"
+        result = detect_statement_type(sql)
+        assert result == FETCH_STATEMENT
+
+    def test_dcl_and_other_statements(self):
+        """Test DCL and other statement types are treated as execute."""
+        statements = [
+            "GRANT SELECT ON table1 TO user1",
+            "REVOKE INSERT ON table1 FROM user1", 
+            "TRUNCATE TABLE users",
+            "ANALYZE table1",
+            "VACUUM",
+            "CHECKPOINT"
+        ]
+        for sql in statements:
+            result = detect_statement_type(sql)
+            assert result == EXECUTE_STATEMENT
+
+    def test_multiple_ctes_followed_by_non_fetch(self):
+        """Test multiple CTEs followed by non-fetch top-level statement."""
+        sql = """
+        WITH a AS (SELECT 1 as x), 
+             b AS (SELECT 2 as y) 
+        INSERT INTO t SELECT * FROM a
+        """
+        result = detect_statement_type(sql)
+        assert result == EXECUTE_STATEMENT
+
 
 class TestParseSqlStatements:
     """Test SQL statement parsing functionality."""
@@ -358,6 +388,12 @@ class TestParseSqlStatements:
         assert len(result) == 2
         assert "INSERT INTO users" in result[0]
         assert "SELECT * FROM users" in result[1]
+
+    def test_only_semicolons(self):
+        """Test parsing string consisting of only semicolons and whitespace."""
+        sql = ";;;   ;  ;"
+        result = parse_sql_statements(sql)
+        assert result == []
 
 
 class TestSplitSqlFile:
@@ -545,3 +581,9 @@ class TestSplitSqlFile:
             assert "SELECT * FROM messages" in result[1]
         finally:
             os.unlink(temp_file)
+
+    def test_split_sql_file_directory_raises_oserror(self):
+        """Test splitting with directory path raises OSError."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with pytest.raises(SqlFileError, match="Error reading SQL file"):
+                split_sql_file(temp_dir)
