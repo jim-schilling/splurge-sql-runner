@@ -293,6 +293,27 @@ mypy splurge_sql_runner/
 
 ### 2025.3.1 (08-20-2025)
 
+- **Test Coverage**: Improved test coverage to 85% target across core modules
+  - `sql_helper.py`: Reached 85% coverage with comprehensive edge case testing
+  - `database_client.py`: Improved from ~71% to 77% coverage with additional test scenarios
+  - `cli.py`: Reached 84% coverage with enhanced CLI functionality testing
+- **Test Quality**: Added behavior-driven tests focusing on public APIs and real functionality
+  - Enhanced CTE (Common Table Expressions) parsing edge cases
+  - Added DCL (Data Control Language) statement type detection
+  - Improved error handling and rollback behavior testing
+  - Added config file handling and security guidance output tests
+  - Enhanced pattern matching and multi-file processing scenarios
+- **Code Quality**: Moved all import statements to top of modules where possible
+  - Cleaned up inline imports in test files (`test_cli.py`, `conftest.py`, `test_logging_performance.py`)
+  - Removed duplicate test functions that were accidentally created
+  - Maintained appropriate inline imports for test setup methods where needed
+- **Documentation**: Created comprehensive test improvement plan in `plans/improve-code-coverage.md`
+- **Testing**: Verified all examples work correctly with enhanced test suite
+  - Interactive demo functionality confirmed working
+  - CLI automation tests passing
+  - Database deployment script execution verified
+  - Pattern matching and JSON output features tested
+
 ### 2025.3.0 (08-11-2025)
 
 - **Documentation**: Updated Programmatic Usage section to clarify that the library is primarily designed for CLI usage
