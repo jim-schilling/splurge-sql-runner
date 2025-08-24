@@ -19,18 +19,8 @@ from splurge_sql_runner.errors import (
 
 
 # Private constants for SQL statement types
-_FETCH_STATEMENT_TYPES: tuple[str, ...] = (
-    "SELECT",
-    "VALUES",
-    "SHOW",
-    "EXPLAIN",
-    "PRAGMA",
-    "DESC",
-    "DESCRIBE",
-)
-_DML_STATEMENT_TYPES: tuple[str, ...] = ("SELECT", "INSERT", "UPDATE", "DELETE")
-_DESCRIBE_STATEMENT_TYPES: tuple[str, ...] = ("DESC", "DESCRIBE")
-_MODIFY_DML_TYPES: tuple[str, ...] = ("INSERT", "UPDATE", "DELETE")
+_FETCH_KEYWORDS: set[str] = {"SELECT", "VALUES", "SHOW", "EXPLAIN", "PRAGMA", "DESC", "DESCRIBE"}
+_MODIFY_DML_KEYWORDS: set[str] = {"INSERT", "UPDATE", "DELETE"}
 
 # Private constants for SQL keywords and symbols
 _WITH_KEYWORD: str = "WITH"
@@ -44,7 +34,6 @@ _PAREN_CLOSE: str = ")"
 # Public constants for statement type return values
 EXECUTE_STATEMENT: str = "execute"
 FETCH_STATEMENT: str = "fetch"
-ERROR_STATEMENT: str = "error"
 
 
 def remove_sql_comments(sql_text: str) -> str:
@@ -67,31 +56,8 @@ def remove_sql_comments(sql_text: str) -> str:
     return str(result) if result is not None else ""
 
 
-def _is_fetch_statement(statement_type: str) -> bool:
-    """
-    Determine if a statement type returns rows (fetch) or not (execute).
 
-    Args:
-        statement_type: The SQL statement type (e.g., 'SELECT', 'INSERT', 'VALUES')
-    Returns:
-        True if statement returns rows, False otherwise
-    """
-    return statement_type in _FETCH_STATEMENT_TYPES
-
-
-def _is_dml_statement(statement_type: str) -> bool:
-    """
-    Determine if a statement type is a DML (Data Manipulation Language) statement.
-
-    Args:
-        statement_type: The SQL statement type (e.g., 'SELECT', 'CREATE', 'DROP')
-    Returns:
-        True if statement is DML, False otherwise
-    """
-    return statement_type in _DML_STATEMENT_TYPES
-
-
-def _token_value_upper(token: Token) -> str:
+def normalize_token(token: Token) -> str:
     """
     Return the uppercased, stripped value of a token.
     """
@@ -117,53 +83,50 @@ def _next_significant_token(
     return None, None
 
 
-def _find_first_dml_keyword_top_level(tokens: list[Token]) -> str | None:
+def find_main_statement_after_with(tokens: list[Token]) -> str | None:
     """
-    Find first DML/Keyword at the top level after WITH (do not recurse into groups).
-
+    Find the main statement after CTE definitions by scanning tokens after WITH.
+    
+    This unified scanner handles the complete CTE parsing logic:
+    - Skips whitespace and comments
+    - For each CTE: consumes optional column list (...), expects AS, then consumes balanced (...) body
+    - After CTE body: if next significant token is comma, continues to next CTE; otherwise breaks
+    - Returns the next significant keyword as the main statement
+    
     Args:
-        tokens: List of sqlparse tokens to analyze
-    Returns:
-        The first DML/Keyword token value (e.g., 'SELECT', 'INSERT') or None if not found
-    """
-    for token in (t for t in tokens if not t.is_whitespace and t.ttype not in Comment):
-        token_value = _token_value_upper(token)
-        if token_value == _AS_KEYWORD:
-            continue
-        if _is_dml_statement(token_value) or _is_fetch_statement(token_value):
-            return token_value
-    return None
-
-
-def _find_main_statement_after_ctes(tokens: list[Token]) -> str | None:
-    """
-    Find the main statement after CTE definitions by looking for the first DML after all CTE groups.
-
-    Args:
-        tokens: List of sqlparse tokens to analyze
+        tokens: List of sqlparse tokens to analyze (should be tokens after WITH keyword)
     Returns:
         The main statement type (e.g., 'SELECT', 'INSERT') or None if not found
     """
-    in_cte_definition = False
-    paren_level = 0
     i = 0
     n = len(tokens)
+    
     while i < n:
         token = tokens[i]
-        token_value = _token_value_upper(token)
+        token_value = normalize_token(token)
+        
+        # Skip whitespace and comments
         if token.is_whitespace or token.ttype in Comment:
             i += 1
             continue
-        if not in_cte_definition and token_value == _AS_KEYWORD:
-            in_cte_definition = True
-            next_i, _ = _next_significant_token(tokens, start=i + 1)
+            
+        # Look for AS keyword (start of CTE definition)
+        if token_value == _AS_KEYWORD:
+            # Skip AS keyword
+            i += 1
+            
+            # Find next significant token after AS
+            next_i, _ = _next_significant_token(tokens, start=i)
             if next_i is None:
                 return None
             i = next_i
+            
+            # Check if next token is opening parenthesis (CTE body)
             if (
                 tokens[i].ttype == sqlparse.tokens.Punctuation
                 and tokens[i].value == _PAREN_OPEN
             ):
+                # Consume the entire CTE body by tracking parentheses
                 paren_level = 1
                 i += 1
                 while i < n and paren_level > 0:
@@ -174,83 +137,39 @@ def _find_main_statement_after_ctes(tokens: list[Token]) -> str | None:
                         elif t.value == _PAREN_CLOSE:
                             paren_level -= 1
                     i += 1
-                in_cte_definition = False
+                
+                # Find next significant token after CTE body
                 next_i, _ = _next_significant_token(tokens, start=i)
                 if next_i is None:
                     return None
                 i = next_i
+                
+                # Check if next token is comma (more CTEs to follow)
                 if (
                     tokens[i].ttype == sqlparse.tokens.Punctuation
                     and tokens[i].value == _COMMA
                 ):
-                    i += 1
+                    i += 1  # Skip comma and continue to next CTE
                     continue
-                break
+                else:
+                    # No comma means we've reached the main statement
+                    break
             else:
+                # No opening parenthesis after AS - this is the main statement
                 break
         else:
+            # Not AS keyword - this might be the main statement
             i += 1
+    
+    # Find the next significant token (the main statement)
     next_i, token = _next_significant_token(tokens, start=i)
     if next_i is None or token is None:
         return None
-    i = next_i
-    token_value = _token_value_upper(token)
-    if _is_dml_statement(token_value) or _is_fetch_statement(token_value):
+        
+    token_value = normalize_token(token)
+    if token_value in _MODIFY_DML_KEYWORDS or token_value in _FETCH_KEYWORDS:
         return token_value
     return None
-
-
-def _is_with_keyword(token: Token) -> bool:
-    """
-    Check if a token represents the 'WITH' keyword.
-
-    Args:
-        token: sqlparse token to check
-    Returns:
-        True if token is the 'WITH' keyword, False otherwise
-    """
-    try:
-        return (
-            token.value.strip().upper() == _WITH_KEYWORD
-            if hasattr(token, "value") and token.value
-            else False
-        )
-    except (AttributeError, TypeError):
-        return False
-
-
-def _find_with_keyword_index(tokens: list[Token]) -> int | None:
-    """
-    Find the index of the WITH keyword in a list of tokens.
-
-    Args:
-        tokens: List of sqlparse tokens to search
-    Returns:
-        Index of the WITH keyword or None if not found
-    """
-    for i, token in enumerate(tokens):
-        if _is_with_keyword(token):
-            return i
-    return None
-
-
-def _extract_tokens_after_with(stmt: Statement) -> list[Token]:
-    """
-    Extract all tokens that come after the WITH keyword in a statement.
-
-    Args:
-        stmt: sqlparse Statement object
-    Returns:
-        List of tokens that come after the WITH keyword
-    """
-    top_tokens: list[Token] = list(stmt.flatten())
-    with_index = _find_with_keyword_index(top_tokens)
-
-    if with_index is None:
-        return []
-
-    # Return all tokens after the WITH keyword
-    return top_tokens[with_index + 1 :]
 
 
 def detect_statement_type(sql: str) -> str:
@@ -279,7 +198,6 @@ def detect_statement_type(sql: str) -> str:
         One of the following string constants:
         - 'fetch': Statement returns rows (SELECT, VALUES, SHOW, DESCRIBE, EXPLAIN, PRAGMA)
         - 'execute': Statement performs action without returning data (INSERT, UPDATE, DELETE, DDL)
-        - 'error': Statement could not be parsed (currently returns 'execute')
 
     Examples:
         Simple SELECT:
@@ -329,9 +247,8 @@ def detect_statement_type(sql: str) -> str:
     Note:
         - Parsing is performed using sqlparse library for accuracy
         - Comments are automatically handled and ignored
-        - Complex nested CTEs are supported through recursive analysis
+        - Complex nested CTEs are supported through unified scanner analysis
         - Database-specific syntax (PRAGMA, SHOW) is recognized
-        - Performance: Parsing is cached internally for repeated calls with same SQL
         - Thread-safe: Can be called concurrently from multiple threads
     """
     if not sql or not sql.strip():
@@ -350,43 +267,27 @@ def detect_statement_type(sql: str) -> str:
     if first_token is None:
         return EXECUTE_STATEMENT
 
-    token_value = first_token.value.strip().upper()
+    token_value = normalize_token(first_token)
 
     # DESC/DESCRIBE detection (regardless of token type)
-    if token_value in _DESCRIBE_STATEMENT_TYPES:
+    if token_value in ("DESC", "DESCRIBE"):
         return FETCH_STATEMENT
 
     # CTE detection: WITH ...
     if token_value == _WITH_KEYWORD:
-        after_with_tokens = _extract_tokens_after_with(stmt)
-
-        # Try the more sophisticated approach first
-        main_stmt = _find_main_statement_after_ctes(after_with_tokens)
-        if main_stmt is None:
-            # Fallback to the simpler approach
-            main_stmt = _find_first_dml_keyword_top_level(after_with_tokens)
-
-        # If no main statement found after CTE, return execute
-        if main_stmt is None:
-            return EXECUTE_STATEMENT
-
-        if main_stmt == _SELECT_KEYWORD:
-            return FETCH_STATEMENT
-        if main_stmt in _MODIFY_DML_TYPES:
-            return EXECUTE_STATEMENT
-        if main_stmt is not None and _is_fetch_statement(main_stmt):
+        # Get all tokens after WITH keyword and use unified scanner
+        after_with_tokens = tokens[1:]  # Skip the WITH token itself
+        main_stmt = find_main_statement_after_with(after_with_tokens)
+        
+        # Classify based on main statement type
+        if main_stmt in _FETCH_KEYWORDS:
             return FETCH_STATEMENT
         return EXECUTE_STATEMENT
 
-    # SELECT
-    if first_token.ttype is DML and token_value == _SELECT_KEYWORD:
+    # All other statements: classify based on first keyword
+    if token_value in _FETCH_KEYWORDS:
         return FETCH_STATEMENT
-
-    # VALUES, SHOW, EXPLAIN, PRAGMA
-    if _is_fetch_statement(token_value):
-        return FETCH_STATEMENT
-
-    # All other statements (INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, etc.)
+    
     return EXECUTE_STATEMENT
 
 
@@ -417,24 +318,24 @@ def parse_sql_statements(
     # Remove comments first
     clean_sql = remove_sql_comments(sql_text)
 
-    # Use sqlparse to split statements
-    parsed_statements = sqlparse.parse(clean_sql)
+    # Use sqlparse.split for efficient statement splitting
+    statements = sqlparse.split(clean_sql)
     filtered_stmts: list[str] = []
 
-    for stmt in parsed_statements:
-        stmt_str = str(stmt).strip()
+    for stmt in statements:
+        stmt_str = stmt.strip()
         if not stmt_str:
-            continue
-
-        # Tokenize and check if all tokens are comments or whitespace
-        tokens = list(stmt.flatten())
-        if not tokens:
-            continue
-        if all(t.is_whitespace or t.ttype in Comment for t in tokens):
             continue
 
         # Filter out statements that are just semicolons
         if stmt_str == _SEMICOLON:
+            continue
+
+        # Filter out statements that are only comments (even after remove_sql_comments)
+        # This handles cases where sqlparse.format doesn't remove all comment types
+        if stmt_str.startswith("/*") and stmt_str.endswith("*/"):
+            continue
+        if stmt_str.startswith("--"):
             continue
 
         # Apply semicolon stripping based on parameter
