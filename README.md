@@ -291,6 +291,8 @@ mypy splurge_sql_runner/
 
 ## Changelog
 
+### 2025.4.0 (08-24-2025)
+
 ### 2025.3.1 (08-20-2025)
 
 - **Test Coverage**: Improved test coverage to 85% target across core modules
