@@ -293,6 +293,18 @@ mypy splurge_sql_runner/
 
 ### 2025.4.0 (08-24-2025)
 
+- **Performance & Code Quality**: Optimized and simplified `sql_helper.py` module
+  - **Reduced complexity**: Eliminated 5 helper functions and consolidated keyword sets
+  - **Better performance**: Implemented O(1) set membership checks and unified CTE scanner
+  - **Cleaner code**: Single token normalization and simplified control flow
+  - **Accurate documentation**: Removed misleading caching claims from docstrings
+  - **Reduced maintenance burden**: Removed unused `ERROR_STATEMENT` constant and helpers
+  - **Bug fix**: Enhanced comment filtering in `parse_sql_statements` for edge cases
+- **Backward Compatibility**: All public APIs remain unchanged, no breaking changes
+- **Test Coverage**: Maintained 93% test coverage with all existing functionality preserved
+- **Documentation**: Created comprehensive optimization plan in `plans/sql_helper_optimization_plan.md`
+- **Verification**: All examples and tests continue to work correctly after optimization
+
 ### 2025.3.1 (08-20-2025)
 
 - **Test Coverage**: Improved test coverage to 85% target across core modules
