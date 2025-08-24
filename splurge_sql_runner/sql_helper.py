@@ -57,8 +57,6 @@ def remove_sql_comments(sql_text: str) -> str:
 
 
 
-
-
 def normalize_token(token: Token) -> str:
     """
     Return the uppercased, stripped value of a token.
