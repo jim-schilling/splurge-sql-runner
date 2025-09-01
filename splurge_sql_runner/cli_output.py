@@ -12,7 +12,7 @@ from typing import Any
 try:
     from tabulate import tabulate  # type: ignore
 except Exception:  # pragma: no cover - fallback when tabulate unavailable
-    tabulate = None  # type: ignore[assignment]
+    tabulate = None
 
 
 # Private constants for rendering
