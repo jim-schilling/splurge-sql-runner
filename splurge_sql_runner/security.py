@@ -14,8 +14,8 @@ from typing import List
 
 from urllib.parse import urlparse
 
-from splurge_sql_runner.config.constants import DANGEROUS_SHELL_CHARACTERS
 from splurge_sql_runner.config.security_config import SecurityConfig
+from splurge_sql_runner.utils.security_utils import sanitize_shell_arguments as _sanitize_shell_arguments
 from splurge_sql_runner.errors.security_errors import (
     SecurityValidationError,
     SecurityFileError,
@@ -262,18 +262,4 @@ class SecurityValidator:
         Raises:
             ValueError: If any argument contains dangerous characters or is not a string
         """
-        if not isinstance(args, list):
-            raise ValueError("args must be a list of strings")
-
-        sanitized_args = []
-        for arg in args:
-            if not isinstance(arg, str):
-                raise ValueError("All command arguments must be strings")
-
-            # Check for dangerous characters that could enable shell injection
-            if any(char in arg for char in DANGEROUS_SHELL_CHARACTERS):
-                raise ValueError(f"Potentially dangerous characters found in argument: {arg}")
-
-            sanitized_args.append(arg)
-
-        return sanitized_args
+        return _sanitize_shell_arguments(args)

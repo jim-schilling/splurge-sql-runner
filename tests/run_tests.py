@@ -10,7 +10,7 @@ import sys
 import argparse
 from pathlib import Path
 
-from splurge_sql_runner.security import SecurityValidator
+from splurge_sql_runner.utils.security_utils import sanitize_shell_arguments
 
 
 def run_command(cmd: list, description: str = "") -> int:
@@ -20,7 +20,7 @@ def run_command(cmd: list, description: str = "") -> int:
         raise ValueError("cmd must be a list of strings")
 
     # Sanitize command arguments to prevent shell injection
-    sanitized_cmd = SecurityValidator.sanitize_shell_arguments(cmd)
+    sanitized_cmd = sanitize_shell_arguments(cmd)
     if description:
         print(f"\n{'=' * 60}")
         print(description)

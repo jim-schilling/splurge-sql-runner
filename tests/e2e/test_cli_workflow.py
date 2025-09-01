@@ -12,11 +12,60 @@ import os
 from pathlib import Path
 from typing import List
 
-from splurge_sql_runner.security import SecurityValidator
-
 
 class TestCLIWorkflowE2E:
     """End-to-end tests for complete CLI workflows."""
+
+    @staticmethod
+    def _sanitize_shell_arguments(args: List[str]) -> List[str]:
+        """
+        Sanitize shell command arguments to prevent shell injection attacks.
+
+        This is a test-specific implementation to avoid coupling with application code.
+        E2E tests should be independent of the implementation being tested.
+        """
+        if not isinstance(args, list):
+            raise ValueError("args must be a list of strings")
+
+        # Dangerous characters that could enable shell injection
+        dangerous_chars = (
+            # Command separators and pipes
+            ';', '|', '&&', '||',
+
+            # Command substitution and evaluation
+            '`', '$(', '${',
+
+            # Redirection operators
+            '>>', '<<', '<<<',
+
+            # Character classes (dangerous for injection)
+            '[', ']',
+
+            # Escaping and quotes
+            '\'', '"',
+
+            # History expansion
+            '!',
+
+            # Whitespace that can separate commands
+            ' ', '\t', '\n', '\r',
+
+            # Process substitution
+            '<(', '>(',
+        )
+
+        sanitized_args = []
+        for arg in args:
+            if not isinstance(arg, str):
+                raise ValueError("All command arguments must be strings")
+
+            # Check for dangerous characters
+            if any(char in arg for char in dangerous_chars):
+                raise ValueError(f"Potentially dangerous characters found in argument: {arg}")
+
+            sanitized_args.append(arg)
+
+        return sanitized_args
 
     def run_cli_command(self, args: List[str], cwd: Path = None) -> subprocess.CompletedProcess:
         """Helper to run CLI commands."""
@@ -25,7 +74,7 @@ class TestCLIWorkflowE2E:
             raise ValueError("args must be a list of strings")
 
         # Sanitize arguments to prevent shell injection
-        sanitized_args = SecurityValidator.sanitize_shell_arguments(args)
+        sanitized_args = self._sanitize_shell_arguments(args)
 
         cmd = ["python", "-m", "splurge_sql_runner"] + sanitized_args
         env = os.environ.copy()

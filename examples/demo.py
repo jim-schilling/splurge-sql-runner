@@ -11,7 +11,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from splurge_sql_runner.security import SecurityValidator
+from splurge_sql_runner.utils.security_utils import sanitize_shell_arguments
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
@@ -24,7 +24,7 @@ def run_command(cmd: list, description: str = "") -> bool:
         raise ValueError("cmd must be a list of strings")
 
     # Sanitize command arguments to prevent shell injection
-    sanitized_cmd = SecurityValidator.sanitize_shell_arguments(cmd)
+    sanitized_cmd = sanitize_shell_arguments(cmd)
     if description:
         print(f"\n{'=' * 60}")
         print(description)
