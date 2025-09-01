@@ -11,21 +11,21 @@ Copyright (c) 2025, Jim Schilling
 This module is licensed under the MIT License.
 """
 
-import json  # noqa: E402
-from dataclasses import dataclass  # noqa: E402
-from pathlib import Path  # noqa: E402
-from typing import Any  # noqa: E402
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
-from splurge_sql_runner.config.database_config import DatabaseConfig, ConnectionConfig  # noqa: E402
-from splurge_sql_runner.config.security_config import SecurityConfig  # noqa: E402
-from splurge_sql_runner.config.logging_config import LoggingConfig, LogLevel, LogFormat  # noqa: E402
-from splurge_sql_runner.config.constants import (  # noqa: E402
+from splurge_sql_runner.config.database_config import DatabaseConfig, ConnectionConfig
+from splurge_sql_runner.config.security_config import SecurityConfig
+from splurge_sql_runner.config.logging_config import LoggingConfig, LogLevel, LogFormat
+from splurge_sql_runner.config.constants import (
     DEFAULT_MAX_STATEMENTS_PER_FILE,
     DEFAULT_CONNECTION_TIMEOUT,
     DEFAULT_ENABLE_VERBOSE_OUTPUT,
     DEFAULT_ENABLE_DEBUG_MODE,
 )
-from splurge_sql_runner.errors import ConfigFileError, ConfigValidationError  # noqa: E402
+from splurge_sql_runner.errors import ConfigFileError, ConfigValidationError
 
 
 @dataclass
