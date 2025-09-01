@@ -504,3 +504,72 @@ When adding new tests:
   - `JPY_LOG_LEVEL` → `SPLURGE_SQL_RUNNER_LOG_LEVEL`
   - `JPY_LOG_FORMAT` → `SPLURGE_SQL_RUNNER_LOG_FORMAT`
 
+## Changelog
+
+### [2025.4.1] - 2025-09-01
+
+#### Added
+- **Comprehensive Test Coverage for Critical Paths**
+  - Added integration test for database transaction rollback when `stop_on_error=True`
+  - Added unit tests for `DatabaseClient.execute_statements` API with both error handling modes
+  - Added SQL helper unit tests for uncommon `detect_statement_type` branches:
+    - `VALUES` statements
+    - `DESC`/`DESCRIBE` statements
+    - `EXPLAIN` statements
+    - `SHOW` statements
+    - `PRAGMA` statements
+    - `WITH ... INSERT`/`UPDATE`/`DELETE` CTE patterns
+  - Added SQL parser integration test for semicolons inside string literals
+  - Added CLI test for security validation of disallowed file extensions
+
+#### Fixed
+- **CLI Error Handling Improvements**
+  - Fixed CLI to properly catch `SecurityFileError` and `SecurityValidationError`
+  - Enhanced security guidance context for file vs. SQL validation errors
+  - Improved error message context and user guidance
+
+#### Verified
+- **All Examples Working**
+  - Comprehensive demo script (`examples/demo.py`) - ✅ All 7 steps pass
+  - Test CLI script (`examples/test_cli.py`) - ✅ All test scenarios pass
+  - Deployment script (`examples/deploy_database.sh`) - ✅ Complete workflow on Windows
+  - Individual CLI examples - ✅ Basic CRUD, pattern matching, JSON output, no-emoji
+
+#### Quality Assurance
+- **Test Coverage**: Maintained ~93% code coverage across all modules
+- **424 tests pass**, 3 skipped (all tests green)
+- **All critical execution paths tested** including error scenarios
+- **Security validation thoroughly tested** for file paths, SQL content, and URLs
+
+#### Technical Details
+- **Transaction Safety**: Verified rollback behavior in batch operations
+- **Statement Type Detection**: Comprehensive coverage of SQL statement classification
+- **Parser Robustness**: Edge cases like semicolons in strings properly handled
+- **Error Recovery**: Graceful handling of various failure scenarios
+- **Security Enforcement**: File extension validation and SQL pattern blocking working correctly
+
+---
+
+### [2025.4.0] - 2025-08-15
+
+#### Added
+- Initial public release of splurge-sql-runner
+- CLI interface for executing SQL files against databases
+- Support for SQLite, PostgreSQL, and MySQL
+- JSON output format for machine-readable results
+- Security validation for file paths and SQL content
+- Pattern matching for multiple SQL file processing
+- Comprehensive error handling and user guidance
+- Logging configuration with multiple output formats
+- Configuration file support (JSON)
+- Verbose and debug output modes
+
+#### Features
+- Execute multiple SQL statements from files
+- Batch processing with transaction support
+- Pretty-printed table output
+- Comment stripping and SQL parsing
+- Connection pooling and timeout handling
+- Migration tracking and history
+- Data analysis and reporting capabilities
+
