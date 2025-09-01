@@ -120,7 +120,6 @@ class DatabaseClient:
         if not statements:
             return []
 
-        results: list[dict[str, Any]] = []
         own_connection = False
         conn: Connection | None = connection
 
