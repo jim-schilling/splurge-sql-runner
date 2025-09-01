@@ -130,7 +130,7 @@ class SecurityValidator:
             SecurityValidationError: If SQL contains dangerous patterns or is invalid
         """
         if not sql_content:
-            return  
+            return
 
         # Check for dangerous SQL patterns
         sql_upper = sql_content.upper()
@@ -148,6 +148,7 @@ class SecurityValidator:
 
         # Check number of statements using proper SQL parsing
         from splurge_sql_runner.sql_helper import parse_sql_statements
+
         statements = parse_sql_statements(sql_content)
         if len(statements) > config.max_statements_per_file:
             raise SecurityValidationError(
@@ -174,11 +175,11 @@ class SecurityValidator:
             return sql_content
 
         # Remove SQL comments
-        sql_content = re.sub(r'--.*$', '', sql_content, flags=re.MULTILINE)
-        sql_content = re.sub(r'/\*.*?\*/', '', sql_content, flags=re.DOTALL)
+        sql_content = re.sub(r"--.*$", "", sql_content, flags=re.MULTILINE)
+        sql_content = re.sub(r"/\*.*?\*/", "", sql_content, flags=re.DOTALL)
 
         # Remove extra whitespace
-        sql_content = re.sub(r'\s+', ' ', sql_content).strip()
+        sql_content = re.sub(r"\s+", " ", sql_content).strip()
 
         return sql_content
 

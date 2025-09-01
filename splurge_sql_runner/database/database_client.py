@@ -19,7 +19,11 @@ from splurge_sql_runner.errors.database_errors import (
     DatabaseOperationError,
 )
 from splurge_sql_runner.logging import configure_module_logging
-from splurge_sql_runner.result_models import StatementResult, StatementType, results_to_dicts
+from splurge_sql_runner.result_models import (
+    StatementResult,
+    StatementType,
+    results_to_dicts,
+)
 from splurge_sql_runner.sql_helper import (
     parse_sql_statements,
     detect_statement_type,
@@ -89,7 +93,9 @@ class DatabaseClient:
             return self._engine.connect()
         except Exception as exc:
             self._logger.error(f"Failed to create connection: {exc}")
-            raise DatabaseConnectionError(f"Failed to create connection: {exc}") from exc
+            raise DatabaseConnectionError(
+                f"Failed to create connection: {exc}"
+            ) from exc
 
     def execute_batch(
         self,
@@ -150,7 +156,9 @@ class DatabaseClient:
                                         statement=stmt,
                                         statement_type=StatementType.EXECUTE,
                                         result=True,
-                                        row_count=rowcount if isinstance(rowcount, int) and rowcount >= 0 else None,
+                                        row_count=rowcount
+                                        if isinstance(rowcount, int) and rowcount >= 0
+                                        else None,
                                     )
                                 )
                         except Exception as stmt_exc:
@@ -200,7 +208,9 @@ class DatabaseClient:
                                     statement=stmt,
                                     statement_type=StatementType.EXECUTE,
                                     result=True,
-                                    row_count=row_count if isinstance(row_count, int) and row_count >= 0 else None,
+                                    row_count=row_count
+                                    if isinstance(row_count, int) and row_count >= 0
+                                    else None,
                                 )
                             )
                             conn.commit()
@@ -226,15 +236,17 @@ class DatabaseClient:
                 except Exception:
                     pass
 
-            error_stmt = stmt if 'stmt' in locals() else sql_text
-            return results_to_dicts([
-                StatementResult(
-                    statement=error_stmt,
-                    statement_type=StatementType.ERROR,
-                    result=None,
-                    error=str(exc),
-                )
-            ])
+            error_stmt = stmt if "stmt" in locals() else sql_text
+            return results_to_dicts(
+                [
+                    StatementResult(
+                        statement=error_stmt,
+                        statement_type=StatementType.ERROR,
+                        result=None,
+                        error=str(exc),
+                    )
+                ]
+            )
 
         finally:
             if own_connection and conn is not None:
@@ -300,7 +312,9 @@ class DatabaseClient:
                                         statement=normalized_stmt,
                                         statement_type=StatementType.EXECUTE,
                                         result=True,
-                                        row_count=rowcount if isinstance(rowcount, int) and rowcount >= 0 else None,
+                                        row_count=rowcount
+                                        if isinstance(rowcount, int) and rowcount >= 0
+                                        else None,
                                     )
                                 )
                         except Exception as stmt_exc:
@@ -352,7 +366,9 @@ class DatabaseClient:
                                     statement=normalized_stmt,
                                     statement_type=StatementType.EXECUTE,
                                     result=True,
-                                    row_count=row_count if isinstance(row_count, int) and row_count >= 0 else None,
+                                    row_count=row_count
+                                    if isinstance(row_count, int) and row_count >= 0
+                                    else None,
                                 )
                             )
                             conn.commit()
@@ -378,14 +394,18 @@ class DatabaseClient:
                 except Exception:
                     pass
 
-            return results_to_dicts([
-                StatementResult(
-                    statement=normalized_stmt if 'normalized_stmt' in locals() else "",
-                    statement_type=StatementType.ERROR,
-                    result=None,
-                    error=str(exc),
-                )
-            ])
+            return results_to_dicts(
+                [
+                    StatementResult(
+                        statement=normalized_stmt
+                        if "normalized_stmt" in locals()
+                        else "",
+                        statement_type=StatementType.ERROR,
+                        result=None,
+                        error=str(exc),
+                    )
+                ]
+            )
 
         finally:
             if own_connection and conn is not None:
@@ -401,5 +421,3 @@ class DatabaseClient:
                 self._engine.dispose()
             finally:
                 self._engine = None
-
-

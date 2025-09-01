@@ -36,7 +36,9 @@ class TestDatabaseClient:
         client.close()
 
     @pytest.mark.unit
-    def test_execute_batch_single_statement(self, sqlite_config: DatabaseConfig) -> None:
+    def test_execute_batch_single_statement(
+        self, sqlite_config: DatabaseConfig
+    ) -> None:
         client = DatabaseClient(sqlite_config)
         results = client.execute_batch("SELECT 1 as test, 2 as value;")
         assert len(results) == 1
@@ -46,7 +48,9 @@ class TestDatabaseClient:
         client.close()
 
     @pytest.mark.unit
-    def test_execute_batch_multiple_statements(self, sqlite_config: DatabaseConfig) -> None:
+    def test_execute_batch_multiple_statements(
+        self, sqlite_config: DatabaseConfig
+    ) -> None:
         client = DatabaseClient(sqlite_config)
         sql = (
             "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT);"
@@ -86,7 +90,9 @@ class TestDatabaseClient:
         client.close()
 
     @pytest.mark.unit
-    def test_execute_batch_empty_and_whitespace(self, sqlite_config: DatabaseConfig) -> None:
+    def test_execute_batch_empty_and_whitespace(
+        self, sqlite_config: DatabaseConfig
+    ) -> None:
         client = DatabaseClient(sqlite_config)
         assert client.execute_batch("") == []
         assert client.execute_batch("  \n\t  ") == []

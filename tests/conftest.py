@@ -54,21 +54,14 @@ def sample_config_data() -> Dict[str, Any]:
     return {
         "database": {
             "engine": "sqlite",
-            "connection": {
-                "database": ":memory:",
-                "echo": False
-            }
+            "connection": {"database": ":memory:", "echo": False},
         },
-        "logging": {
-            "level": "INFO",
-            "format": "json",
-            "file": None
-        },
+        "logging": {"level": "INFO", "format": "json", "file": None},
         "security": {
             "validate_sql": True,
             "allowed_commands": ["SELECT", "INSERT", "UPDATE", "DELETE"],
-            "blocked_patterns": ["DROP", "TRUNCATE"]
-        }
+            "blocked_patterns": ["DROP", "TRUNCATE"],
+        },
     }
 
 
@@ -96,7 +89,7 @@ def sample_sql_file(temp_dir: Path, sample_sql_content: str) -> Path:
 def sample_config_file(temp_dir: Path, sample_config_data: Dict[str, Any]) -> Path:
     """Provide a temporary config file with sample data."""
     config_file = temp_dir / "test_config.json"
-    with open(config_file, 'w') as f:
+    with open(config_file, "w") as f:
         json.dump(sample_config_data, f, indent=2)
     return config_file
 
@@ -108,12 +101,12 @@ def reset_logging():
     root_logger = logging.getLogger()
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
-    
+
     # Reset to basic configuration
     logging.basicConfig(level=logging.WARNING)
-    
+
     yield
-    
+
     # Cleanup after test
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
@@ -124,9 +117,9 @@ def reset_environment():
     """Reset environment variables before each test."""
     # Store original environment
     original_env = os.environ.copy()
-    
+
     yield
-    
+
     # Restore original environment
     os.environ.clear()
     os.environ.update(original_env)

@@ -61,6 +61,7 @@ Usage:
     python -m splurge_sql_runner -c "sqlite:///database.db" -p "*.sql"
 """
 
+
 def _print_security_guidance(error_message: str, *, context: str) -> None:
     """Print actionable guidance for common security validation errors.
 
@@ -113,9 +114,6 @@ def _print_security_guidance(error_message: str, *, context: str) -> None:
 
     for hint in hints:
         print(f"{_WARNING_EMOJI}  {hint}")
-
-
-
 
 
 def process_sql_file(
@@ -178,7 +176,9 @@ def process_sql_file(
             logger.error(f"SQL content security validation failed: {e}")
             raise CliSecurityError(str(e))
 
-        logger.info(f"Executing {len(statements)} SQL statements from file: {file_path}")
+        logger.info(
+            f"Executing {len(statements)} SQL statements from file: {file_path}"
+        )
         # Avoid reparsing inside client by executing the pre-parsed list
         results = db_client.execute_statements(
             statements,
@@ -221,8 +221,8 @@ def process_sql_file(
 def main() -> None:
     """Main CLI entry point."""
     try:
-        sys.stdout.reconfigure(encoding='utf-8')
-        sys.stderr.reconfigure(encoding='utf-8')
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
     except AttributeError:
         pass
 
@@ -287,7 +287,7 @@ Examples:
         action="store_true",
         help="Disable emoji in CLI output",
     )
-    
+
     parser.add_argument(
         "--max-statements",
         type=int,
@@ -375,7 +375,7 @@ Examples:
         )
         db_client = DatabaseClient(db_config)
         logger.info("Database client initialized successfully")
-        
+
         if args.debug:
             print("Debug mode enabled")
 
@@ -429,9 +429,11 @@ Examples:
         logger.info(
             f"Processing complete: {success_count}/{len(files_to_process)} files processed successfully"
         )
-        print(f"\n{'='*60}")
-        print(f"Summary: {success_count}/{len(files_to_process)} files processed successfully")
-        print(f"{'='*60}")
+        print(f"\n{'=' * 60}")
+        print(
+            f"Summary: {success_count}/{len(files_to_process)} files processed successfully"
+        )
+        print(f"{'=' * 60}")
 
         if success_count < len(files_to_process):
             logger.error("Some files failed to process. Exiting with error code 1")

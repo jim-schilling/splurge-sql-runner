@@ -27,6 +27,7 @@ def test_load_defaults_only() -> None:
     assert config.database.url == "sqlite:///:memory:"
     assert config.database.connection.timeout == DEFAULT_CONNECTION_TIMEOUT
 
+
 @pytest.mark.unit
 def test_json_config_loading_and_parsing(temp_dir: Path) -> None:
     """Valid JSON config should be parsed into the composite `AppConfig`."""
@@ -83,7 +84,7 @@ def test_json_config_loading_and_parsing(temp_dir: Path) -> None:
 def test_json_invalid_raises_config_file_error(temp_dir: Path) -> None:
     """Invalid JSON content should raise `ConfigFileError` when explicitly loaded."""
     config_path = temp_dir / "bad.json"
-    config_path.write_text("{" )
+    config_path.write_text("{")
 
     with pytest.raises(ConfigFileError):
         # Direct call to exercise error branch
@@ -104,12 +105,11 @@ def test_merge_precedence_cli_over_json_over_env(
     """Precedence is CLI > JSON > Defaults in final config."""
     # Prepare JSON
     config_path = temp_dir / "config.json"
-    config_path.write_text(json.dumps({
-        "database": {
-            "url": "sqlite:///json.db",
-            "connection": {"timeout": 55}
-        }
-    }))
+    config_path.write_text(
+        json.dumps(
+            {"database": {"url": "sqlite:///json.db", "connection": {"timeout": 55}}}
+        )
+    )
 
     # Prepare CLI
     cli_args = {
@@ -135,19 +135,23 @@ def test_cli_alias_connection_key_sets_database_url() -> None:
 @pytest.mark.unit
 def test_invalid_cli_values_trigger_validation_error() -> None:
     """Invalid app-level values from CLI should be validated and rejected."""
-    with pytest.raises(ConfigValidationError, match="Max statements per file must be positive"):
+    with pytest.raises(
+        ConfigValidationError, match="Max statements per file must be positive"
+    ):
         AppConfig.load(cli_args={"max_statements_per_file": 0})
 
 
 @pytest.mark.unit
 def test_save_and_reload_round_trip(temp_dir: Path) -> None:
     """Configuration can be saved to JSON and reloaded with equivalent values."""
-    config = AppConfig.load(cli_args={
-        "database_url": "sqlite:///roundtrip.db",
-        "max_statements_per_file": 150,
-        "verbose": True,
-        "debug": True,
-    })
+    config = AppConfig.load(
+        cli_args={
+            "database_url": "sqlite:///roundtrip.db",
+            "max_statements_per_file": 150,
+            "verbose": True,
+            "debug": True,
+        }
+    )
 
     output_path = temp_dir / "saved.json"
     config.save(str(output_path))
@@ -173,16 +177,11 @@ def test_get_config_caches_loaded_config() -> None:
 def test_json_with_invalid_logging_values_keeps_defaults(temp_dir: Path) -> None:
     """Invalid logging enums in JSON should keep defaults without raising."""
     config_path = temp_dir / "bad_logging.json"
-    config_path.write_text(json.dumps({
-        "logging": {
-            "level": "INVALID",
-            "format": "INVALID"
-        }
-    }))
+    config_path.write_text(
+        json.dumps({"logging": {"level": "INVALID", "format": "INVALID"}})
+    )
 
     config = AppConfig.load(str(config_path))
 
     assert config.logging.level.value == "INFO"
     assert config.logging.format.value == "TEXT"
-
-

@@ -11,21 +11,21 @@ Copyright (c) 2025, Jim Schilling
 This module is licensed under the MIT License.
 """
 
-import json
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
+import json  # noqa: E402
+from dataclasses import dataclass  # noqa: E402
+from pathlib import Path  # noqa: E402
+from typing import Any  # noqa: E402
 
-from splurge_sql_runner.config.database_config import DatabaseConfig, ConnectionConfig
-from splurge_sql_runner.config.security_config import SecurityConfig
-from splurge_sql_runner.config.logging_config import LoggingConfig, LogLevel, LogFormat
-from splurge_sql_runner.config.constants import (
+from splurge_sql_runner.config.database_config import DatabaseConfig, ConnectionConfig  # noqa: E402
+from splurge_sql_runner.config.security_config import SecurityConfig  # noqa: E402
+from splurge_sql_runner.config.logging_config import LoggingConfig, LogLevel, LogFormat  # noqa: E402
+from splurge_sql_runner.config.constants import (  # noqa: E402
     DEFAULT_MAX_STATEMENTS_PER_FILE,
     DEFAULT_CONNECTION_TIMEOUT,
     DEFAULT_ENABLE_VERBOSE_OUTPUT,
     DEFAULT_ENABLE_DEBUG_MODE,
 )
-from splurge_sql_runner.errors import ConfigFileError, ConfigValidationError
+from splurge_sql_runner.errors import ConfigFileError, ConfigValidationError  # noqa: E402
 
 
 @dataclass
@@ -116,7 +116,9 @@ class AppConfig:
                 if "timeout" in conn_config:
                     config.database.connection.timeout = conn_config["timeout"]
                 if "application_name" in conn_config:
-                    config.database.connection.application_name = conn_config["application_name"]
+                    config.database.connection.application_name = conn_config[
+                        "application_name"
+                    ]
 
             if "enable_debug" in db_config:
                 config.database.enable_debug = db_config["enable_debug"]
@@ -129,10 +131,14 @@ class AppConfig:
                 config.security.enable_validation = sec_config["enable_validation"]
 
             if "max_statements_per_file" in sec_config:
-                config.security.max_statements_per_file = sec_config["max_statements_per_file"]
+                config.security.max_statements_per_file = sec_config[
+                    "max_statements_per_file"
+                ]
 
             if "allowed_file_extensions" in sec_config:
-                config.security.allowed_file_extensions = sec_config["allowed_file_extensions"]
+                config.security.allowed_file_extensions = sec_config[
+                    "allowed_file_extensions"
+                ]
 
         # Parse logging configuration
         if "logging" in config_data:
@@ -221,7 +227,9 @@ class AppConfig:
 
         if "max_statements_per_file" in cli_args:
             config.max_statements_per_file = cli_args["max_statements_per_file"]
-            config.security.max_statements_per_file = cli_args["max_statements_per_file"]
+            config.security.max_statements_per_file = cli_args[
+                "max_statements_per_file"
+            ]
 
         if "verbose" in cli_args:
             config.enable_verbose_output = cli_args["verbose"]
@@ -270,21 +278,24 @@ class AppConfig:
         """Merge database configurations."""
         # Use override URL if it's not empty, otherwise use base URL
         url = override.url if override.url else base.url
-        
+
         # Handle None values - use base value if override is None
         timeout = (
-            override.connection.timeout if override.connection.timeout is not None 
+            override.connection.timeout
+            if override.connection.timeout is not None
             else base.connection.timeout
         )
         application_name = (
-            override.connection.application_name if override.connection.application_name is not None 
+            override.connection.application_name
+            if override.connection.application_name is not None
             else base.connection.application_name
         )
         enable_debug = (
-            override.enable_debug if override.enable_debug is not None 
+            override.enable_debug
+            if override.enable_debug is not None
             else base.enable_debug
         )
-        
+
         return DatabaseConfig(
             url=url,
             connection=ConnectionConfig(
@@ -302,19 +313,22 @@ class AppConfig:
         """Merge security configurations."""
         # Use override value if it's not None/zero, otherwise use base value
         enable_validation = (
-            override.enable_validation if override.enable_validation is not None 
+            override.enable_validation
+            if override.enable_validation is not None
             else base.enable_validation
         )
         max_statements_per_file = (
-            override.max_statements_per_file 
-            if override.max_statements_per_file is not None and override.max_statements_per_file > 0 
+            override.max_statements_per_file
+            if override.max_statements_per_file is not None
+            and override.max_statements_per_file > 0
             else base.max_statements_per_file
         )
         allowed_file_extensions = (
-            override.allowed_file_extensions if override.allowed_file_extensions is not None 
+            override.allowed_file_extensions
+            if override.allowed_file_extensions is not None
             else base.allowed_file_extensions
         )
-        
+
         return SecurityConfig(
             enable_validation=enable_validation,
             max_statements_per_file=max_statements_per_file,
@@ -331,15 +345,23 @@ class AppConfig:
             level=override.level if override.level is not None else base.level,
             format=override.format if override.format is not None else base.format,
             enable_console=(
-                override.enable_console if override.enable_console is not None else base.enable_console
+                override.enable_console
+                if override.enable_console is not None
+                else base.enable_console
             ),
             enable_file=(
-                override.enable_file if override.enable_file is not None else base.enable_file
+                override.enable_file
+                if override.enable_file is not None
+                else base.enable_file
             ),
-            log_file=override.log_file if override.log_file is not None else base.log_file,
+            log_file=override.log_file
+            if override.log_file is not None
+            else base.log_file,
             log_dir=override.log_dir if override.log_dir is not None else base.log_dir,
             backup_count=(
-                override.backup_count if override.backup_count is not None else base.backup_count
+                override.backup_count
+                if override.backup_count is not None
+                else base.backup_count
             ),
         )
 

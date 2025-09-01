@@ -62,7 +62,9 @@ def statement_result_to_dict(result: StatementResult) -> dict[str, Any]:
     return ordered
 
 
-def results_to_dicts(results: list[StatementResult | dict[str, Any]]) -> list[dict[str, Any]]:
+def results_to_dicts(
+    results: list[StatementResult | dict[str, Any]],
+) -> list[dict[str, Any]]:
     """Normalize a list of mixed typed results or dicts to dicts."""
 
     normalized: list[dict[str, Any]] = []
@@ -72,5 +74,3 @@ def results_to_dicts(results: list[StatementResult | dict[str, Any]]) -> list[di
         else:
             normalized.append(item)
     return normalized
-
-

@@ -46,6 +46,7 @@ from splurge_sql_runner.errors.cli_errors import (
     CliExecutionError,
     CliSecurityError,
 )
+
 """Public error exports for splurge-sql-runner.
 
 Simplified to core error types for a CLI-focused library.
