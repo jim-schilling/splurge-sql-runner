@@ -8,7 +8,7 @@ ephemeral connections for executing batched SQL statements.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine, Connection
@@ -97,7 +97,7 @@ class DatabaseClient:
         *,
         connection: Connection | None = None,
         stop_on_error: bool = True,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Execute multiple SQL statements in a batch.
 
         Stops on the first failure and returns an error entry.
@@ -114,7 +114,7 @@ class DatabaseClient:
         if not statements:
             return []
 
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
         own_connection = False
         conn: Connection | None = connection
 
@@ -245,11 +245,11 @@ class DatabaseClient:
 
     def execute_statements(
         self,
-        statements: List[str],
+        statements: list[str],
         *,
         connection: Connection | None = None,
         stop_on_error: bool = True,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Execute a list of SQL statements sequentially.
 
         Args:
@@ -262,7 +262,7 @@ class DatabaseClient:
         if not statements:
             return []
 
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
         own_connection = False
         conn: Connection | None = connection
 

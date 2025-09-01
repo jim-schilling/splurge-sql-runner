@@ -10,7 +10,7 @@ This module is licensed under the MIT License.
 """
 
 import copy
-from typing import Any, Dict
+from typing import Any
 
 
 class SplurgeSqlRunnerError(Exception):
@@ -19,7 +19,7 @@ class SplurgeSqlRunnerError(Exception):
     def __init__(
         self,
         message: str,
-        context: Dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> None:
         """
         Initialize the base error.
@@ -34,7 +34,7 @@ class SplurgeSqlRunnerError(Exception):
         self._context = copy.deepcopy(context) if context is not None else {}
 
     @property
-    def context(self) -> Dict[str, Any]:
+    def context(self) -> dict[str, Any]:
         """Get the context information."""
         return self._context
 

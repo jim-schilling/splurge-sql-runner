@@ -15,7 +15,7 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from splurge_sql_runner.config.database_config import DatabaseConfig, ConnectionConfig
 from splurge_sql_runner.config.security_config import SecurityConfig
@@ -63,7 +63,7 @@ class AppConfig:
     def load(
         cls,
         config_file_path: str | None = None,
-        cli_args: Dict[str, Any] | None = None,
+        cli_args: dict[str, Any] | None = None,
     ) -> "AppConfig":
         """Load configuration from defaults, optional JSON file, and CLI args."""
         config = cls.create_default()
@@ -101,7 +101,7 @@ class AppConfig:
             raise ConfigFileError(f"Failed to read config file: {e}") from e
 
     @classmethod
-    def _parse_json_config(cls, config_data: Dict[str, Any]) -> "AppConfig":
+    def _parse_json_config(cls, config_data: dict[str, Any]) -> "AppConfig":
         """Parse JSON configuration data into AppConfig."""
         config = cls.create_default()
 
@@ -182,7 +182,7 @@ class AppConfig:
         return config
 
     @classmethod
-    def _load_cli_config(cls, cli_args: Dict[str, Any]) -> "AppConfig":
+    def _load_cli_config(cls, cli_args: dict[str, Any]) -> "AppConfig":
         """Load configuration from CLI arguments."""
         # Start with defaults, then neutralize fields we don't intend to override
         # so merge will only apply explicitly provided CLI values.

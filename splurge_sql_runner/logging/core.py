@@ -8,7 +8,7 @@ import logging
 import logging.handlers
 import sys
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
 
 from splurge_sql_runner.errors import ConfigValidationError
 
@@ -180,7 +180,7 @@ def configure_module_logging(
     return get_logger(f"splurge_sql_runner.{module_name}")
 
 
-def get_logging_config() -> Dict[str, Any]:
+def get_logging_config() -> dict[str, Any]:
     """
     Get the current logging configuration.
 

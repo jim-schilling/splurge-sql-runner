@@ -14,7 +14,7 @@ import argparse
 import glob
 import sys
 from pathlib import Path
-from typing import List, Dict, Any
+
 
 from splurge_sql_runner.config.app_config import AppConfig
 from splurge_sql_runner.config.constants import (

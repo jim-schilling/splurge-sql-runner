@@ -10,7 +10,7 @@ This module is licensed under the MIT License.
 """
 
 from dataclasses import dataclass, field
-from typing import List, Tuple
+
 
 from splurge_sql_runner.config.constants import (
     DANGEROUS_PATH_PATTERNS,
@@ -28,13 +28,13 @@ class ValidationConfig:
     """Input validation configuration."""
 
     # Dangerous path patterns that should be blocked
-    dangerous_path_patterns: Tuple[str, ...] = DANGEROUS_PATH_PATTERNS
+    dangerous_path_patterns: tuple[str, ...] = DANGEROUS_PATH_PATTERNS
 
     # Dangerous SQL patterns that should be blocked
-    dangerous_sql_patterns: Tuple[str, ...] = DANGEROUS_SQL_PATTERNS
+    dangerous_sql_patterns: tuple[str, ...] = DANGEROUS_SQL_PATTERNS
 
     # Dangerous URL patterns
-    dangerous_url_patterns: Tuple[str, ...] = DANGEROUS_URL_PATTERNS
+    dangerous_url_patterns: tuple[str, ...] = DANGEROUS_URL_PATTERNS
 
     # Maximum statement length
     max_statement_length: int = DEFAULT_MAX_STATEMENT_LENGTH
@@ -46,7 +46,7 @@ class SecurityConfig:
 
     enable_validation: bool = True
     max_statements_per_file: int = DEFAULT_MAX_STATEMENTS_PER_FILE
-    allowed_file_extensions: List[str] = field(default_factory=lambda: list(DEFAULT_ALLOWED_FILE_EXTENSIONS))
+    allowed_file_extensions: list[str] = field(default_factory=lambda: list(DEFAULT_ALLOWED_FILE_EXTENSIONS))
     validation: ValidationConfig = field(default_factory=ValidationConfig)
 
     def __post_init__(self) -> None:
