@@ -10,8 +10,8 @@ This module is licensed under the MIT License.
 
 from pathlib import Path
 import sqlparse
-from sqlparse.tokens import Comment, DML
-from sqlparse.sql import Statement, Token
+from sqlparse.tokens import Comment
+from sqlparse.sql import Token
 from splurge_sql_runner.errors import (
     SqlFileError,
     SqlValidationError,
@@ -19,7 +19,15 @@ from splurge_sql_runner.errors import (
 
 
 # Private constants for SQL statement types
-_FETCH_KEYWORDS: set[str] = {"SELECT", "VALUES", "SHOW", "EXPLAIN", "PRAGMA", "DESC", "DESCRIBE"}
+_FETCH_KEYWORDS: set[str] = {
+    "SELECT",
+    "VALUES",
+    "SHOW",
+    "EXPLAIN",
+    "PRAGMA",
+    "DESC",
+    "DESCRIBE",
+}
 _MODIFY_DML_KEYWORDS: set[str] = {"INSERT", "UPDATE", "DELETE"}
 
 # Private constants for SQL keywords and symbols
@@ -56,7 +64,6 @@ def remove_sql_comments(sql_text: str) -> str:
     return str(result) if result is not None else ""
 
 
-
 def normalize_token(token: Token) -> str:
     """
     Return the uppercased, stripped value of a token.
@@ -86,13 +93,13 @@ def _next_significant_token(
 def find_main_statement_after_with(tokens: list[Token]) -> str | None:
     """
     Find the main statement after CTE definitions by scanning tokens after WITH.
-    
+
     This unified scanner handles the complete CTE parsing logic:
     - Skips whitespace and comments
     - For each CTE: consumes optional column list (...), expects AS, then consumes balanced (...) body
     - After CTE body: if next significant token is comma, continues to next CTE; otherwise breaks
     - Returns the next significant keyword as the main statement
-    
+
     Args:
         tokens: List of sqlparse tokens to analyze (should be tokens after WITH keyword)
     Returns:
@@ -100,27 +107,27 @@ def find_main_statement_after_with(tokens: list[Token]) -> str | None:
     """
     i = 0
     n = len(tokens)
-    
+
     while i < n:
         token = tokens[i]
         token_value = normalize_token(token)
-        
+
         # Skip whitespace and comments
         if token.is_whitespace or token.ttype in Comment:
             i += 1
             continue
-            
+
         # Look for AS keyword (start of CTE definition)
         if token_value == _AS_KEYWORD:
             # Skip AS keyword
             i += 1
-            
+
             # Find next significant token after AS
             next_i, _ = _next_significant_token(tokens, start=i)
             if next_i is None:
                 return None
             i = next_i
-            
+
             # Check if next token is opening parenthesis (CTE body)
             if (
                 tokens[i].ttype == sqlparse.tokens.Punctuation
@@ -137,13 +144,13 @@ def find_main_statement_after_with(tokens: list[Token]) -> str | None:
                         elif t.value == _PAREN_CLOSE:
                             paren_level -= 1
                     i += 1
-                
+
                 # Find next significant token after CTE body
                 next_i, _ = _next_significant_token(tokens, start=i)
                 if next_i is None:
                     return None
                 i = next_i
-                
+
                 # Check if next token is comma (more CTEs to follow)
                 if (
                     tokens[i].ttype == sqlparse.tokens.Punctuation
@@ -160,12 +167,12 @@ def find_main_statement_after_with(tokens: list[Token]) -> str | None:
         else:
             # Not AS keyword - this might be the main statement
             i += 1
-    
+
     # Find the next significant token (the main statement)
     next_i, token = _next_significant_token(tokens, start=i)
     if next_i is None or token is None:
         return None
-        
+
     token_value = normalize_token(token)
     if token_value in _MODIFY_DML_KEYWORDS or token_value in _FETCH_KEYWORDS:
         return token_value
@@ -278,7 +285,7 @@ def detect_statement_type(sql: str) -> str:
         # Get all tokens after WITH keyword and use unified scanner
         after_with_tokens = tokens[1:]  # Skip the WITH token itself
         main_stmt = find_main_statement_after_with(after_with_tokens)
-        
+
         # Classify based on main statement type
         if main_stmt in _FETCH_KEYWORDS:
             return FETCH_STATEMENT
@@ -287,7 +294,7 @@ def detect_statement_type(sql: str) -> str:
     # All other statements: classify based on first keyword
     if token_value in _FETCH_KEYWORDS:
         return FETCH_STATEMENT
-    
+
     return EXECUTE_STATEMENT
 
 
@@ -413,7 +420,7 @@ def split_sql_file(
             >>> #     id INTEGER PRIMARY KEY,
             >>> #     name TEXT NOT NULL
             >>> # );
-            >>> # 
+            >>> #
             >>> # /* Insert sample data */
             >>> # INSERT INTO users (name) VALUES ('Alice'), ('Bob');
             >>> statements = split_sql_file("complex.sql")

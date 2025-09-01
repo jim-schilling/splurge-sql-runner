@@ -6,7 +6,6 @@ Tests security validation functionality using actual objects and real validation
 
 import tempfile
 import os
-from pathlib import Path
 
 import pytest
 
@@ -17,7 +16,6 @@ from splurge_sql_runner.errors.security_errors import (
     SecurityUrlError,
     SecurityValidationError,
 )
-from tests.test_utils import TestDataBuilder, TestFileHelper
 
 
 class TestSecurityValidator:
@@ -35,23 +33,23 @@ class TestSecurityValidator:
             dangerous_path_patterns=["dangerous", "malicious"],
             dangerous_sql_patterns=["DROP TABLE", "DELETE FROM"],
             dangerous_url_patterns=["http://evil.com"],
-            max_statement_length=1000
+            max_statement_length=1000,
         )
         return SecurityConfig(
             max_statements_per_file=10,
             allowed_file_extensions=[".sql", ".txt"],
-            validation=validation_config
+            validation=validation_config,
         )
 
     @pytest.fixture
     def temp_sql_file(self):
         """Create a temporary SQL file for testing."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".sql", delete=False) as f:
             f.write("SELECT * FROM users;")
             temp_file = f.name
-        
+
         yield temp_file
-        
+
         # Cleanup
         try:
             os.unlink(temp_file)
@@ -61,15 +59,15 @@ class TestSecurityValidator:
     @pytest.fixture
     def large_temp_file(self):
         """Create a large temporary file for testing."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".sql", delete=False) as f:
             # Write content that exceeds the 1MB limit (1MB = 1,048,576 bytes)
             # Each line is about 20 bytes, so we need about 52,429 lines
             large_content = "SELECT * FROM users;\n" * 60000  # Much larger than 1MB
             f.write(large_content)
             temp_file = f.name
-        
+
         yield temp_file
-        
+
         # Cleanup
         try:
             os.unlink(temp_file)
@@ -116,7 +114,9 @@ class TestValidateFilePath(TestSecurityValidator):
     def test_unsafe_path(self, default_security_config):
         """Test validation of unsafe path."""
         unsafe_path = "../../../etc/passwd"
-        with pytest.raises(SecurityFileError, match="File path contains dangerous pattern"):
+        with pytest.raises(
+            SecurityFileError, match="File path contains dangerous pattern"
+        ):
             SecurityValidator.validate_file_path(unsafe_path, default_security_config)
 
     def test_nonexistent_file_path(self, default_security_config):
@@ -129,11 +129,11 @@ class TestValidateFilePath(TestSecurityValidator):
         # Test .sql extension
         sql_path = "test.sql"
         SecurityValidator.validate_file_path(sql_path, custom_security_config)
-        
+
         # Test .txt extension
         txt_path = "test.txt"
         SecurityValidator.validate_file_path(txt_path, custom_security_config)
-        
+
         # Test .exe extension (should fail)
         exe_path = "test.exe"
         with pytest.raises(SecurityFileError, match="File extension not allowed"):
@@ -171,7 +171,9 @@ class TestValidateDatabaseUrl(TestSecurityValidator):
     def test_url_without_scheme(self, default_security_config):
         """Test validation of URL without scheme."""
         url = "localhost/database"
-        with pytest.raises(SecurityUrlError, match="Database URL must include a scheme"):
+        with pytest.raises(
+            SecurityUrlError, match="Database URL must include a scheme"
+        ):
             SecurityValidator.validate_database_url(url, default_security_config)
 
     def test_invalid_url_format(self, default_security_config):
@@ -195,7 +197,9 @@ class TestValidateDatabaseUrl(TestSecurityValidator):
     def test_unsafe_url(self, default_security_config):
         """Test validation of unsafe URL."""
         url = "sqlite:///../../../etc/passwd"
-        with pytest.raises(SecurityUrlError, match="Database URL contains dangerous path pattern"):
+        with pytest.raises(
+            SecurityUrlError, match="Database URL contains dangerous path pattern"
+        ):
             SecurityValidator.validate_database_url(url, default_security_config)
 
     def test_case_insensitive_pattern_matching(self, custom_security_config):
@@ -240,12 +244,16 @@ class TestValidateSqlContent(TestSecurityValidator):
         """Test validation of SQL with too many statements."""
         many_statements = "; ".join([f"SELECT {i} FROM users" for i in range(15)])
         with pytest.raises(SecurityValidationError, match="Too many SQL statements"):
-            SecurityValidator.validate_sql_content(many_statements, custom_security_config)
+            SecurityValidator.validate_sql_content(
+                many_statements, custom_security_config
+            )
 
     def test_unsafe_sql_content(self, default_security_config):
         """Test validation of unsafe SQL content."""
         unsafe_sql = "SELECT * FROM users; DROP DATABASE users;"
-        with pytest.raises(SecurityValidationError, match="SQL content contains dangerous pattern"):
+        with pytest.raises(
+            SecurityValidationError, match="SQL content contains dangerous pattern"
+        ):
             SecurityValidator.validate_sql_content(unsafe_sql, default_security_config)
 
     def test_complex_sql_with_comments(self, default_security_config):
@@ -345,45 +353,68 @@ class TestIsSafeMethods(TestSecurityValidator):
 
     def test_is_safe_file_path_valid(self, default_security_config):
         """Test is_safe_file_path with valid path."""
-        result = SecurityValidator.is_safe_file_path("test.sql", default_security_config)
+        result = SecurityValidator.is_safe_file_path(
+            "test.sql", default_security_config
+        )
         assert result is True
 
     def test_is_safe_file_path_invalid(self, custom_security_config):
         """Test is_safe_file_path with invalid path."""
-        result = SecurityValidator.is_safe_file_path("dangerous/file.sql", custom_security_config)
+        result = SecurityValidator.is_safe_file_path(
+            "dangerous/file.sql", custom_security_config
+        )
         assert result is False
 
     def test_is_safe_database_url_valid(self, default_security_config):
         """Test is_safe_database_url with valid URL."""
-        result = SecurityValidator.is_safe_database_url("sqlite:///test.db", default_security_config)
+        result = SecurityValidator.is_safe_database_url(
+            "sqlite:///test.db", default_security_config
+        )
         assert result is True
 
     def test_is_safe_database_url_invalid(self, custom_security_config):
         """Test is_safe_database_url with invalid URL."""
-        result = SecurityValidator.is_safe_database_url("sqlite:///dangerous/test.db", custom_security_config)
+        result = SecurityValidator.is_safe_database_url(
+            "sqlite:///dangerous/test.db", custom_security_config
+        )
         assert result is False
 
     def test_is_safe_sql_content_valid(self, default_security_config):
         """Test is_safe_sql_content with valid SQL."""
-        result = SecurityValidator.is_safe_sql_content("SELECT * FROM users", default_security_config)
+        result = SecurityValidator.is_safe_sql_content(
+            "SELECT * FROM users", default_security_config
+        )
         assert result is True
 
     def test_is_safe_sql_content_invalid(self, custom_security_config):
         """Test is_safe_sql_content with invalid SQL."""
-        result = SecurityValidator.is_safe_sql_content("DROP TABLE users", custom_security_config)
+        result = SecurityValidator.is_safe_sql_content(
+            "DROP TABLE users", custom_security_config
+        )
         assert result is False
 
     def test_is_safe_methods_with_exceptions(self, custom_security_config):
         """Test that is_safe methods catch exceptions and return False."""
         # Test with None values
-        assert SecurityValidator.is_safe_file_path(None, custom_security_config) is False
-        assert SecurityValidator.is_safe_database_url(None, custom_security_config) is False
-        assert SecurityValidator.is_safe_sql_content(None, custom_security_config) is True  # Empty SQL is allowed
+        assert (
+            SecurityValidator.is_safe_file_path(None, custom_security_config) is False
+        )
+        assert (
+            SecurityValidator.is_safe_database_url(None, custom_security_config)
+            is False
+        )
+        assert (
+            SecurityValidator.is_safe_sql_content(None, custom_security_config) is True
+        )  # Empty SQL is allowed
 
         # Test with empty values
         assert SecurityValidator.is_safe_file_path("", custom_security_config) is False
-        assert SecurityValidator.is_safe_database_url("", custom_security_config) is False
-        assert SecurityValidator.is_safe_sql_content("", custom_security_config) is True  # Empty SQL is allowed
+        assert (
+            SecurityValidator.is_safe_database_url("", custom_security_config) is False
+        )
+        assert (
+            SecurityValidator.is_safe_sql_content("", custom_security_config) is True
+        )  # Empty SQL is allowed
 
 
 class TestSecurityValidatorIntegration(TestSecurityValidator):
@@ -393,30 +424,36 @@ class TestSecurityValidatorIntegration(TestSecurityValidator):
         """Test a complete validation workflow."""
         # Validate file path
         SecurityValidator.validate_file_path(temp_sql_file, custom_security_config)
-        
+
         # Validate database URL
         db_url = "sqlite:///test.db"
         SecurityValidator.validate_database_url(db_url, custom_security_config)
-        
+
         # Validate SQL content
         sql_content = "SELECT * FROM users WHERE active = 1"
         SecurityValidator.validate_sql_content(sql_content, custom_security_config)
-        
+
         # All validations should pass without exceptions
 
     def test_validation_with_dangerous_content(self, custom_security_config):
         """Test validation with various dangerous content."""
         # Test dangerous file path
         with pytest.raises(SecurityFileError):
-            SecurityValidator.validate_file_path("dangerous/file.sql", custom_security_config)
-        
+            SecurityValidator.validate_file_path(
+                "dangerous/file.sql", custom_security_config
+            )
+
         # Test dangerous database URL
         with pytest.raises(SecurityUrlError):
-            SecurityValidator.validate_database_url("sqlite:///dangerous/test.db", custom_security_config)
-        
+            SecurityValidator.validate_database_url(
+                "sqlite:///dangerous/test.db", custom_security_config
+            )
+
         # Test dangerous SQL content
         with pytest.raises(SecurityValidationError):
-            SecurityValidator.validate_sql_content("DROP TABLE users", custom_security_config)
+            SecurityValidator.validate_sql_content(
+                "DROP TABLE users", custom_security_config
+            )
 
     def test_validation_with_large_files(self, custom_security_config, large_temp_file):
         """Large files pass path validation; SQL content checks still apply elsewhere."""
@@ -443,11 +480,11 @@ class TestSecurityValidatorIntegration(TestSecurityValidator):
         # Test very long but safe SQL
         long_safe_sql = "SELECT " + "1, " * 100 + "1"
         SecurityValidator.validate_sql_content(long_safe_sql, default_security_config)
-        
+
         # Test SQL with many statements but under limit
         many_statements = "; ".join([f"SELECT {i}" for i in range(5)])
         SecurityValidator.validate_sql_content(many_statements, default_security_config)
-        
+
         # Test file path with special characters
         special_path = "test-file_with.underscores.sql"
         SecurityValidator.validate_file_path(special_path, default_security_config)

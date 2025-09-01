@@ -283,13 +283,189 @@ pip install -e ".[dev]"
 # Run tests
 pytest -x -v
 
+# Run specific test types
+python tests/run_tests.py unit              # Run unit tests only
+python tests/run_tests.py integration       # Run integration tests only
+python tests/run_tests.py e2e               # Run end-to-end tests only
+python tests/run_tests.py all --coverage    # Run all tests with coverage
+python tests/run_tests.py coverage          # Generate coverage report
+
 # Run linting
 flake8 splurge_sql_runner/
 black splurge_sql_runner/
 mypy splurge_sql_runner/
 ```
 
+## Testing
+
+This project uses a comprehensive multi-layered testing approach to ensure quality and reliability:
+
+### Test Structure
+
+```
+tests/
+├── conftest.py              # Shared test fixtures and configuration
+├── run_tests.py             # Test runner script for different test types
+├── integration/             # Integration tests
+│   ├── __init__.py
+│   ├── test_database_operations.py
+│   ├── test_config_integration.py
+│   └── test_sql_processing.py
+├── e2e/                     # End-to-end tests
+│   ├── __init__.py
+│   └── test_cli_workflow.py
+└── [existing unit tests]    # Unit tests for individual components
+```
+
+### Test Types
+
+#### Unit Tests (`tests/test_*.py`)
+- Test individual components in isolation
+- Focus on specific functions, classes, and methods
+- Use mocks for external dependencies where appropriate
+- Fast execution, high coverage of edge cases
+
+#### Integration Tests (`tests/integration/`)
+- Test component interactions and data flow
+- Use real database connections (SQLite for testing)
+- Verify that components work together correctly
+- Focus on realistic usage scenarios
+
+#### End-to-End Tests (`tests/e2e/`)
+- Test complete workflows from CLI to database
+- Use actual command-line invocations
+- Verify the full application lifecycle
+- Include error handling and recovery scenarios
+
+### Test Markers
+
+The project uses pytest markers to categorize tests:
+
+- `@pytest.mark.unit` - Unit tests
+- `@pytest.mark.integration` - Integration tests
+- `@pytest.mark.e2e` - End-to-end tests
+- `@pytest.mark.slow` - Slow-running tests
+- `@pytest.mark.database` - Database-dependent tests
+- `@pytest.mark.security` - Security-focused tests
+- `@pytest.mark.performance` - Performance tests
+
+### Running Tests
+
+#### Using the Test Runner Script
+```bash
+# Run all tests
+python tests/run_tests.py all
+
+# Run specific test types
+python tests/run_tests.py unit
+python tests/run_tests.py integration
+python tests/run_tests.py e2e
+
+# Run with coverage
+python tests/run_tests.py all --coverage
+python tests/run_tests.py coverage  # Generate HTML coverage report
+```
+
+#### Using Pytest Directly
+```bash
+# Run all tests
+pytest
+
+# Run specific test types
+pytest -m unit
+pytest -m integration
+pytest -m e2e
+
+# Run with coverage
+pytest --cov=splurge_sql_runner --cov-report=html --cov-report=term-missing
+
+# Run specific test files
+pytest tests/integration/test_database_operations.py
+pytest tests/e2e/test_cli_workflow.py
+```
+
+### Test Coverage
+
+The project maintains high test coverage with a target of 85% across all modules:
+
+- **Current Coverage**: 30% (baseline before recent improvements)
+- **Target Coverage**: 85% for all public interfaces
+- **Coverage Reports**: Generated in `htmlcov/` directory
+
+### Test Data and Fixtures
+
+The testing framework provides comprehensive fixtures for common testing scenarios:
+
+- **Database fixtures**: SQLite in-memory and file-based databases
+- **Configuration fixtures**: Valid and invalid configuration data
+- **SQL fixtures**: Sample SQL files with various constructs
+- **CLI fixtures**: Simulated command-line arguments and outputs
+
+### Continuous Integration
+
+Tests are designed to run in CI/CD environments with:
+
+- Parallel test execution support (`pytest-xdist`)
+- Proper isolation between test runs
+- Comprehensive error reporting
+- Coverage reporting integration
+
+### Writing Tests
+
+When adding new tests:
+
+1. **Unit Tests**: Place in `tests/` directory with descriptive names
+2. **Integration Tests**: Place in `tests/integration/` directory
+3. **E2E Tests**: Place in `tests/e2e/` directory
+4. **Use appropriate markers**: `@pytest.mark.unit`, `@pytest.mark.integration`, etc.
+5. **Follow naming conventions**: `test_*` for functions, `Test*` for classes
+6. **Use fixtures**: Leverage existing fixtures from `conftest.py`
+7. **Test real behavior**: Prefer real objects over mocks where possible
+
+### Test Quality Standards
+
+- **Public API focus**: Test observable behavior, not implementation details
+- **Real data**: Use actual data and realistic scenarios
+- **Error handling**: Test both success and failure paths
+- **Performance awareness**: Mark slow tests appropriately
+- **Documentation**: Include docstrings explaining test purpose
+
 ## Changelog
+
+### 2025.4.1 (09-01-2025)
+
+- **Enhanced Security Validation and Testing Framework**
+  - **Comprehensive Security Test Suite**: Added extensive unit tests for `SecurityValidator` class covering file path, database URL, and SQL content validation
+  - **Security Error Handling**: Implemented proper catching of `SecurityFileError` and `SecurityValidationError` in CLI with enhanced error context and user guidance
+  - **File Extension Validation**: Added CLI tests for security validation of disallowed file extensions
+  - **Pattern Matching**: Enhanced case-insensitive pattern matching for dangerous path and SQL patterns
+  - **Edge Case Coverage**: Added tests for empty/None values, large files, and complex validation scenarios
+
+- **Improved Database Client and Transaction Handling**
+  - **Enhanced Error Handling Modes**: Added comprehensive unit tests for `DatabaseClient.execute_statements` API with both `stop_on_error=True` and `stop_on_error=False` modes
+  - **Transaction Safety**: Verified rollback behavior in batch operations when errors occur
+  - **Statement Type Detection**: Enhanced detection of uncommon SQL statement types (VALUES, DESC/DESCRIBE, EXPLAIN, SHOW, PRAGMA, WITH ... INSERT/UPDATE/DELETE CTE patterns)
+
+- **SQL Parser Robustness**
+  - **String Literal Handling**: Added integration tests for semicolons inside string literals to ensure proper parsing
+  - **Edge Case Testing**: Enhanced parsing of complex SQL with comments, whitespace, and special characters
+  - **Statement Classification**: Improved accuracy of SQL statement type detection across various database dialects
+
+- **Code Quality & Refactoring**: Comprehensive code cleanup and optimization across the entire codebase
+  - **Removed unused variables**: Cleaned up unused variable declarations in `database_client.py` and other modules
+  - **Fixed import organization**: Moved all import statements to top of modules where possible for better maintainability
+  - **Enhanced code structure**: Refactored code for improved readability and consistency across multiple modules
+  - **Type hint improvements**: Updated and refined type hints in configuration and database modules
+  - **CLI output optimization**: Fixed fallback assignment for `tabulate` in `cli_output.py` to ensure clarity in code structure
+  - **Import cleanup**: Refactored imports and cleaned up code across multiple modules for better organization
+
+- **Documentation**: Added comprehensive coding standards documentation files
+  - Added `.cursor/rules/` directory with detailed coding standards for the project
+  - Included standards for code design, style, development approach, documentation, methods, naming conventions, project organization, Python standards, and testing
+
+- **Version Update**: Updated version to 2025.4.1 in `pyproject.toml`
+- **Backward Compatibility**: All changes maintain backward compatibility with existing APIs and functionality
+- **Test Coverage**: Maintained existing test coverage with all tests passing after refactoring
 
 ### 2025.4.0 (08-24-2025)
 

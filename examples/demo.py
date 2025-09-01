@@ -9,37 +9,101 @@ import subprocess
 import sys
 import os
 import tempfile
-import time
 from pathlib import Path
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 
+def sanitize_shell_arguments(args: list) -> list:
+    """
+    Sanitize shell command arguments to prevent shell injection attacks.
+
+    This is a self-contained implementation for demo purposes.
+    In production, use proper security validation libraries.
+    """
+    if not isinstance(args, list):
+        raise ValueError("args must be a list of strings")
+
+    # Dangerous characters that could enable shell injection
+    dangerous_chars = (
+        # Command separators and pipes
+        ';', '|', '&&', '||',
+
+        # Command substitution and evaluation
+        '`', '$(', '${',
+
+        # Redirection operators
+        '>>', '<<', '<<<',
+
+        # Character classes (dangerous for injection)
+        '[', ']',
+
+        # Escaping and quotes
+        '\'', '"',
+
+        # History expansion
+        '!',
+
+        # Whitespace that can separate commands
+        ' ', '\t', '\n', '\r',
+
+        # Process substitution
+        '<(', '>(',
+
+        # Single-character operators that could be dangerous
+        '&', '<', '>', '$', '(', ')',
+    )
+
+    sanitized_args = []
+    for arg in args:
+        if not isinstance(arg, str):
+            raise ValueError("All command arguments must be strings")
+
+        # Check for dangerous characters
+        if any(char in arg for char in dangerous_chars):
+            raise ValueError(f"Potentially dangerous characters found in argument: {arg}")
+
+        sanitized_args.append(arg)
+
+    return sanitized_args
+
+
 def run_command(cmd: list, description: str = "") -> bool:
     """Run a command and display the result."""
+    # Validate input command
+    if not isinstance(cmd, list):
+        raise ValueError("cmd must be a list of strings")
+
+    # Sanitize command arguments to prevent shell injection
+    sanitized_cmd = sanitize_shell_arguments(cmd)
     if description:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(description)
-        print(f"{'='*60}")
-    
-    print(f"Running: {' '.join(cmd)}")
-    
+        print(f"{'=' * 60}")
+
+    print(f"Running: {' '.join(sanitized_cmd)}")
+
     try:
         result = subprocess.run(
-            cmd,
+            sanitized_cmd,
             capture_output=True,
             text=True,
-            encoding='utf-8',
-            errors='replace',
-            timeout=30
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+            shell=False,
         )
-        
+
         if result.returncode == 0:
             print("✅ Command completed successfully")
             if result.stdout:
                 print("Output:")
-                print(result.stdout[:1000] + "..." if len(result.stdout) > 1000 else result.stdout)
+                print(
+                    result.stdout[:1000] + "..."
+                    if len(result.stdout) > 1000
+                    else result.stdout
+                )
             return True
         else:
             print(f"❌ Command failed with exit code {result.returncode}")
@@ -47,7 +111,7 @@ def run_command(cmd: list, description: str = "") -> bool:
                 print("Error:")
                 print(result.stderr)
             return False
-            
+
     except subprocess.TimeoutExpired:
         print("❌ Command timed out")
         return False
@@ -60,20 +124,21 @@ def create_demo_sql_file(content: str, filename: str) -> str:
     """Create a temporary SQL file with the given content."""
     temp_dir = tempfile.mkdtemp()
     file_path = os.path.join(temp_dir, filename)
-    
-    with open(file_path, 'w') as f:
+
+    with open(file_path, "w") as f:
         f.write(content)
-    
+
     return file_path
 
 
 def main():
     """Run the CLI demonstration."""
     print("splurge-sql-runner CLI Demonstration")
-    print("="*60)
-    
+    print("=" * 60)
+
     try:
-        import splurge_sql_runner
+        import splurge_sql_runner  # noqa: F401
+
         print("✅ splurge-sql-runner is available")
     except ImportError as e:
         print(f"❌ splurge-sql-runner is not available: {e}")
@@ -81,13 +146,13 @@ def main():
         print("Or run from the project root directory")
         print("For development, make sure you're in the project root directory")
         sys.exit(1)
-    
+
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp_db:
         db_path = tmp_db.name
-    
+
     try:
         print(f"\nUsing temporary database: {db_path}")
-        
+
         setup_sql = """
 -- Basic setup demonstration
 CREATE TABLE IF NOT EXISTS demo_users (
@@ -107,20 +172,27 @@ INSERT INTO demo_users (name, email) VALUES
 SELECT 'Setup completed successfully' as status;
 SELECT COUNT(*) as user_count FROM demo_users;
 """
-        
+
         setup_file = create_demo_sql_file(setup_sql, "setup.sql")
-        
-        success = run_command([
-            sys.executable, "-m", "splurge_sql_runner",
-            "-c", f"sqlite:///{db_path}",
-            "-f", setup_file,
-            "-v"
-        ], "Step 1: Basic Database Setup")
-        
+
+        success = run_command(
+            [
+                sys.executable,
+                "-m",
+                "splurge_sql_runner",
+                "-c",
+                f"sqlite:///{db_path}",
+                "-f",
+                setup_file,
+                "-v",
+            ],
+            "Step 1: Basic Database Setup",
+        )
+
         if not success:
             print("❌ Setup failed, stopping demonstration")
             return
-        
+
         migration_sql = """
 -- Migration demonstration
 ALTER TABLE demo_users ADD COLUMN role TEXT DEFAULT 'user';
@@ -151,20 +223,27 @@ SELECT 'Migration completed successfully' as status;
 SELECT COUNT(*) as post_count FROM demo_posts;
 SELECT role, COUNT(*) as count FROM demo_users GROUP BY role;
 """
-        
+
         migration_file = create_demo_sql_file(migration_sql, "migration.sql")
-        
-        success = run_command([
-            sys.executable, "-m", "splurge_sql_runner",
-            "-c", f"sqlite:///{db_path}",
-            "-f", migration_file,
-            "-v"
-        ], "Step 2: Database Migration")
-        
+
+        success = run_command(
+            [
+                sys.executable,
+                "-m",
+                "splurge_sql_runner",
+                "-c",
+                f"sqlite:///{db_path}",
+                "-f",
+                migration_file,
+                "-v",
+            ],
+            "Step 2: Database Migration",
+        )
+
         if not success:
             print("❌ Migration failed, stopping demonstration")
             return
-        
+
         analysis_sql = """
 -- Data analysis demonstration
 SELECT '=== DATA ANALYSIS DEMONSTRATION ===' as section;
@@ -198,24 +277,31 @@ LEFT JOIN demo_posts p ON u.id = p.user_id
 GROUP BY u.id, u.name, u.role
 ORDER BY post_count DESC;
 """
-        
+
         analysis_file = create_demo_sql_file(analysis_sql, "analysis.sql")
-        
-        success = run_command([
-            sys.executable, "-m", "splurge_sql_runner",
-            "-c", f"sqlite:///{db_path}",
-            "-f", analysis_file,
-            "-v"
-        ], "Step 3: Data Analysis")
-        
+
+        success = run_command(
+            [
+                sys.executable,
+                "-m",
+                "splurge_sql_runner",
+                "-c",
+                f"sqlite:///{db_path}",
+                "-f",
+                analysis_file,
+                "-v",
+            ],
+            "Step 3: Data Analysis",
+        )
+
         if not success:
             print("❌ Analysis failed, stopping demonstration")
             return
-        
-        print(f"\n{'='*60}")
+
+        print(f"\n{'=' * 60}")
         print("Step 4: Pattern Matching Demonstration")
-        print(f"{'='*60}")
-        
+        print(f"{'=' * 60}")
+
         # Create multiple SQL files
         file1_sql = """
 SELECT 'File 1 executed' as result;
@@ -226,79 +312,114 @@ SELECT 'File 2 executed' as result;
         file3_sql = """
 SELECT 'File 3 executed' as result;
 """
-        
+
         temp_dir = tempfile.mkdtemp()
         file1_path = os.path.join(temp_dir, "file1.sql")
         file2_path = os.path.join(temp_dir, "file2.sql")
         file3_path = os.path.join(temp_dir, "file3.sql")
-        
-        with open(file1_path, 'w') as f:
+
+        with open(file1_path, "w") as f:
             f.write(file1_sql)
-        with open(file2_path, 'w') as f:
+        with open(file2_path, "w") as f:
             f.write(file2_sql)
-        with open(file3_path, 'w') as f:
+        with open(file3_path, "w") as f:
             f.write(file3_sql)
-        
-        success = run_command([
-            sys.executable, "-m", "splurge_sql_runner",
-            "-c", f"sqlite:///{db_path}",
-            "-p", f"{temp_dir}/*.sql",
-            "-v"
-        ], "Processing multiple files with pattern matching")
-        
-        print(f"\n{'='*60}")
+
+        success = run_command(
+            [
+                sys.executable,
+                "-m",
+                "splurge_sql_runner",
+                "-c",
+                f"sqlite:///{db_path}",
+                "-p",
+                f"{temp_dir}/*.sql",
+                "-v",
+            ],
+            "Processing multiple files with pattern matching",
+        )
+
+        print(f"\n{'=' * 60}")
         print("Step 5: Error Handling Demonstration")
-        print(f"{'='*60}")
-        
+        print(f"{'=' * 60}")
+
         print("Testing with non-existent file...")
-        run_command([
-            sys.executable, "-m", "splurge_sql_runner",
-            "-c", f"sqlite:///{db_path}",
-            "-f", "nonexistent.sql"
-        ], "Error handling: Non-existent file")
-        
+        run_command(
+            [
+                sys.executable,
+                "-m",
+                "splurge_sql_runner",
+                "-c",
+                f"sqlite:///{db_path}",
+                "-f",
+                "nonexistent.sql",
+            ],
+            "Error handling: Non-existent file",
+        )
+
         invalid_sql = """
 -- Invalid SQL demonstration
 SELECT * FROM nonexistent_table;
 INSERT INTO demo_users (invalid_column) VALUES ('test');
 """
-        
+
         invalid_file = create_demo_sql_file(invalid_sql, "invalid.sql")
-        
-        run_command([
-            sys.executable, "-m", "splurge_sql_runner",
-            "-c", f"sqlite:///{db_path}",
-            "-f", invalid_file,
-            "-v"
-        ], "Error handling: Invalid SQL")
-        
-        print(f"\n{'='*60}")
+
+        run_command(
+            [
+                sys.executable,
+                "-m",
+                "splurge_sql_runner",
+                "-c",
+                f"sqlite:///{db_path}",
+                "-f",
+                invalid_file,
+                "-v",
+            ],
+            "Error handling: Invalid SQL",
+        )
+
+        print(f"\n{'=' * 60}")
         print("Step 6: Security Features Demonstration")
-        print(f"{'='*60}")
-        
+        print(f"{'=' * 60}")
+
         security_sql = """
 -- Security demonstration
 SELECT 'Security validation is enabled by default' as info;
 SELECT 'This query should execute normally' as result;
 """
-        
+
         security_file = create_demo_sql_file(security_sql, "security.sql")
-        
-        run_command([
-            sys.executable, "-m", "splurge_sql_runner",
-            "-c", f"sqlite:///{db_path}",
-            "-f", security_file,
-            "-v"
-        ], "Security: Default validation")
-        
-        run_command([
-            sys.executable, "-m", "splurge_sql_runner",
-            "-c", f"sqlite:///{db_path}",
-            "-f", security_file,
-            # Security is always enforced; adjust config if needed
-            "-v"
-        ], "Security: Validation disabled")
-        
+
+        run_command(
+            [
+                sys.executable,
+                "-m",
+                "splurge_sql_runner",
+                "-c",
+                f"sqlite:///{db_path}",
+                "-f",
+                security_file,
+                "-v",
+            ],
+            "Security: Default validation",
+        )
+
+        run_command(
+            [
+                sys.executable,
+                "-m",
+                "splurge_sql_runner",
+                "-c",
+                f"sqlite:///{db_path}",
+                "-f",
+                security_file,
+                # Security is always enforced; adjust config if needed
+                "-v",
+            ],
+            "Security: Validation disabled",
+        )
+
         verification_sql = """
 -- Final verification
 SELECT '=== FINAL VERIFICATION ===' as section;
@@ -319,19 +440,26 @@ ORDER BY post_count DESC;
 
 SELECT 'Demonstration completed successfully!' as final_status;
 """
-        
+
         verification_file = create_demo_sql_file(verification_sql, "verification.sql")
-        
-        success = run_command([
-            sys.executable, "-m", "splurge_sql_runner",
-            "-c", f"sqlite:///{db_path}",
-            "-f", verification_file,
-            "-v"
-        ], "Step 7: Final Verification")
-        
-        print(f"\n{'='*60}")
+
+        success = run_command(
+            [
+                sys.executable,
+                "-m",
+                "splurge_sql_runner",
+                "-c",
+                f"sqlite:///{db_path}",
+                "-f",
+                verification_file,
+                "-v",
+            ],
+            "Step 7: Final Verification",
+        )
+
+        print(f"\n{'=' * 60}")
         print("DEMONSTRATION SUMMARY")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print("✅ Basic database setup")
         print("✅ Database migration")
         print("✅ Data analysis")
@@ -342,18 +470,25 @@ SELECT 'Demonstration completed successfully!' as final_status;
         print("\n🎉 CLI demonstration completed successfully!")
         print(f"\nDatabase file: {db_path}")
         print("You can inspect this file with any SQLite browser.")
-        
-        print(f"\nNext steps:")
+
+        print("\nNext steps:")
         print("1. Try the examples in the examples/ directory")
         print("2. Run: python examples/test_cli.py")
         print("3. Run: ./examples/deploy_database.sh")
         print("4. Check examples/cli_examples.md for more examples")
-        
+
     finally:
         if os.path.exists(db_path):
             os.unlink(db_path)
-        
-        for temp_file in [setup_file, migration_file, analysis_file, invalid_file, security_file, verification_file]:
+
+        for temp_file in [
+            setup_file,
+            migration_file,
+            analysis_file,
+            invalid_file,
+            security_file,
+            verification_file,
+        ]:
             if os.path.exists(temp_file):
                 os.unlink(temp_file)
                 os.rmdir(os.path.dirname(temp_file))

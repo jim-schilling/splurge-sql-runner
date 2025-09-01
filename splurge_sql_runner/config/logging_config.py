@@ -67,7 +67,9 @@ class LoggingConfig:
             raise ConfigValidationError("Backup count must be non-negative")
 
         if self.enable_file and not self.log_file and not self.log_dir:
-            raise ConfigValidationError("Log file or directory must be specified when file logging is enabled")
+            raise ConfigValidationError(
+                "Log file or directory must be specified when file logging is enabled"
+            )
 
     @classmethod
     def from_dict(cls, config_dict: dict) -> "LoggingConfig":

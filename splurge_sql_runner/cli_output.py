@@ -12,7 +12,7 @@ from typing import Any
 try:
     from tabulate import tabulate  # type: ignore
 except Exception:  # pragma: no cover - fallback when tabulate unavailable
-    tabulate = None  # type: ignore[assignment]
+    tabulate = None
 
 
 # Private constants for rendering
@@ -57,7 +57,7 @@ def simple_table_format(
     header_line = "|"
     separator_line = "|"
     for header, width in zip(headers, col_widths):
-        header_line += f" {str(header):<{width-1}}|"
+        header_line += f" {str(header):<{width - 1}}|"
         separator_line += "-" * width + "|"
 
     lines.append(header_line)
@@ -67,7 +67,7 @@ def simple_table_format(
         row_line = "|"
         for i, value in enumerate(row):
             width = col_widths[i] if i < len(col_widths) else _DEFAULT_COLUMN_WIDTH
-            row_line += f" {str(value):<{width-1}}|"
+            row_line += f" {str(value):<{width - 1}}|"
         lines.append(row_line)
 
     return "\n".join(lines)
@@ -92,22 +92,22 @@ def pretty_print_results(
         payload = []
         for result in results:
             entry = dict(result)
-            if file_path and 'file_path' not in entry:
-                entry['file_path'] = file_path
+            if file_path and "file_path" not in entry:
+                entry["file_path"] = file_path
             payload.append(entry)
 
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return
 
     if file_path:
-        print(f"\n{'='*_SEPARATOR_LENGTH}")
+        print(f"\n{'=' * _SEPARATOR_LENGTH}")
         print(f"Results for: {file_path}")
-        print(f"{'='*_SEPARATOR_LENGTH}")
+        print(f"{'=' * _SEPARATOR_LENGTH}")
 
     for i, result in enumerate(results):
         print(f"\nStatement {i + 1}:")
 
-        result_file_path = result.get('file_path') or file_path
+        result_file_path = result.get("file_path") or file_path
         if result_file_path:
             print(f"File: {result_file_path}")
 
@@ -138,5 +138,3 @@ def pretty_print_results(
                 print(f"{prefix} {_SUCCESS_MESSAGE}")
 
         print("-" * _DASH_SEPARATOR_LENGTH)
-
-

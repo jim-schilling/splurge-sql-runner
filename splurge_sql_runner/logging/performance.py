@@ -38,7 +38,9 @@ class PerformanceLogger:
             duration: Duration in seconds
             **context: Additional context information
         """
-        context_str = " | ".join(f"{k}={v}" for k, v in context.items()) if context else ""
+        context_str = (
+            " | ".join(f"{k}={v}" for k, v in context.items()) if context else ""
+        )
         message = f"Performance: {operation} took {duration:.3f}s"
         if context_str:
             message += f" | {context_str}"
@@ -51,7 +53,9 @@ class PerformanceLogger:
         else:
             self._logger.debug(message)
 
-    def time_operation(self, operation: str, **context: Any) -> Callable[[Callable[P, T]], Callable[P, T]]:
+    def time_operation(
+        self, operation: str, **context: Any
+    ) -> Callable[[Callable[P, T]], Callable[P, T]]:
         """
         Decorator to time function execution.
 
@@ -79,7 +83,9 @@ class PerformanceLogger:
         return decorator
 
 
-def log_performance(operation: str, **context: Any) -> Callable[[Callable[P, T]], Callable[P, T]]:
+def log_performance(
+    operation: str, **context: Any
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """
     Decorator to log performance of function execution.
 
@@ -95,6 +101,7 @@ def log_performance(operation: str, **context: Any) -> Callable[[Callable[P, T]]
         @wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             from splurge_sql_runner.logging.core import get_logger
+
             logger = get_logger()
             perf_logger = PerformanceLogger(logger)
 
@@ -124,6 +131,7 @@ def performance_context(operation: str, **context: Any):
         PerformanceLogger instance
     """
     from splurge_sql_runner.logging.core import get_logger
+
     logger = get_logger()
     perf_logger = PerformanceLogger(logger)
 

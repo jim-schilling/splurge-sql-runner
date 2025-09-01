@@ -181,7 +181,7 @@ class LogContext:
     """
     Context manager and decorator for temporary contextual logging.
     """
-    
+
     def __init__(self, **context: Any):
         """
         Initialize log context.
@@ -190,7 +190,7 @@ class LogContext:
             **context: Contextual key-value pairs
         """
         self._context = context
-    
+
     def __enter__(self):
         """Enter context manager."""
         # Get the current thread's context
@@ -199,6 +199,7 @@ class LogContext:
 
         # Create contextual logger
         from splurge_sql_runner.logging.core import get_logger
+
         base_logger = get_logger()
         self._contextual_logger = ContextualLogger(base_logger)
 
@@ -207,21 +208,23 @@ class LogContext:
         self._contextual_logger.bind(**self._context)
 
         return self._contextual_logger
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Exit context manager."""
         # Remove context
         if _thread_local.context_stack:
             _thread_local.context_stack.pop()
-    
+
     def __call__(self, func):
         """Use as decorator."""
+
         def wrapper(*args, **kwargs):
             with self as contextual_logger:
                 # Make the contextual logger available to the function
-                if not hasattr(func, '_contextual_logger'):
+                if not hasattr(func, "_contextual_logger"):
                     func._contextual_logger = contextual_logger
                 return func(*args, **kwargs)
+
         return wrapper
 
 
@@ -232,10 +235,10 @@ def log_context(*args, **context: Any):
     Can be used as:
         @log_context
         def func(): pass
-        
+
         @log_context(correlation_id="123")
         def func(): pass
-        
+
         with log_context(correlation_id="123"):
             pass
 
@@ -251,7 +254,7 @@ def log_context(*args, **context: Any):
         func = args[0]
         log_context_instance = LogContext()
         return log_context_instance(func)
-    
+
     # Otherwise, return LogContext instance
     return LogContext(**context)
 
@@ -269,16 +272,17 @@ def get_contextual_logger(name: str | None = None) -> ContextualLogger:
     # Use default name if none provided
     if name is None:
         name = "splurge_sql_runner"
-    
+
     # Return cached instance if available
     if name in _contextual_logger_cache:
         return _contextual_logger_cache[name]
-    
+
     # Create new instance and cache it
     from splurge_sql_runner.logging.core import get_logger
+
     # Always use the main logger to ensure it has the proper configuration
     base_logger = get_logger("splurge_sql_runner")
     contextual_logger = ContextualLogger(base_logger, custom_name=name)
     _contextual_logger_cache[name] = contextual_logger
-    
+
     return contextual_logger

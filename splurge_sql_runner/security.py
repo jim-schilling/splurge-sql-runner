@@ -10,10 +10,12 @@ This module is licensed under the MIT License.
 
 import re
 from pathlib import Path
+from typing import List
 
 from urllib.parse import urlparse
 
 from splurge_sql_runner.config.security_config import SecurityConfig
+from splurge_sql_runner.utils.security_utils import sanitize_shell_arguments as _sanitize_shell_arguments
 from splurge_sql_runner.errors.security_errors import (
     SecurityValidationError,
     SecurityFileError,
@@ -130,7 +132,7 @@ class SecurityValidator:
             SecurityValidationError: If SQL contains dangerous patterns or is invalid
         """
         if not sql_content:
-            return  
+            return
 
         # Check for dangerous SQL patterns
         sql_upper = sql_content.upper()
@@ -148,6 +150,7 @@ class SecurityValidator:
 
         # Check number of statements using proper SQL parsing
         from splurge_sql_runner.sql_helper import parse_sql_statements
+
         statements = parse_sql_statements(sql_content)
         if len(statements) > config.max_statements_per_file:
             raise SecurityValidationError(
@@ -174,11 +177,11 @@ class SecurityValidator:
             return sql_content
 
         # Remove SQL comments
-        sql_content = re.sub(r'--.*$', '', sql_content, flags=re.MULTILINE)
-        sql_content = re.sub(r'/\*.*?\*/', '', sql_content, flags=re.DOTALL)
+        sql_content = re.sub(r"--.*$", "", sql_content, flags=re.MULTILINE)
+        sql_content = re.sub(r"/\*.*?\*/", "", sql_content, flags=re.DOTALL)
 
         # Remove extra whitespace
-        sql_content = re.sub(r'\s+', ' ', sql_content).strip()
+        sql_content = re.sub(r"\s+", " ", sql_content).strip()
 
         return sql_content
 
@@ -244,3 +247,19 @@ class SecurityValidator:
             return True
         except SecurityValidationError:
             return False
+
+    @staticmethod
+    def sanitize_shell_arguments(args: List[str]) -> List[str]:
+        """
+        Sanitize shell command arguments to prevent shell injection attacks.
+
+        Args:
+            args: List of command arguments to sanitize
+
+        Returns:
+            List of sanitized arguments
+
+        Raises:
+            ValueError: If any argument contains dangerous characters or is not a string
+        """
+        return _sanitize_shell_arguments(args)

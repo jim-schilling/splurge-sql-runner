@@ -63,6 +63,33 @@ DANGEROUS_URL_PATTERNS: tuple[str, ...] = (
     "data:",
 )
 
+# Dangerous characters for shell injection prevention
+DANGEROUS_SHELL_CHARACTERS: tuple[str, ...] = (
+    # Command separators and pipes
+    ';', '|', '&&', '||',
+
+    # Command substitution and evaluation
+    '`', '$(', '${',
+
+    # Redirection operators
+    '>>', '<<', '<<<',
+
+    # Character classes (dangerous for injection)
+    '[', ']',
+
+    # Escaping and quotes
+    '\'', '"',
+
+    # History expansion
+    '!',
+
+    # Whitespace that can separate commands
+    ' ', '\t', '\n', '\r',
+
+    # Process substitution
+    '<(', '>(',
+)
+
 # Allowed file extensions
 DEFAULT_ALLOWED_FILE_EXTENSIONS: tuple[str, ...] = (".sql",)
 

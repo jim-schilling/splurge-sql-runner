@@ -14,7 +14,7 @@ import argparse
 import glob
 import sys
 from pathlib import Path
-from typing import List, Dict, Any
+
 
 from splurge_sql_runner.config.app_config import AppConfig
 from splurge_sql_runner.config.constants import (
@@ -30,9 +30,8 @@ from splurge_sql_runner.errors import (
     SqlFileError,
     SqlValidationError,
     DatabaseConnectionError,
-    DatabaseBatchError,
-    DatabaseEngineError,
     SecurityValidationError,
+    SecurityFileError,
     SecurityUrlError,
 )
 from splurge_sql_runner.logging import configure_module_logging
@@ -62,6 +61,7 @@ Usage:
     python -m splurge_sql_runner -c "sqlite:///database.db" -f "script.sql"
     python -m splurge_sql_runner -c "sqlite:///database.db" -p "*.sql"
 """
+
 
 def _print_security_guidance(error_message: str, *, context: str) -> None:
     """Print actionable guidance for common security validation errors.
@@ -117,9 +117,6 @@ def _print_security_guidance(error_message: str, *, context: str) -> None:
         print(f"{_WARNING_EMOJI}  {hint}")
 
 
-
-
-
 def process_sql_file(
     db_client: DatabaseClient,
     connection,
@@ -152,7 +149,7 @@ def process_sql_file(
         try:
             SecurityValidator.validate_file_path(file_path, security_config)
             logger.debug("File path security validation passed")
-        except ValueError as e:
+        except SecurityFileError as e:
             logger.error(f"File path security validation failed: {e}")
             raise CliSecurityError(str(e))
 
@@ -176,11 +173,13 @@ def process_sql_file(
         try:
             SecurityValidator.validate_sql_content(sql_content, security_config)
             logger.debug("SQL content security validation passed")
-        except ValueError as e:
+        except SecurityValidationError as e:
             logger.error(f"SQL content security validation failed: {e}")
             raise CliSecurityError(str(e))
 
-        logger.info(f"Executing {len(statements)} SQL statements from file: {file_path}")
+        logger.info(
+            f"Executing {len(statements)} SQL statements from file: {file_path}"
+        )
         # Avoid reparsing inside client by executing the pre-parsed list
         results = db_client.execute_statements(
             statements,
@@ -204,7 +203,9 @@ def process_sql_file(
     except CliSecurityError as e:
         logger.error(f"Security error processing {file_path}: {e}")
         print(f"❌ Security error processing {file_path}: {e}")
-        _print_security_guidance(str(e), context="sql")
+        # Choose guidance context based on whether error came from path or SQL content
+        ctx = "file" if "extension" in str(e).lower() or "path" in str(e).lower() else "sql"
+        _print_security_guidance(str(e), context=ctx)
         return False
     except (SqlFileError, SqlValidationError) as e:
         logger.error(f"SQL file error processing {file_path}: {e}")
@@ -223,8 +224,8 @@ def process_sql_file(
 def main() -> None:
     """Main CLI entry point."""
     try:
-        sys.stdout.reconfigure(encoding='utf-8')
-        sys.stderr.reconfigure(encoding='utf-8')
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
     except AttributeError:
         pass
 
@@ -289,7 +290,7 @@ Examples:
         action="store_true",
         help="Disable emoji in CLI output",
     )
-    
+
     parser.add_argument(
         "--max-statements",
         type=int,
@@ -377,7 +378,7 @@ Examples:
         )
         db_client = DatabaseClient(db_config)
         logger.info("Database client initialized successfully")
-        
+
         if args.debug:
             print("Debug mode enabled")
 
@@ -431,9 +432,11 @@ Examples:
         logger.info(
             f"Processing complete: {success_count}/{len(files_to_process)} files processed successfully"
         )
-        print(f"\n{'='*60}")
-        print(f"Summary: {success_count}/{len(files_to_process)} files processed successfully")
-        print(f"{'='*60}")
+        print(f"\n{'=' * 60}")
+        print(
+            f"Summary: {success_count}/{len(files_to_process)} files processed successfully"
+        )
+        print(f"{'=' * 60}")
 
         if success_count < len(files_to_process):
             logger.error("Some files failed to process. Exiting with error code 1")

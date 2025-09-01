@@ -10,7 +10,7 @@ This module is licensed under the MIT License.
 """
 
 from dataclasses import dataclass, field
-from typing import List, Tuple
+
 
 from splurge_sql_runner.config.constants import (
     DANGEROUS_PATH_PATTERNS,
@@ -28,13 +28,13 @@ class ValidationConfig:
     """Input validation configuration."""
 
     # Dangerous path patterns that should be blocked
-    dangerous_path_patterns: Tuple[str, ...] = DANGEROUS_PATH_PATTERNS
+    dangerous_path_patterns: tuple[str, ...] = DANGEROUS_PATH_PATTERNS
 
     # Dangerous SQL patterns that should be blocked
-    dangerous_sql_patterns: Tuple[str, ...] = DANGEROUS_SQL_PATTERNS
+    dangerous_sql_patterns: tuple[str, ...] = DANGEROUS_SQL_PATTERNS
 
     # Dangerous URL patterns
-    dangerous_url_patterns: Tuple[str, ...] = DANGEROUS_URL_PATTERNS
+    dangerous_url_patterns: tuple[str, ...] = DANGEROUS_URL_PATTERNS
 
     # Maximum statement length
     max_statement_length: int = DEFAULT_MAX_STATEMENT_LENGTH
@@ -46,7 +46,9 @@ class SecurityConfig:
 
     enable_validation: bool = True
     max_statements_per_file: int = DEFAULT_MAX_STATEMENTS_PER_FILE
-    allowed_file_extensions: List[str] = field(default_factory=lambda: list(DEFAULT_ALLOWED_FILE_EXTENSIONS))
+    allowed_file_extensions: list[str] = field(
+        default_factory=lambda: list(DEFAULT_ALLOWED_FILE_EXTENSIONS)
+    )
     validation: ValidationConfig = field(default_factory=ValidationConfig)
 
     def __post_init__(self) -> None:
@@ -54,7 +56,9 @@ class SecurityConfig:
         if self.max_statements_per_file <= 0:
             raise ConfigValidationError("Max statements per file must be positive")
         if not self.allowed_file_extensions:
-            raise ConfigValidationError("At least one allowed file extension must be specified")
+            raise ConfigValidationError(
+                "At least one allowed file extension must be specified"
+            )
 
     def is_file_extension_allowed(self, file_path: str) -> bool:
         """Check if file extension is allowed."""
@@ -62,7 +66,10 @@ class SecurityConfig:
             return False
 
         file_path_lower = file_path.lower()
-        return any(file_path_lower.endswith(ext.lower()) for ext in self.allowed_file_extensions)
+        return any(
+            file_path_lower.endswith(ext.lower())
+            for ext in self.allowed_file_extensions
+        )
 
     def is_path_safe(self, file_path: str) -> bool:
         """Check if file path is safe."""
@@ -70,7 +77,10 @@ class SecurityConfig:
             return False
 
         file_path_lower = file_path.lower()
-        return not any(pattern.lower() in file_path_lower for pattern in self.validation.dangerous_path_patterns)
+        return not any(
+            pattern.lower() in file_path_lower
+            for pattern in self.validation.dangerous_path_patterns
+        )
 
     def is_sql_safe(self, sql_content: str) -> bool:
         """Check if SQL content is safe."""
@@ -78,7 +88,10 @@ class SecurityConfig:
             return True
 
         sql_upper = sql_content.upper()
-        return not any(pattern.upper() in sql_upper for pattern in self.validation.dangerous_sql_patterns)
+        return not any(
+            pattern.upper() in sql_upper
+            for pattern in self.validation.dangerous_sql_patterns
+        )
 
     def is_url_safe(self, url: str) -> bool:
         """Check if URL is safe."""
@@ -86,7 +99,10 @@ class SecurityConfig:
             return False
 
         url_lower = url.lower()
-        return not any(pattern.lower() in url_lower for pattern in self.validation.dangerous_url_patterns)
+        return not any(
+            pattern.lower() in url_lower
+            for pattern in self.validation.dangerous_url_patterns
+        )
 
     def is_statement_length_safe(self, sql_content: str) -> bool:
         """Check if SQL statement length is within limits."""
