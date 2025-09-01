@@ -434,6 +434,23 @@ When adding new tests:
 
 ### 2025.4.1 (09-01-2025)
 
+- **Enhanced Security Validation and Testing Framework**
+  - **Comprehensive Security Test Suite**: Added extensive unit tests for `SecurityValidator` class covering file path, database URL, and SQL content validation
+  - **Security Error Handling**: Implemented proper catching of `SecurityFileError` and `SecurityValidationError` in CLI with enhanced error context and user guidance
+  - **File Extension Validation**: Added CLI tests for security validation of disallowed file extensions
+  - **Pattern Matching**: Enhanced case-insensitive pattern matching for dangerous path and SQL patterns
+  - **Edge Case Coverage**: Added tests for empty/None values, large files, and complex validation scenarios
+
+- **Improved Database Client and Transaction Handling**
+  - **Enhanced Error Handling Modes**: Added comprehensive unit tests for `DatabaseClient.execute_statements` API with both `stop_on_error=True` and `stop_on_error=False` modes
+  - **Transaction Safety**: Verified rollback behavior in batch operations when errors occur
+  - **Statement Type Detection**: Enhanced detection of uncommon SQL statement types (VALUES, DESC/DESCRIBE, EXPLAIN, SHOW, PRAGMA, WITH ... INSERT/UPDATE/DELETE CTE patterns)
+
+- **SQL Parser Robustness**
+  - **String Literal Handling**: Added integration tests for semicolons inside string literals to ensure proper parsing
+  - **Edge Case Testing**: Enhanced parsing of complex SQL with comments, whitespace, and special characters
+  - **Statement Classification**: Improved accuracy of SQL statement type detection across various database dialects
+
 - **Code Quality & Refactoring**: Comprehensive code cleanup and optimization across the entire codebase
   - **Removed unused variables**: Cleaned up unused variable declarations in `database_client.py` and other modules
   - **Fixed import organization**: Moved all import statements to top of modules where possible for better maintainability
@@ -441,9 +458,11 @@ When adding new tests:
   - **Type hint improvements**: Updated and refined type hints in configuration and database modules
   - **CLI output optimization**: Fixed fallback assignment for `tabulate` in `cli_output.py` to ensure clarity in code structure
   - **Import cleanup**: Refactored imports and cleaned up code across multiple modules for better organization
+
 - **Documentation**: Added comprehensive coding standards documentation files
   - Added `.cursor/rules/` directory with detailed coding standards for the project
   - Included standards for code design, style, development approach, documentation, methods, naming conventions, project organization, Python standards, and testing
+
 - **Version Update**: Updated version to 2025.4.1 in `pyproject.toml`
 - **Backward Compatibility**: All changes maintain backward compatibility with existing APIs and functionality
 - **Test Coverage**: Maintained existing test coverage with all tests passing after refactoring
@@ -503,73 +522,4 @@ When adding new tests:
   - `JPY_VERBOSE` → `SPLURGE_SQL_RUNNER_VERBOSE`
   - `JPY_LOG_LEVEL` → `SPLURGE_SQL_RUNNER_LOG_LEVEL`
   - `JPY_LOG_FORMAT` → `SPLURGE_SQL_RUNNER_LOG_FORMAT`
-
-## Changelog
-
-### [2025.4.1] - 2025-09-01
-
-#### Added
-- **Comprehensive Test Coverage for Critical Paths**
-  - Added integration test for database transaction rollback when `stop_on_error=True`
-  - Added unit tests for `DatabaseClient.execute_statements` API with both error handling modes
-  - Added SQL helper unit tests for uncommon `detect_statement_type` branches:
-    - `VALUES` statements
-    - `DESC`/`DESCRIBE` statements
-    - `EXPLAIN` statements
-    - `SHOW` statements
-    - `PRAGMA` statements
-    - `WITH ... INSERT`/`UPDATE`/`DELETE` CTE patterns
-  - Added SQL parser integration test for semicolons inside string literals
-  - Added CLI test for security validation of disallowed file extensions
-
-#### Fixed
-- **CLI Error Handling Improvements**
-  - Fixed CLI to properly catch `SecurityFileError` and `SecurityValidationError`
-  - Enhanced security guidance context for file vs. SQL validation errors
-  - Improved error message context and user guidance
-
-#### Verified
-- **All Examples Working**
-  - Comprehensive demo script (`examples/demo.py`) - ✅ All 7 steps pass
-  - Test CLI script (`examples/test_cli.py`) - ✅ All test scenarios pass
-  - Deployment script (`examples/deploy_database.sh`) - ✅ Complete workflow on Windows
-  - Individual CLI examples - ✅ Basic CRUD, pattern matching, JSON output, no-emoji
-
-#### Quality Assurance
-- **Test Coverage**: Maintained ~93% code coverage across all modules
-- **424 tests pass**, 3 skipped (all tests green)
-- **All critical execution paths tested** including error scenarios
-- **Security validation thoroughly tested** for file paths, SQL content, and URLs
-
-#### Technical Details
-- **Transaction Safety**: Verified rollback behavior in batch operations
-- **Statement Type Detection**: Comprehensive coverage of SQL statement classification
-- **Parser Robustness**: Edge cases like semicolons in strings properly handled
-- **Error Recovery**: Graceful handling of various failure scenarios
-- **Security Enforcement**: File extension validation and SQL pattern blocking working correctly
-
----
-
-### [2025.4.0] - 2025-08-15
-
-#### Added
-- Initial public release of splurge-sql-runner
-- CLI interface for executing SQL files against databases
-- Support for SQLite, PostgreSQL, and MySQL
-- JSON output format for machine-readable results
-- Security validation for file paths and SQL content
-- Pattern matching for multiple SQL file processing
-- Comprehensive error handling and user guidance
-- Logging configuration with multiple output formats
-- Configuration file support (JSON)
-- Verbose and debug output modes
-
-#### Features
-- Execute multiple SQL statements from files
-- Batch processing with transaction support
-- Pretty-printed table output
-- Comment stripping and SQL parsing
-- Connection pooling and timeout handling
-- Migration tracking and history
-- Data analysis and reporting capabilities
 
