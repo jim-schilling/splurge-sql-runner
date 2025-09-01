@@ -291,6 +291,22 @@ mypy splurge_sql_runner/
 
 ## Changelog
 
+### 2025.4.1 (09-01-2025)
+
+- **Code Quality & Refactoring**: Comprehensive code cleanup and optimization across the entire codebase
+  - **Removed unused variables**: Cleaned up unused variable declarations in `database_client.py` and other modules
+  - **Fixed import organization**: Moved all import statements to top of modules where possible for better maintainability
+  - **Enhanced code structure**: Refactored code for improved readability and consistency across multiple modules
+  - **Type hint improvements**: Updated and refined type hints in configuration and database modules
+  - **CLI output optimization**: Fixed fallback assignment for `tabulate` in `cli_output.py` to ensure clarity in code structure
+  - **Import cleanup**: Refactored imports and cleaned up code across multiple modules for better organization
+- **Documentation**: Added comprehensive coding standards documentation files
+  - Added `.cursor/rules/` directory with detailed coding standards for the project
+  - Included standards for code design, style, development approach, documentation, methods, naming conventions, project organization, Python standards, and testing
+- **Version Update**: Updated version to 2025.4.1 in `pyproject.toml`
+- **Backward Compatibility**: All changes maintain backward compatibility with existing APIs and functionality
+- **Test Coverage**: Maintained existing test coverage with all tests passing after refactoring
+
 ### 2025.4.0 (08-24-2025)
 
 - **Performance & Code Quality**: Optimized and simplified `sql_helper.py` module
