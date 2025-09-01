@@ -14,11 +14,63 @@ import sqlite3
 from pathlib import Path
 from typing import List
 
-from splurge_sql_runner.utils.security_utils import sanitize_shell_arguments
-
 # Add the project root to Python path for development
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
+
+
+def sanitize_shell_arguments(args: list) -> list:
+    """
+    Sanitize shell command arguments to prevent shell injection attacks.
+
+    This is a self-contained implementation for demo purposes.
+    In production, use proper security validation libraries.
+    """
+    if not isinstance(args, list):
+        raise ValueError("args must be a list of strings")
+
+    # Dangerous characters that could enable shell injection
+    dangerous_chars = (
+        # Command separators and pipes
+        ';', '|', '&&', '||',
+
+        # Command substitution and evaluation
+        '`', '$(', '${',
+
+        # Redirection operators
+        '>>', '<<', '<<<',
+
+        # Character classes (dangerous for injection)
+        '[', ']',
+
+        # Escaping and quotes
+        '\'', '"',
+
+        # History expansion
+        '!',
+
+        # Whitespace that can separate commands
+        ' ', '\t', '\n', '\r',
+
+        # Process substitution
+        '<(', '>(',
+
+        # Single-character operators that could be dangerous
+        '&', '<', '>', '$', '(', ')',
+    )
+
+    sanitized_args = []
+    for arg in args:
+        if not isinstance(arg, str):
+            raise ValueError("All command arguments must be strings")
+
+        # Check for dangerous characters
+        if any(char in arg for char in dangerous_chars):
+            raise ValueError(f"Potentially dangerous characters found in argument: {arg}")
+
+        sanitized_args.append(arg)
+
+    return sanitized_args
 
 
 def run_cli_command(
