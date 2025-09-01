@@ -14,6 +14,8 @@ import sqlite3
 from pathlib import Path
 from typing import List
 
+from splurge_sql_runner.security import SecurityValidator
+
 # Add the project root to Python path for development
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
@@ -37,14 +39,7 @@ def run_cli_command(
         raise ValueError("args must be a list of strings")
 
     # Sanitize arguments to prevent shell injection
-    sanitized_args = []
-    for arg in args:
-        if not isinstance(arg, str):
-            raise ValueError("All arguments must be strings")
-        # Remove potentially dangerous characters
-        if any(char in arg for char in [';', '|', '&', '`', '$', '(', ')', '<', '>', '\n', '\r']):
-            raise ValueError(f"Potentially dangerous characters found in argument: {arg}")
-        sanitized_args.append(arg)
+    sanitized_args = SecurityValidator.sanitize_shell_arguments(args)
 
     cmd = [sys.executable, "-m", "splurge_sql_runner"] + sanitized_args
     print(f"Running: {' '.join(cmd)}")

@@ -63,6 +63,11 @@ DANGEROUS_URL_PATTERNS: tuple[str, ...] = (
     "data:",
 )
 
+# Dangerous characters for shell injection prevention
+DANGEROUS_SHELL_CHARACTERS: tuple[str, ...] = (
+    ';', '|', '&', '`', '$', '(', ')', '<', '>', '\n', '\r'
+)
+
 # Allowed file extensions
 DEFAULT_ALLOWED_FILE_EXTENSIONS: tuple[str, ...] = (".sql",)
 

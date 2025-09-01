@@ -12,6 +12,8 @@ import os
 from pathlib import Path
 from typing import List
 
+from splurge_sql_runner.security import SecurityValidator
+
 
 class TestCLIWorkflowE2E:
     """End-to-end tests for complete CLI workflows."""
@@ -23,14 +25,7 @@ class TestCLIWorkflowE2E:
             raise ValueError("args must be a list of strings")
 
         # Sanitize arguments to prevent shell injection
-        sanitized_args = []
-        for arg in args:
-            if not isinstance(arg, str):
-                raise ValueError("All arguments must be strings")
-            # Remove potentially dangerous characters
-            if any(char in arg for char in [';', '|', '&', '`', '$', '(', ')', '<', '>', '\n', '\r']):
-                raise ValueError(f"Potentially dangerous characters found in argument: {arg}")
-            sanitized_args.append(arg)
+        sanitized_args = SecurityValidator.sanitize_shell_arguments(args)
 
         cmd = ["python", "-m", "splurge_sql_runner"] + sanitized_args
         env = os.environ.copy()
