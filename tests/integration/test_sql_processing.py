@@ -6,13 +6,11 @@ through parsing, validation, and statement execution.
 """
 
 import pytest
-import tempfile
 from pathlib import Path
 
 from splurge_sql_runner.sql_helper import (
     remove_sql_comments,
     detect_statement_type,
-    parse_sql_statements,
     split_sql_file
 )
 from splurge_sql_runner.database.database_client import DatabaseClient
@@ -322,7 +320,7 @@ class TestSQLProcessingIntegration:
         assert count_result["result"][0]["total"] == 24  # Should have 24 rows at that point
 
         # Check final count
-        final_select = f"SELECT COUNT(*) as final_count FROM large_test;"
+        final_select = "SELECT COUNT(*) as final_count FROM large_test;"
         final_result = sqlite_client.execute_batch(final_select)
         final_count = final_result[0]["result"][0]["final_count"]
         assert final_count == 48  # 24 + 24 more inserts (i=26 to i=49 = 24 statements)

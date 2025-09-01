@@ -6,8 +6,6 @@ and result processing using real database engines.
 """
 
 import pytest
-import tempfile
-import os
 from pathlib import Path
 
 from splurge_sql_runner.database.database_client import DatabaseClient

@@ -7,7 +7,6 @@ covering the full application lifecycle.
 
 import pytest
 import subprocess
-import tempfile
 import json
 import os
 from pathlib import Path

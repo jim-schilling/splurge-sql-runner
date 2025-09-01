@@ -6,18 +6,14 @@ between config components and application behavior.
 """
 
 import pytest
-import tempfile
 import json
-import os
 from pathlib import Path
-from unittest.mock import patch
 
 from splurge_sql_runner.config.app_config import AppConfig
 from splurge_sql_runner.config.database_config import DatabaseConfig
 from splurge_sql_runner.config.security_config import SecurityConfig
 from splurge_sql_runner.config.logging_config import LoggingConfig
 from splurge_sql_runner.database.database_client import DatabaseClient
-from splurge_sql_runner.errors.base_errors import ConfigValidationError
 
 
 class TestConfigIntegration:
