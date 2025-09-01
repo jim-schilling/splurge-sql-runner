@@ -133,10 +133,17 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 markers = [
-    "unit: Unit tests",
-    "integration: Integration tests",
-    "slow: Slow running tests",
-    "database: Tests requiring database",
+    "unit: Unit tests that test individual components in isolation",
+    "integration: Integration tests that verify component interactions",
+    "e2e: End-to-end tests that verify complete workflows",
+    "slow: Slow running tests (typically integration or e2e)",
+    "database: Tests requiring database connectivity",
+    "security: Tests focused on security features",
+    "performance: Tests measuring performance characteristics",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
 ]
 
 [tool.coverage.run]

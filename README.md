@@ -283,11 +283,152 @@ pip install -e ".[dev]"
 # Run tests
 pytest -x -v
 
+# Run specific test types
+python tests/run_tests.py unit              # Run unit tests only
+python tests/run_tests.py integration       # Run integration tests only
+python tests/run_tests.py e2e               # Run end-to-end tests only
+python tests/run_tests.py all --coverage    # Run all tests with coverage
+python tests/run_tests.py coverage          # Generate coverage report
+
 # Run linting
 flake8 splurge_sql_runner/
 black splurge_sql_runner/
 mypy splurge_sql_runner/
 ```
+
+## Testing
+
+This project uses a comprehensive multi-layered testing approach to ensure quality and reliability:
+
+### Test Structure
+
+```
+tests/
+├── conftest.py              # Shared test fixtures and configuration
+├── run_tests.py             # Test runner script for different test types
+├── integration/             # Integration tests
+│   ├── __init__.py
+│   ├── test_database_operations.py
+│   ├── test_config_integration.py
+│   └── test_sql_processing.py
+├── e2e/                     # End-to-end tests
+│   ├── __init__.py
+│   └── test_cli_workflow.py
+└── [existing unit tests]    # Unit tests for individual components
+```
+
+### Test Types
+
+#### Unit Tests (`tests/test_*.py`)
+- Test individual components in isolation
+- Focus on specific functions, classes, and methods
+- Use mocks for external dependencies where appropriate
+- Fast execution, high coverage of edge cases
+
+#### Integration Tests (`tests/integration/`)
+- Test component interactions and data flow
+- Use real database connections (SQLite for testing)
+- Verify that components work together correctly
+- Focus on realistic usage scenarios
+
+#### End-to-End Tests (`tests/e2e/`)
+- Test complete workflows from CLI to database
+- Use actual command-line invocations
+- Verify the full application lifecycle
+- Include error handling and recovery scenarios
+
+### Test Markers
+
+The project uses pytest markers to categorize tests:
+
+- `@pytest.mark.unit` - Unit tests
+- `@pytest.mark.integration` - Integration tests
+- `@pytest.mark.e2e` - End-to-end tests
+- `@pytest.mark.slow` - Slow-running tests
+- `@pytest.mark.database` - Database-dependent tests
+- `@pytest.mark.security` - Security-focused tests
+- `@pytest.mark.performance` - Performance tests
+
+### Running Tests
+
+#### Using the Test Runner Script
+```bash
+# Run all tests
+python tests/run_tests.py all
+
+# Run specific test types
+python tests/run_tests.py unit
+python tests/run_tests.py integration
+python tests/run_tests.py e2e
+
+# Run with coverage
+python tests/run_tests.py all --coverage
+python tests/run_tests.py coverage  # Generate HTML coverage report
+```
+
+#### Using Pytest Directly
+```bash
+# Run all tests
+pytest
+
+# Run specific test types
+pytest -m unit
+pytest -m integration
+pytest -m e2e
+
+# Run with coverage
+pytest --cov=splurge_sql_runner --cov-report=html --cov-report=term-missing
+
+# Run specific test files
+pytest tests/integration/test_database_operations.py
+pytest tests/e2e/test_cli_workflow.py
+```
+
+### Test Coverage
+
+The project maintains high test coverage with a target of 85% across all modules:
+
+- **Current Coverage**: 30% (baseline before recent improvements)
+- **Target Coverage**: 85% for all public interfaces
+- **Coverage Reports**: Generated in `htmlcov/` directory
+
+### Test Data and Fixtures
+
+The testing framework provides comprehensive fixtures for common testing scenarios:
+
+- **Database fixtures**: SQLite in-memory and file-based databases
+- **Configuration fixtures**: Valid and invalid configuration data
+- **SQL fixtures**: Sample SQL files with various constructs
+- **CLI fixtures**: Simulated command-line arguments and outputs
+
+### Continuous Integration
+
+Tests are designed to run in CI/CD environments with:
+
+- Parallel test execution support (`pytest-xdist`)
+- Proper isolation between test runs
+- Comprehensive error reporting
+- Coverage reporting integration
+
+### Writing Tests
+
+When adding new tests:
+
+1. **Unit Tests**: Place in `tests/` directory with descriptive names
+2. **Integration Tests**: Place in `tests/integration/` directory
+3. **E2E Tests**: Place in `tests/e2e/` directory
+4. **Use appropriate markers**: `@pytest.mark.unit`, `@pytest.mark.integration`, etc.
+5. **Follow naming conventions**: `test_*` for functions, `Test*` for classes
+6. **Use fixtures**: Leverage existing fixtures from `conftest.py`
+7. **Test real behavior**: Prefer real objects over mocks where possible
+
+### Test Quality Standards
+
+- **Public API focus**: Test observable behavior, not implementation details
+- **Real data**: Use actual data and realistic scenarios
+- **Error handling**: Test both success and failure paths
+- **Performance awareness**: Mark slow tests appropriately
+- **Documentation**: Include docstrings explaining test purpose
 
 ## Changelog
 
