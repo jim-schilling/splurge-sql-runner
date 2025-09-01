@@ -18,7 +18,21 @@ class TestCLIWorkflowE2E:
 
     def run_cli_command(self, args: List[str], cwd: Path = None) -> subprocess.CompletedProcess:
         """Helper to run CLI commands."""
-        cmd = ["python", "-m", "splurge_sql_runner"] + args
+        # Validate input arguments
+        if not isinstance(args, list):
+            raise ValueError("args must be a list of strings")
+
+        # Sanitize arguments to prevent shell injection
+        sanitized_args = []
+        for arg in args:
+            if not isinstance(arg, str):
+                raise ValueError("All arguments must be strings")
+            # Remove potentially dangerous characters
+            if any(char in arg for char in [';', '|', '&', '`', '$', '(', ')', '<', '>', '\n', '\r']):
+                raise ValueError(f"Potentially dangerous characters found in argument: {arg}")
+            sanitized_args.append(arg)
+
+        cmd = ["python", "-m", "splurge_sql_runner"] + sanitized_args
         env = os.environ.copy()
         env["PYTHONPATH"] = str(Path(__file__).parent.parent.parent)
 
@@ -31,7 +45,8 @@ class TestCLIWorkflowE2E:
                 errors='replace',  # Replace invalid chars instead of failing
                 cwd=cwd or Path.cwd(),
                 env=env,
-                timeout=30
+                timeout=30,
+                shell=False
             )
         except UnicodeDecodeError:
             # Fallback if Unicode decoding fails
@@ -41,7 +56,8 @@ class TestCLIWorkflowE2E:
                 text=False,  # Get bytes instead of text
                 cwd=cwd or Path.cwd(),
                 env=env,
-                timeout=30
+                timeout=30,
+                shell=False
             )
             # Convert bytes to string with error handling
             if result.stdout:

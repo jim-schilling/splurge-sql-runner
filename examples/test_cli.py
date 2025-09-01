@@ -32,7 +32,21 @@ def run_cli_command(
     Returns:
         CompletedProcess result
     """
-    cmd = [sys.executable, "-m", "splurge_sql_runner"] + args
+    # Validate input arguments
+    if not isinstance(args, list):
+        raise ValueError("args must be a list of strings")
+
+    # Sanitize arguments to prevent shell injection
+    sanitized_args = []
+    for arg in args:
+        if not isinstance(arg, str):
+            raise ValueError("All arguments must be strings")
+        # Remove potentially dangerous characters
+        if any(char in arg for char in [';', '|', '&', '`', '$', '(', ')', '<', '>', '\n', '\r']):
+            raise ValueError(f"Potentially dangerous characters found in argument: {arg}")
+        sanitized_args.append(arg)
+
+    cmd = [sys.executable, "-m", "splurge_sql_runner"] + sanitized_args
     print(f"Running: {' '.join(cmd)}")
 
     try:
@@ -43,6 +57,7 @@ def run_cli_command(
             encoding="utf-8",
             errors="replace",
             timeout=30,
+            shell=False,
         )
         return result
     except subprocess.TimeoutExpired:
