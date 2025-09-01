@@ -5,7 +5,6 @@ Tests the DatabaseClient class using SQLite.
 """
 
 import pytest
-import tempfile
 from pathlib import Path
 
 from sqlalchemy import text
@@ -14,7 +13,6 @@ from splurge_sql_runner.config.database_config import DatabaseConfig
 from splurge_sql_runner.database.database_client import DatabaseClient
 from splurge_sql_runner.errors.database_errors import (
     DatabaseConnectionError,
-    DatabaseOperationError,
 )
 
 

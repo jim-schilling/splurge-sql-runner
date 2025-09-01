@@ -10,7 +10,6 @@ from splurge_sql_runner.config.database_config import (
     DatabaseConfig,
 )
 from splurge_sql_runner.errors import ConfigValidationError
-from tests.test_utils import TestConstants
 
 
 class TestConnectionConfig:

@@ -6,7 +6,6 @@ Tests security validation functionality using actual objects and real validation
 
 import tempfile
 import os
-from pathlib import Path
 
 import pytest
 
@@ -17,7 +16,6 @@ from splurge_sql_runner.errors.security_errors import (
     SecurityUrlError,
     SecurityValidationError,
 )
-from tests.test_utils import TestDataBuilder, TestFileHelper
 
 
 class TestSecurityValidator:

@@ -11,7 +11,6 @@ import tempfile
 import pytest
 from pathlib import Path
 from typing import Dict, Any, Generator
-from unittest.mock import patch
 
 # Test constants
 TEST_DATA_DIR = Path(__file__).parent / "test_data"

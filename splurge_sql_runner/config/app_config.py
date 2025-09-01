@@ -12,7 +12,6 @@ This module is licensed under the MIT License.
 """
 
 import json
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any

@@ -12,7 +12,7 @@ import os
 import tempfile
 import sqlite3
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List
 
 # Add the project root to Python path for development
 project_root = Path(__file__).parent.parent

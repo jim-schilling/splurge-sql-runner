@@ -6,14 +6,12 @@ Tests the LogLevel, LogFormat, and LoggingConfig classes.
 
 import os
 import pytest
-from pathlib import Path
 from splurge_sql_runner.config.logging_config import (
     LogLevel,
     LogFormat,
     LoggingConfig,
 )
 from splurge_sql_runner.errors import ConfigValidationError
-from tests.test_utils import TestConstants
 
 
 class TestLogLevel:

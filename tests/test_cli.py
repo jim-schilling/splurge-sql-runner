@@ -6,11 +6,8 @@ Tests the command-line interface functionality using actual objects and real CLI
 
 import json
 import os
-import sys
 import tempfile
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-from io import StringIO
+from unittest.mock import patch
 
 import pytest
 
@@ -20,18 +17,9 @@ from splurge_sql_runner.cli import (
     process_sql_file,
     main,
 )
-from splurge_sql_runner.config import AppConfig
 from splurge_sql_runner.config.database_config import DatabaseConfig
 from splurge_sql_runner.config.security_config import SecurityConfig
 from splurge_sql_runner.database.database_client import DatabaseClient
-from splurge_sql_runner.errors import (
-    CliFileError,
-    CliSecurityError,
-    SqlFileError,
-    DatabaseConnectionError,
-)
-from splurge_sql_runner.security import SecurityValidator
-from tests.test_utils import TestDataBuilder, TestFileHelper
 
 
 class TestSimpleTableFormat:

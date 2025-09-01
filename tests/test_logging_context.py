@@ -7,12 +7,9 @@ with actual data and no mocks.
 
 import logging
 import threading
-import time
 import uuid
 from io import StringIO
-from unittest.mock import patch
 
-import pytest
 
 from splurge_sql_runner.logging.context import (
     generate_correlation_id,

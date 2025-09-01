@@ -19,7 +19,6 @@ from splurge_sql_runner.sql_helper import (
     FETCH_STATEMENT,
 )
 from splurge_sql_runner.errors import SqlFileError, SqlValidationError
-from tests.test_utils import TestDataBuilder, TestFileHelper
 
 
 class TestRemoveSqlComments:

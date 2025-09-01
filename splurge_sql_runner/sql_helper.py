@@ -10,8 +10,8 @@ This module is licensed under the MIT License.
 
 from pathlib import Path
 import sqlparse
-from sqlparse.tokens import Comment, DML
-from sqlparse.sql import Statement, Token
+from sqlparse.tokens import Comment
+from sqlparse.sql import Token
 from splurge_sql_runner.errors import (
     SqlFileError,
     SqlValidationError,

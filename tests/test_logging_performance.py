@@ -9,7 +9,6 @@ import threading
 import time
 from io import StringIO
 
-import pytest
 
 from splurge_sql_runner.logging.performance import (
     PerformanceLogger,

@@ -9,7 +9,6 @@ import subprocess
 import sys
 import os
 import tempfile
-import time
 from pathlib import Path
 
 project_root = Path(__file__).parent.parent
@@ -343,7 +342,7 @@ SELECT 'Demonstration completed successfully!' as final_status;
         print(f"\nDatabase file: {db_path}")
         print("You can inspect this file with any SQLite browser.")
         
-        print(f"\nNext steps:")
+        print("\nNext steps:")
         print("1. Try the examples in the examples/ directory")
         print("2. Run: python examples/test_cli.py")
         print("3. Run: ./examples/deploy_database.sh")

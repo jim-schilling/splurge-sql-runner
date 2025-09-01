@@ -9,7 +9,7 @@ import json
 import tempfile
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 # Test constants
 VALID_SQL_STATEMENTS = [

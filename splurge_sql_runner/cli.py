@@ -30,8 +30,6 @@ from splurge_sql_runner.errors import (
     SqlFileError,
     SqlValidationError,
     DatabaseConnectionError,
-    DatabaseBatchError,
-    DatabaseEngineError,
     SecurityValidationError,
     SecurityUrlError,
 )
