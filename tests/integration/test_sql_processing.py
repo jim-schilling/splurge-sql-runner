@@ -371,3 +371,29 @@ class TestSQLProcessingIntegration:
         assert "José" in unicode_query_result["result"][0]["name"]
 
         sqlite_client.close()
+
+    @pytest.mark.integration
+    def test_semicolons_inside_strings_are_not_split(self, tmp_path: Path,
+                                                     sqlite_client: DatabaseClient):
+        """Ensure statement splitting respects semicolons inside string literals."""
+        sql_file = tmp_path / "semicolon_in_string.sql"
+        sql_content = """
+        CREATE TABLE t (id INTEGER, txt TEXT);
+        INSERT INTO t VALUES (1, 'value; with; semicolons; inside');
+        SELECT COUNT(*) as cnt FROM t;
+        """
+        sql_file.write_text(sql_content)
+
+        statements = split_sql_file(str(sql_file))
+        # Should be exactly 3 statements, not 5
+        assert len(statements) == 3
+
+        results = []
+        for stmt in statements:
+            results.extend(sqlite_client.execute_batch(stmt))
+
+        # Verify the select sees the one inserted row
+        count_result = [r for r in results if r["statement_type"] == "fetch"][-1]
+        assert count_result["result"][0]["cnt"] == 1
+
+        sqlite_client.close()

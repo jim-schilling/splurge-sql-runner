@@ -612,6 +612,37 @@ class TestCliMain:
                     calls = [call[0][0] for call in mock_print.call_args_list]
                     assert any("Debug mode enabled" in str(call) for call in calls)
 
+    def test_main_rejects_disallowed_file_extension(self, sqlite_db_path):
+        """CLI should reject files with disallowed extension via security validator."""
+        # Create a temporary file with a disallowed extension
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("SELECT 1;")
+            bad_file = f.name
+
+        try:
+            with patch(
+                "sys.argv",
+                [
+                    "splurge_sql_runner",
+                    "-c",
+                    f"sqlite:///{sqlite_db_path}",
+                    "-f",
+                    bad_file,
+                ],
+            ):
+                with patch("sys.exit") as mock_exit:
+                    with patch("builtins.print") as mock_print:
+                        main()
+                        mock_exit.assert_called_once_with(1)
+                        calls = [call[0][0] for call in mock_print.call_args_list]
+                        assert any("Security error" in str(call) for call in calls)
+                        assert any("File extension not allowed" in str(call) for call in calls)
+        finally:
+            try:
+                os.unlink(bad_file)
+            except OSError:
+                pass
+
     def test_main_without_disable_security_flag(self, temp_sql_file, sqlite_db_path):
         """Security cannot be disabled; normal run should succeed with safe SQL."""
         with patch(

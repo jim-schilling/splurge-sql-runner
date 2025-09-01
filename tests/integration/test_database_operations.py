@@ -97,6 +97,34 @@ class TestDatabaseOperationsIntegration:
         client.close()
 
     @pytest.mark.integration
+    def test_stop_on_error_rolls_back_entire_transaction(self, sqlite_memory_config: DatabaseConfig):
+        """When stop_on_error=True, any error should roll back prior statements in the batch."""
+        client = DatabaseClient(sqlite_memory_config)
+
+        # Create table outside the batch under test
+        client.execute_batch("CREATE TABLE test_txn (id INTEGER PRIMARY KEY, value TEXT);")
+
+        # Batch with an error in the middle; with stop_on_error=True the entire batch should roll back
+        batch_sql = (
+            "INSERT INTO test_txn (value) VALUES ('before_error');\n"
+            "INSERT INTO test_txn (value, nonexistent) VALUES ('bad', 'col');\n"
+            "INSERT INTO test_txn (value) VALUES ('after_error');\n"
+        )
+
+        results = client.execute_batch(batch_sql, stop_on_error=True)
+
+        # We should have one success and then an error, and the function returns immediately
+        assert len(results) == 2
+        assert results[0]["statement_type"] == "execute"
+        assert results[1]["statement_type"] == "error"
+
+        # Verify that prior successful insert was rolled back due to the error
+        final = client.execute_batch("SELECT COUNT(*) as cnt FROM test_txn;")
+        assert final[0]["result"][0]["cnt"] == 0
+
+        client.close()
+
+    @pytest.mark.integration
     def test_file_based_database_persistence(self, sqlite_file_config: DatabaseConfig):
         """Test that file-based databases persist data across connections."""
         db_path = sqlite_file_config.url.replace("sqlite:///", "")

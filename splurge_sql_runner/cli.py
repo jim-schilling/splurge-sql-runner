@@ -31,6 +31,7 @@ from splurge_sql_runner.errors import (
     SqlValidationError,
     DatabaseConnectionError,
     SecurityValidationError,
+    SecurityFileError,
     SecurityUrlError,
 )
 from splurge_sql_runner.logging import configure_module_logging
@@ -148,7 +149,7 @@ def process_sql_file(
         try:
             SecurityValidator.validate_file_path(file_path, security_config)
             logger.debug("File path security validation passed")
-        except ValueError as e:
+        except SecurityFileError as e:
             logger.error(f"File path security validation failed: {e}")
             raise CliSecurityError(str(e))
 
@@ -172,7 +173,7 @@ def process_sql_file(
         try:
             SecurityValidator.validate_sql_content(sql_content, security_config)
             logger.debug("SQL content security validation passed")
-        except ValueError as e:
+        except SecurityValidationError as e:
             logger.error(f"SQL content security validation failed: {e}")
             raise CliSecurityError(str(e))
 
@@ -202,7 +203,9 @@ def process_sql_file(
     except CliSecurityError as e:
         logger.error(f"Security error processing {file_path}: {e}")
         print(f"❌ Security error processing {file_path}: {e}")
-        _print_security_guidance(str(e), context="sql")
+        # Choose guidance context based on whether error came from path or SQL content
+        ctx = "file" if "extension" in str(e).lower() or "path" in str(e).lower() else "sql"
+        _print_security_guidance(str(e), context=ctx)
         return False
     except (SqlFileError, SqlValidationError) as e:
         logger.error(f"SQL file error processing {file_path}: {e}")
