@@ -3,6 +3,10 @@ Minimal database client for single-threaded CLI usage.
 
 Provides a thin wrapper over SQLAlchemy to manage a single engine and
 ephemeral connections for executing batched SQL statements.
+
+Copyright (c) 2025, Jim Schilling
+
+This module is licensed under the MIT License.
 """
 
 from __future__ import annotations

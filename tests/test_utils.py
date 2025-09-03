@@ -8,7 +8,7 @@ used across multiple test modules.
 import json
 import tempfile
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any
 from unittest.mock import Mock
 
 # Test constants
@@ -84,10 +84,10 @@ class TestDataBuilder:
 
     @staticmethod
     def create_config_data(
-        database_config: Optional[Dict[str, Any]] = None,
-        logging_config: Optional[Dict[str, Any]] = None,
-        security_config: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        database_config: dict[str, Any] | None = None,
+        logging_config: dict[str, Any] | None = None,
+        security_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Create a complete configuration data structure."""
         return {
             "database": database_config or TEST_DATABASE_CONFIGS["sqlite"],
@@ -96,7 +96,7 @@ class TestDataBuilder:
         }
 
     @staticmethod
-    def create_sql_file_content(statements: List[str]) -> str:
+    def create_sql_file_content(statements: list[str]) -> str:
         """Create SQL file content from a list of statements."""
         return "\n".join(statements)
 
@@ -111,7 +111,7 @@ class TestDataBuilder:
         return mock_conn
 
     @staticmethod
-    def create_mock_sql_result(rows: List[Dict[str, Any]]) -> Mock:
+    def create_mock_sql_result(rows: list[dict[str, Any]]) -> Mock:
         """Create a mock SQL result with specified rows."""
         mock_result = Mock()
         mock_result.fetchall.return_value = rows
@@ -132,13 +132,13 @@ class TestFileHelper:
         return Path(temp_file.name)
 
     @staticmethod
-    def create_temp_json_file(data: Dict[str, Any]) -> Path:
+    def create_temp_json_file(data: dict[str, Any]) -> Path:
         """Create a temporary JSON file with specified data."""
         content = json.dumps(data, indent=2)
         return TestFileHelper.create_temp_file(content, ".json")
 
     @staticmethod
-    def create_temp_sql_file(statements: List[str]) -> Path:
+    def create_temp_sql_file(statements: list[str]) -> Path:
         """Create a temporary SQL file with specified statements."""
         content = TestDataBuilder.create_sql_file_content(statements)
         return TestFileHelper.create_temp_file(content, ".sql")
@@ -148,7 +148,7 @@ class TestAssertions:
     """Custom assertion methods for tests."""
 
     @staticmethod
-    def assert_config_structure(config: Dict[str, Any]) -> None:
+    def assert_config_structure(config: dict[str, Any]) -> None:
         """Assert that a configuration has the expected structure."""
         assert "database" in config
         assert "logging" in config
@@ -165,7 +165,7 @@ class TestAssertions:
         assert "blocked_patterns" in config["security"]
 
     @staticmethod
-    def assert_sql_statements_valid(statements: List[str]) -> None:
+    def assert_sql_statements_valid(statements: list[str]) -> None:
         """Assert that SQL statements are valid."""
         for statement in statements:
             assert statement.strip().endswith(";")
@@ -173,7 +173,7 @@ class TestAssertions:
 
     @staticmethod
     def assert_error_has_context(
-        error: Exception, expected_context: Dict[str, Any]
+        error: Exception, expected_context: dict[str, Any]
     ) -> None:
         """Assert that an error has the expected context."""
         if hasattr(error, "context"):

@@ -10,14 +10,13 @@ import subprocess
 import json
 import os
 from pathlib import Path
-from typing import List
 
 
 class TestCLIWorkflowE2E:
     """End-to-end tests for complete CLI workflows."""
 
     @staticmethod
-    def _sanitize_shell_arguments(args: List[str]) -> List[str]:
+    def _sanitize_shell_arguments(args: list[str]) -> list[str]:
         """
         Sanitize shell command arguments to prevent shell injection attacks.
 
@@ -67,7 +66,7 @@ class TestCLIWorkflowE2E:
 
         return sanitized_args
 
-    def run_cli_command(self, args: List[str], cwd: Path = None) -> subprocess.CompletedProcess:
+    def run_cli_command(self, args: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess:
         """Helper to run CLI commands."""
         # Validate input arguments
         if not isinstance(args, list):

@@ -10,7 +10,25 @@ import sys
 import argparse
 from pathlib import Path
 
-from splurge_sql_runner.utils.security_utils import sanitize_shell_arguments
+DANGEROUS_SHELL_CHARACTERS = {";", "|", "&", ">", "<", "`", "$", "\\"}
+
+
+def _sanitize_shell_arguments(args: list[str]) -> list[str]:
+    """Sanitize CLI arguments locally to avoid coupling to app code.
+
+    Raises ValueError if any non-string or potentially dangerous character is present.
+    """
+    if not isinstance(args, list):
+        raise ValueError("args must be a list of strings")
+
+    sanitized: list[str] = []
+    for arg in args:
+        if not isinstance(arg, str):
+            raise ValueError("All command arguments must be strings")
+        if any(ch in arg for ch in DANGEROUS_SHELL_CHARACTERS):
+            raise ValueError(f"Potentially dangerous characters found in argument: {arg}")
+        sanitized.append(arg)
+    return sanitized
 
 
 def run_command(cmd: list, description: str = "") -> int:
@@ -20,7 +38,7 @@ def run_command(cmd: list, description: str = "") -> int:
         raise ValueError("cmd must be a list of strings")
 
     # Sanitize command arguments to prevent shell injection
-    sanitized_cmd = sanitize_shell_arguments(cmd)
+    sanitized_cmd = _sanitize_shell_arguments(cmd)
     if description:
         print(f"\n{'=' * 60}")
         print(description)

@@ -51,21 +51,25 @@ splurge-sql-runner = "splurge_sql_runner.__main__:main"
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
+    "pytest-xdist>=3.5.0",
     "black>=23.0.0",
     "flake8>=6.0.0",
     "mypy>=1.0.0",
     "pre-commit>=3.0.0",
     "safety>=2.0.0",  # For vulnerability scanning
     "bandit>=1.7.0",  # For security linting
+    "ruff>=0.4.0",
 ]
 test = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
+    "pytest-xdist>=3.5.0",
 ]
 lint = [
     "black>=23.0.0",
     "flake8>=6.0.0",
     "mypy>=1.0.0",
+    "ruff>=0.4.0",
 ]
 docs = [
     "sphinx>=7.0.0",
@@ -127,7 +131,7 @@ strict_equality = true
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-x -v --cov=splurge_sql_runner --cov-report=term-missing --cov-report=html --strict-markers --strict-config"
+addopts = "-x -v -n auto --cov=splurge_sql_runner --cov-report=term-missing --cov-report=html --strict-markers --strict-config"
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
@@ -167,3 +171,15 @@ exclude_lines = [
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

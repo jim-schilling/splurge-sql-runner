@@ -132,11 +132,14 @@ def process_sql_file(
     Process a single SQL file and execute its statements.
 
     Args:
-        db_engine: Database engine instance
+        db_client: Database client used to execute statements
+        connection: Active database connection/transaction context
         file_path: Path to SQL file
         security_config: Security configuration
         verbose: Whether to print verbose output
-        disable_security: Whether to disable security validation
+        output_json: Whether to emit JSON output for results
+        no_emoji: Whether to suppress emoji in CLI output
+        stop_on_error: Whether to stop processing at first statement error
 
     Returns:
         True if successful, False otherwise

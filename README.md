@@ -432,6 +432,8 @@ When adding new tests:
 
 ## Changelog
 
+### 2025.4.2 (09-03-2025)
+
 ### 2025.4.1 (09-01-2025)
 
 - **Enhanced Security Validation and Testing Framework**

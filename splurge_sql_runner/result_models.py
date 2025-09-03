@@ -3,6 +3,10 @@ Result models for SQL execution results.
 
 Provides strong-typed structures for representing statement execution results while
 allowing easy conversion to legacy dict structures for backward compatibility.
+
+Copyright (c) 2025, Jim Schilling
+
+This module is licensed under the MIT License.
 """
 
 from __future__ import annotations

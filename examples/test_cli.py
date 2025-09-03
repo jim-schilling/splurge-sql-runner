@@ -12,7 +12,6 @@ import os
 import tempfile
 import sqlite3
 from pathlib import Path
-from typing import List
 
 # Add the project root to Python path for development
 project_root = Path(__file__).parent.parent
@@ -74,7 +73,7 @@ def sanitize_shell_arguments(args: list) -> list:
 
 
 def run_cli_command(
-    args: List[str], capture_output: bool = True
+    args: list[str], capture_output: bool = True
 ) -> subprocess.CompletedProcess:
     """
     Run a splurge-sql-runner CLI command.
