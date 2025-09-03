@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "splurge-sql-runner"
-version = "2025.4.1"
+version = "2025.4.2"
 description = "A Python utility for executing SQL files against databases with support for multiple statements, comments, and pretty-printed results"
 readme = "README.md"
 license = "MIT"
