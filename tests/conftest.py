@@ -10,7 +10,7 @@ import os
 import tempfile
 import pytest
 from pathlib import Path
-from typing import Dict, Any, Generator
+from typing import Any, Generator
 
 # Test constants
 TEST_DATA_DIR = Path(__file__).parent / "test_data"
@@ -49,7 +49,7 @@ def temp_dir() -> Generator[Path, None, None]:
 
 
 @pytest.fixture
-def sample_config_data() -> Dict[str, Any]:
+def sample_config_data() -> dict[str, Any]:
     """Provide sample configuration data for testing."""
     return {
         "database": {
@@ -86,7 +86,7 @@ def sample_sql_file(temp_dir: Path, sample_sql_content: str) -> Path:
 
 
 @pytest.fixture
-def sample_config_file(temp_dir: Path, sample_config_data: Dict[str, Any]) -> Path:
+def sample_config_file(temp_dir: Path, sample_config_data: dict[str, Any]) -> Path:
     """Provide a temporary config file with sample data."""
     config_file = temp_dir / "test_config.json"
     with open(config_file, "w") as f:

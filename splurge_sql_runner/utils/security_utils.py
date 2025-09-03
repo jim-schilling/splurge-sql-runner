@@ -8,13 +8,12 @@ Copyright (c) 2025, Jim Schilling
 
 This module is licensed under the MIT License.
 """
-
-from typing import List
+ 
 
 from splurge_sql_runner.config.constants import DANGEROUS_SHELL_CHARACTERS
 
 
-def sanitize_shell_arguments(args: List[str]) -> List[str]:
+def sanitize_shell_arguments(args: list[str]) -> list[str]:
     """
     Sanitize shell command arguments to prevent shell injection attacks.
 

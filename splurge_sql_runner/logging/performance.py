@@ -2,6 +2,10 @@
 Performance logging for splurge-sql-runner.
 
 Provides performance monitoring and timing capabilities.
+
+Copyright (c) 2025, Jim Schilling
+
+This module is licensed under the MIT License.
 """
 
 import logging

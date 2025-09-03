@@ -7,7 +7,7 @@ merge precedence, validation, caching, and save/load round-trip.
 
 import json
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
@@ -32,7 +32,7 @@ def test_load_defaults_only() -> None:
 def test_json_config_loading_and_parsing(temp_dir: Path) -> None:
     """Valid JSON config should be parsed into the composite `AppConfig`."""
     config_path = temp_dir / "config.json"
-    data: Dict[str, Any] = {
+    data: dict[str, Any] = {
         "database": {
             "url": "postgresql://localhost/test",
             "connection": {"timeout": 50, "application_name": "cm-test"},

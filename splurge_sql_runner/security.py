@@ -10,7 +10,6 @@ This module is licensed under the MIT License.
 
 import re
 from pathlib import Path
-from typing import List
 
 from urllib.parse import urlparse
 
@@ -249,7 +248,7 @@ class SecurityValidator:
             return False
 
     @staticmethod
-    def sanitize_shell_arguments(args: List[str]) -> List[str]:
+    def sanitize_shell_arguments(args: list[str]) -> list[str]:
         """
         Sanitize shell command arguments to prevent shell injection attacks.
 

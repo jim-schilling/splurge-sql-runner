@@ -2,6 +2,10 @@
 CLI output helpers for splurge-sql-runner.
 
 Contains text and JSON rendering utilities used by the CLI.
+
+Copyright (c) 2025, Jim Schilling
+
+This module is licensed under the MIT License.
 """
 
 from __future__ import annotations
