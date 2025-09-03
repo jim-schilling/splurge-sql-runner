@@ -434,6 +434,32 @@ When adding new tests:
 
 ### 2025.4.2 (09-03-2025)
 
+- **Test Coverage**
+  - Added focused unit tests for `utils.security_utils` covering `sanitize_shell_arguments` and `is_safe_shell_argument`
+  - Exercises success and error branches; improves module coverage and overall suite fidelity
+
+- **Typing Modernization**
+  - Migrated `typing.List`/`typing.Dict`/`Optional` usage to built-in generics and `|` unions across source and tests
+  - Aligns with Python 3.10+ standards and repository preferences
+
+- **E2E/Test Decoupling**
+  - Inlined shell argument sanitization in `tests/run_tests.py` to avoid importing application code in E2E paths
+  - Ensures E2E tests remain focused on public interfaces only
+
+- **Tooling & CI**
+  - Added `ruff` configuration and dependency; enabled checks (E, F, I, B, UP)
+  - Enabled parallel test execution via `pytest-xdist` and default `-n auto`
+  - Kept line length at 120; retained Black, Flake8, MyPy
+
+- **Documentation**
+  - Created `docs/README.md` with quickstart, testing, and security notes
+
+- **CLI**
+  - Clarified `process_sql_file` docstring and removed outdated references; security enforcement remains always-on
+
+- **Compatibility**
+  - No breaking changes; public APIs remain stable
+
 ### 2025.4.1 (09-01-2025)
 
 - **Enhanced Security Validation and Testing Framework**
