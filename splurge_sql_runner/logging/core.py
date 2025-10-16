@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from splurge_sql_runner.errors import ConfigValidationError
+from splurge_sql_runner.exceptions import ConfigValidationError
 
 # Global configuration registry to prevent multiple setups
 _LOGGING_CONFIGURED = False
@@ -60,9 +60,7 @@ def setup_logging(
 
     # Validate log level
     if log_level.upper() not in _VALID_LOG_LEVELS:
-        raise ConfigValidationError(
-            f"Invalid log level: {log_level}. Must be one of {_VALID_LOG_LEVELS}"
-        )
+        raise ConfigValidationError(f"Invalid log level: {log_level}. Must be one of {_VALID_LOG_LEVELS}")
 
     # Store configuration
     _LOGGING_CONFIG = {
@@ -105,10 +103,7 @@ def setup_logging(
     )
     file_handler.setLevel(getattr(logging, log_level.upper()))
     file_formatter = logging.Formatter(
-        fmt=(
-            "%(asctime)s - %(name)s - %(levelname)s - "
-            "%(module)s:%(funcName)s:%(lineno)d - %(message)s"
-        ),
+        fmt=("%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(funcName)s:%(lineno)d - %(message)s"),
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     file_handler.setFormatter(file_formatter)

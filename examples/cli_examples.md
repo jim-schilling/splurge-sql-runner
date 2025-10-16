@@ -235,11 +235,11 @@ jobs:
 ```bash
 # Invalid connection string
 python -m splurge_sql_runner -c "invalid://connection" -f "setup.sql"
-# Output: ❌ Database error: Invalid database URL format
+# Output: ERROR: Database error: Invalid database URL format
 
 # Non-existent database
 python -m splurge_sql_runner -c "postgresql://user:pass@localhost/nonexistent" -f "setup.sql"
-# Output: ❌ Database error: Connection failed
+# Output: ERROR: Database error: Connection failed
 ```
 
 ### Handling File Errors
@@ -247,11 +247,11 @@ python -m splurge_sql_runner -c "postgresql://user:pass@localhost/nonexistent" -
 ```bash
 # Non-existent file
 python -m splurge_sql_runner -c "sqlite:///test.db" -f "nonexistent.sql"
-# Output: ❌ CLI file error: File not found: nonexistent.sql
+# Output: ERROR: CLI file error: File not found: nonexistent.sql
 
 # No files matching pattern
 python -m splurge_sql_runner -c "sqlite:///test.db" -p "nonexistent/*.sql"
-# Output: ❌ CLI file error: No files found matching pattern: nonexistent/*.sql
+# Output: ERROR: CLI file error: No files found matching pattern: nonexistent/*.sql
 ```
 
 ### Handling SQL Errors
@@ -259,7 +259,7 @@ python -m splurge_sql_runner -c "sqlite:///test.db" -p "nonexistent/*.sql"
 ```bash
 # Invalid SQL syntax
 python -m splurge_sql_runner -c "sqlite:///test.db" -f "invalid_syntax.sql"
-# Output: ❌ SQL file error: Invalid SQL syntax in statement 1
+# Output: ERROR: SQL file error: Invalid SQL syntax in statement 1
 ```
 
 ## Real-World Scenarios

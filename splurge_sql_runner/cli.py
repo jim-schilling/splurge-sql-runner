@@ -15,44 +15,40 @@ import glob
 import sys
 from pathlib import Path
 
-
-from splurge_sql_runner.config.app_config import AppConfig
-from splurge_sql_runner.config.constants import (
-    DEFAULT_MAX_STATEMENTS_PER_FILE,
-)
-from splurge_sql_runner.config.database_config import DatabaseConfig
-from splurge_sql_runner.config.logging_config import LoggingConfig
-from splurge_sql_runner.config.security_config import SecurityConfig
-from splurge_sql_runner.database.database_client import DatabaseClient
-from splurge_sql_runner.errors import (
-    CliFileError,
+from splurge_sql_runner import load_config
+from splurge_sql_runner.cli_output import pretty_print_results, simple_table_format
+from splurge_sql_runner.config.constants import DEFAULT_MAX_STATEMENTS_PER_FILE
+from splurge_sql_runner.exceptions import (
     CliSecurityError,
-    SqlFileError,
-    SqlValidationError,
-    DatabaseConnectionError,
-    SecurityValidationError,
-    SecurityFileError,
+    DatabaseError,
+    FileError,
     SecurityUrlError,
+    SecurityValidationError,
 )
 from splurge_sql_runner.logging import configure_module_logging
 from splurge_sql_runner.logging.core import setup_logging
-from splurge_sql_runner.security import SecurityValidator
-from splurge_sql_runner.sql_helper import split_sql_file
-from splurge_sql_runner.cli_output import pretty_print_results, simple_table_format
+from splurge_sql_runner.main import process_sql_files
+
 # No local tabulate usage; rendering lives in cli_output
 
-# Re-export API expected by tests
+# Re-export public API
 __all__ = [
     "simple_table_format",
     "pretty_print_results",
-    "process_sql_file",
     "main",
 ]
 
 
-_ERROR_EMOJI: str = "❌"
-_SUCCESS_EMOJI: str = "✅"
-_WARNING_EMOJI: str = "⚠️"
+_ERROR_PREFIX: str = "ERROR:"
+_SUCCESS_PREFIX: str = "SUCCESS:"
+_WARNING_PREFIX: str = "WARNING:"
+
+# Public return code constants
+EXIT_CODE_SUCCESS = 0
+EXIT_CODE_FAILURE = 1
+EXIT_CODE_PARTIAL_SUCCESS = 2
+EXIT_CODE_UNKNOWN = 3
+
 
 """
 CLI for splurge-sql-runner
@@ -79,13 +75,9 @@ def _print_security_guidance(error_message: str, *, context: str) -> None:
             "Tip: increase --max-statements for this run, or set security.max_statements_per_file in your JSON config."
         )
     if "too long" in msg or "statement too long" in msg:
-        hints.append(
-            "Tip: increase security.validation.max_statement_length in your JSON config."
-        )
+        hints.append("Tip: increase security.validation.max_statement_length in your JSON config.")
     if "file extension not allowed" in msg:
-        hints.append(
-            "Tip: add the extension to security.allowed_file_extensions in your JSON config."
-        )
+        hints.append("Tip: add the extension to security.allowed_file_extensions in your JSON config.")
     if "dangerous pattern" in msg:
         if context == "file":
             hints.append(
@@ -109,131 +101,28 @@ def _print_security_guidance(error_message: str, *, context: str) -> None:
                 "Tip: use a safe URL or update security.validation.dangerous_url_patterns in your JSON config."
             )
     if "scheme" in msg and context == "url":
-        hints.append(
-            "Tip: include a scheme like sqlite:///, postgresql://, or mysql:// in the connection URL."
-        )
+        hints.append("Tip: include a scheme like sqlite:///, postgresql://, or mysql:// in the connection URL.")
 
     for hint in hints:
-        print(f"{_WARNING_EMOJI}  {hint}")
+        print(f"{_WARNING_PREFIX}  {hint}")
 
 
-def process_sql_file(
-    db_client: DatabaseClient,
-    connection,
-    file_path: str,
-    security_config: SecurityConfig,
-    *,
-    verbose: bool = False,
-    output_json: bool = False,
-    no_emoji: bool = False,
-    stop_on_error: bool = True,
-) -> bool:
-    """
-    Process a single SQL file and execute its statements.
-
-    Args:
-        db_client: Database client used to execute statements
-        connection: Active database connection/transaction context
-        file_path: Path to SQL file
-        security_config: Security configuration
-        verbose: Whether to print verbose output
-        output_json: Whether to emit JSON output for results
-        no_emoji: Whether to suppress emoji in CLI output
-        stop_on_error: Whether to stop processing at first statement error
-
-    Returns:
-        True if successful, False otherwise
-    """
-    logger = configure_module_logging("cli.process_sql_file")
-
-    try:
-        logger.debug(f"Starting to process SQL file: {file_path}")
-        logger.debug("Performing file path security validation")
-        try:
-            SecurityValidator.validate_file_path(file_path, security_config)
-            logger.debug("File path security validation passed")
-        except SecurityFileError as e:
-            logger.error(f"File path security validation failed: {e}")
-            raise CliSecurityError(str(e))
-
-        if verbose:
-            print(f"Processing file: {file_path}")
-
-        logger.debug("Splitting SQL file into statements")
-        statements = split_sql_file(file_path, strip_semicolon=False)
-        logger.debug(f"Found {len(statements)} SQL statements")
-
-        if not statements:
-            logger.warning(f"No valid SQL statements found in {file_path}")
-            if verbose:
-                print(f"No valid SQL statements found in {file_path}")
-            return True
-
-        sql_content = ";\n".join(statements) + ";"
-        logger.debug(f"Combined SQL content length: {len(sql_content)} characters")
-
-        logger.debug("Performing SQL content security validation")
-        try:
-            SecurityValidator.validate_sql_content(sql_content, security_config)
-            logger.debug("SQL content security validation passed")
-        except SecurityValidationError as e:
-            logger.error(f"SQL content security validation failed: {e}")
-            raise CliSecurityError(str(e))
-
-        logger.info(
-            f"Executing {len(statements)} SQL statements from file: {file_path}"
-        )
-        # Avoid reparsing inside client by executing the pre-parsed list
-        results = db_client.execute_statements(
-            statements,
-            connection=connection,
-            stop_on_error=stop_on_error,
-        )
-        logger.debug(f"Batch execution completed with {len(results)} result sets")
-
-        pretty_print_results(
-            results,
-            file_path,
-            output_json=output_json,
-            no_emoji=no_emoji,
-        )
-        logger.info(f"Successfully processed file: {file_path}")
-
-        # For CLI UX, treat statement-level errors as non-fatal for the overall file.
-        # The detailed error is printed in results; only raised exceptions cause failure.
-        return True
-
-    except CliSecurityError as e:
-        logger.error(f"Security error processing {file_path}: {e}")
-        print(f"❌ Security error processing {file_path}: {e}")
-        # Choose guidance context based on whether error came from path or SQL content
-        ctx = "file" if "extension" in str(e).lower() or "path" in str(e).lower() else "sql"
-        _print_security_guidance(str(e), context=ctx)
-        return False
-    except (SqlFileError, SqlValidationError) as e:
-        logger.error(f"SQL file error processing {file_path}: {e}")
-        print(f"❌ SQL file error processing {file_path}: {e}")
-        return False
-    except (DatabaseConnectionError,) as e:
-        logger.error(f"Database error processing {file_path}: {e}")
-        print(f"❌ Database error processing {file_path}: {e}")
-        return False
-    except Exception as e:
-        logger.error(f"Unexpected error processing {file_path}: {e}", exc_info=True)
-        print(f"❌ Unexpected error processing {file_path}: {e}")
-        return False
-
-
-def main() -> None:
+def main() -> int:
     """Main CLI entry point."""
+    # Some Python runtimes expose reconfigure on TextIO; narrow before calling
     try:
-        sys.stdout.reconfigure(encoding="utf-8")
-        sys.stderr.reconfigure(encoding="utf-8")
-    except AttributeError:
+        from io import TextIOWrapper
+
+        if isinstance(sys.stdout, TextIOWrapper):
+            sys.stdout.reconfigure(encoding="utf-8")
+        if isinstance(sys.stderr, TextIOWrapper):
+            sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        # Be permissive: if reconfigure isn't available or an unexpected error occurs, continue
         pass
 
-    # Bootstrap a basic logger early using LoggingConfig defaults; reconfigure after config load
-    logger = configure_module_logging("cli", log_level=LoggingConfig().level.value)
+    # Bootstrap a basic logger early
+    logger = configure_module_logging("cli", log_level="INFO")
 
     logger.info("Starting splurge-sql-runner CLI")
     parser = argparse.ArgumentParser(
@@ -257,7 +146,14 @@ Examples:
     parser.add_argument(
         "--config",
         dest="config_file",
-        help="Path to JSON configuration file (overridden by CLI args if both provided)",
+        help="Path to JSON configuration file",
+    )
+
+    parser.add_argument(
+        "--security-level",
+        choices=["strict", "normal", "permissive"],
+        default="normal",
+        help="Security validation level (default: normal)",
     )
 
     parser.add_argument("-f", "--file", help="Single SQL file to execute")
@@ -288,13 +184,6 @@ Examples:
     )
 
     parser.add_argument(
-        "--no-emoji",
-        dest="no_emoji",
-        action="store_true",
-        help="Disable emoji in CLI output",
-    )
-
-    parser.add_argument(
         "--max-statements",
         type=int,
         default=DEFAULT_MAX_STATEMENTS_PER_FILE,
@@ -309,82 +198,48 @@ Examples:
     )
 
     args = parser.parse_args()
-    # In tests, error() is mocked and parse_args() may return None instead of exiting.
-    if args is None:  # pragma: no cover - defensive for mocked argparse behavior
-        return
+    # parse_args() will exit via SystemExit for invalid args; proceed assuming args is valid
 
-    logger.debug(
-        f"CLI arguments: file={args.file}, pattern={args.pattern}, "
-        f"verbose={args.verbose}, debug={args.debug}"
-    )
+    logger.debug(f"CLI arguments: file={args.file}, pattern={args.pattern}, verbose={args.verbose}, debug={args.debug}")
 
-    # Validate presence of either file or pattern for test expectations
+    # Validate presence of either file or pattern
     if not args.file and not args.pattern:
         logger.error("Neither file nor pattern specified")
-        # Let argparse format the error once and return to avoid duplicate mocked calls
-        try:
-            parser.error("Either -f/--file or -p/--pattern must be specified")
-        finally:
-            return
+        # Let argparse format the error for consistency
+        parser.error("Either -f/--file or -p/--pattern must be specified")
 
-    # If both are provided, surface the argparse-style error consistently and avoid duplicate error calls
+    # If both are provided, surface the argparse-style error consistently
     if args.file and args.pattern:
-        parser.print_usage()  # avoid triggering mocked error twice
-        try:
-            parser.error("argument -p/--pattern: not allowed with argument -f/--file")
-        finally:
-            return
+        parser.error("argument -p/--pattern: not allowed with argument -f/--file")
 
     try:
+        exit_code = EXIT_CODE_UNKNOWN
         # If a config file was specified, log its usage early for visibility
         if args.config_file:
             if Path(args.config_file).exists():
                 logger.info(f"Loading configuration from: {args.config_file}")
             else:
-                logger.warning(
-                    f"Config file not found: {args.config_file}; using defaults and CLI overrides"
-                )
+                logger.warning(f"Config file not found: {args.config_file}; using defaults and CLI overrides")
 
-        cli_config = {
-            "database_url": args.connection,
-            "max_statements_per_file": args.max_statements,
-        }
-        config = AppConfig.load(args.config_file, cli_args=cli_config)
-        # Align logging defaults to configuration
+        # Load configuration
+        config = load_config(args.config_file)
+        # Override database URL from CLI
+        config["database_url"] = args.connection
+        config["security_level"] = args.security_level
+        if hasattr(args, "max_statements") and args.max_statements:
+            config["max_statements_per_file"] = args.max_statements
+
+        # Setup logging
         setup_logging(
-            log_level=config.logging.level.value,
-            log_file=config.logging.get_log_file_path(),
-            log_dir=config.logging.log_dir,
-            enable_console=config.logging.enable_console,
-            enable_json=config.logging.is_json_format,
-            backup_count=config.logging.backup_count,
+            log_level=config.get("log_level", "INFO"),
+            enable_console=True,
         )
-        logger = configure_module_logging("cli", log_level=config.logging.level.value)
+        logger = configure_module_logging("cli", log_level=config.get("log_level", "INFO"))
+
         if args.config_file and Path(args.config_file).exists():
             logger.info(f"Configuration loaded from: {args.config_file}")
 
-        logger.info("Performing security validation")
-        try:
-            SecurityValidator.validate_database_url(args.connection, config.security)
-            logger.debug("Security validation passed")
-        except (SecurityValidationError, SecurityUrlError) as e:
-            logger.error(f"Security validation failed: {e}")
-            raise CliSecurityError(str(e))
-
-        logger.info(f"Initializing database connection for: {args.connection}")
-        if args.verbose:
-            print(f"Connecting to database: {args.connection}")
-
-        db_config = DatabaseConfig(
-            url=args.connection,
-            enable_debug=args.debug,
-        )
-        db_client = DatabaseClient(db_config)
-        logger.info("Database client initialized successfully")
-
-        if args.debug:
-            print("Debug mode enabled")
-
+        # Build list of files to process
         files_to_process = []
 
         if args.file:
@@ -392,7 +247,7 @@ Examples:
             file_path_resolved = Path(args.file).expanduser().resolve()
             if not file_path_resolved.exists():
                 logger.error(f"File not found: {file_path_resolved}")
-                raise CliFileError(f"File not found: {file_path_resolved}")
+                raise FileError(f"File not found: {file_path_resolved}")
             files_to_process = [str(file_path_resolved)]
         elif args.pattern:
             logger.info(f"Processing files matching pattern: {args.pattern}")
@@ -401,77 +256,83 @@ Examples:
             files_to_process = [str(Path(p).resolve()) for p in glob.glob(pattern)]
             if not files_to_process:
                 logger.error(f"No files found matching pattern: {args.pattern}")
-                raise CliFileError(f"No files found matching pattern: {args.pattern}")
+                raise FileError(f"No files found matching pattern: {args.pattern}")
             files_to_process.sort()
             logger.debug(f"Found {len(files_to_process)} files matching pattern")
 
         if args.verbose:
             print(f"Found {len(files_to_process)} file(s) to process")
 
-        success_count = 0
-        logger.info(f"Starting to process {len(files_to_process)} files")
+        try:
+            summary = process_sql_files(
+                files_to_process,
+                database_url=config["database_url"],
+                config=config,
+                security_level=config.get("security_level", "normal"),
+                max_statements_per_file=config.get("max_statements_per_file", 100),
+                stop_on_error=not args.continue_on_error,
+            )
 
-        # Single persistent connection for the entire run
-        with db_client.connect() as conn:
-            for file_path in files_to_process:
-                logger.info(f"Processing file: {file_path}")
-                verbose = args.verbose
-                success = process_sql_file(
-                    db_client,
-                    conn,
-                    file_path,
-                    config.security,
-                    verbose=verbose,
-                    output_json=args.output_json,
-                    no_emoji=args.no_emoji,
-                    stop_on_error=not args.continue_on_error,
-                )
-                if success:
-                    success_count += 1
-                    logger.info(f"Successfully processed file: {file_path}")
+            # Print results similar to previous behavior
+            for fp, results in summary.get("results", {}).items():
+                pretty_print_results(results, fp, output_json=args.output_json)
+
+            print(f"\n{'=' * 60}")
+            print(
+                f"Summary: {summary.get('success_count', 0)}/{summary.get('files_processed', 0)} files processed successfully"
+            )
+            print(f"{'=' * 60}")
+
+            files_processed = summary.get("files_processed", 0)
+            files_passed = summary.get("files_passed", 0)
+            files_failed = summary.get("files_failed", 0)
+            files_mixed = summary.get("files_mixed", 0)
+            if files_processed > 0:
+                if files_mixed > 0:
+                    logger.error(f"Some files failed to process. Exiting with error code {EXIT_CODE_PARTIAL_SUCCESS}")
+                    exit_code = EXIT_CODE_PARTIAL_SUCCESS
+                elif files_failed == files_processed:
+                    logger.error(f"All files failed to process. Exiting with error code {EXIT_CODE_FAILURE}")
+                    exit_code = EXIT_CODE_FAILURE
+                elif files_passed == files_processed:
+                    logger.info(f"All files processed successfully. Exiting with success code {EXIT_CODE_SUCCESS}")
+                    exit_code = EXIT_CODE_SUCCESS
                 else:
-                    logger.error(f"Failed to process file: {file_path}")
+                    logger.error(f"Unexpected summary state. Exiting with error code {EXIT_CODE_UNKNOWN}")
+                    exit_code = EXIT_CODE_UNKNOWN
+            else:
+                logger.error(f"Unexpected summary state. Exiting with error code {EXIT_CODE_UNKNOWN}")
+                exit_code = EXIT_CODE_UNKNOWN
 
-        logger.info(
-            f"Processing complete: {success_count}/{len(files_to_process)} files processed successfully"
-        )
-        print(f"\n{'=' * 60}")
-        print(
-            f"Summary: {success_count}/{len(files_to_process)} files processed successfully"
-        )
-        print(f"{'=' * 60}")
+        except (SecurityValidationError, SecurityUrlError) as e:
+            logger.error(f"Security validation failed: {e}")
+            print(f"{_ERROR_PREFIX} Security validation failed: {e}")
+            _print_security_guidance(str(e), context="file")
+            exit_code = EXIT_CODE_FAILURE
 
-        if success_count < len(files_to_process):
-            logger.error("Some files failed to process. Exiting with error code 1")
-            sys.exit(1)
-
-    except (DatabaseConnectionError,) as e:
+    except DatabaseError as e:
         logger.error(f"Database error: {e}")
-        print(f"❌ Database error: {e}")
-        sys.exit(1)
-    except (SqlFileError, SqlValidationError) as e:
-        logger.error(f"SQL file error: {e}")
-        print(f"❌ SQL file error: {e}")
-        sys.exit(1)
+        print(f"{_ERROR_PREFIX} Database error: {e}")
+        exit_code = EXIT_CODE_FAILURE
+    except FileError as e:
+        logger.error(f"File error: {e}")
+        print(f"{_ERROR_PREFIX} File error: {e}")
+        exit_code = EXIT_CODE_FAILURE
     except CliSecurityError as e:
         logger.error(f"Security error: {e}")
-        print(f"❌ Security error: {e}")
+        print(f"{_ERROR_PREFIX} Security error: {e}")
         _print_security_guidance(str(e), context="url")
-        sys.exit(1)
-    except CliFileError as e:
-        logger.error(f"CLI file error: {e}")
-        print(f"❌ CLI file error: {e}")
-        sys.exit(1)
+        exit_code = EXIT_CODE_FAILURE
     except Exception as e:
         logger.error(f"Unexpected error: {e}", exc_info=True)
-        print(f"❌ Unexpected error: {e}")
-        sys.exit(1)
+        print(f"{_ERROR_PREFIX} Unexpected error: {e}")
+        exit_code = EXIT_CODE_FAILURE
     finally:
-        if "db_client" in locals():
-            logger.info("Closing database client")
-            db_client.close()
         logger.info("splurge-sql-runner CLI completed")
+    return exit_code
 
 
 if __name__ == "__main__":
-    main()
+    code = main()
+    # Explicitly exit with returned code for script callers
+    sys.exit(code)

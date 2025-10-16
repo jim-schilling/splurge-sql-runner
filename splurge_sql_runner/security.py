@@ -1,264 +1,147 @@
 """
-Security validation utilities for splurge-sql-runner.
+Simplified security validation for splurge-sql-runner.
 
-Provides security validation functions and utilities to protect against common security vulnerabilities.
+Provides risk-based security validation with three levels: strict, normal, permissive.
 
 Copyright (c) 2025, Jim Schilling
 
 This module is licensed under the MIT License.
 """
 
-import re
-from pathlib import Path
-
 from urllib.parse import urlparse
 
-from splurge_sql_runner.config.security_config import SecurityConfig
-from splurge_sql_runner.utils.security_utils import sanitize_shell_arguments as _sanitize_shell_arguments
-from splurge_sql_runner.errors.security_errors import (
-    SecurityValidationError,
-    SecurityFileError,
+from splurge_sql_runner.exceptions import (
     SecurityUrlError,
+    SecurityValidationError,
 )
 
 
 class SecurityValidator:
-    """Security validation utilities."""
+    """Risk-based security validation utilities."""
+
+    # Security patterns by level
+    STRICT_PATTERNS = {
+        "dangerous_paths": [
+            "..",
+            "~",
+            "/etc",
+            "/var",
+            "/usr",
+            "/bin",
+            "/sbin",
+            "/dev",
+            "\\windows\\system32",
+            "\\windows\\syswow64",
+            "\\program files",
+        ],
+        "dangerous_sql": [
+            "DROP DATABASE",
+            "TRUNCATE DATABASE",
+            "DELETE FROM INFORMATION_SCHEMA",
+            "DELETE FROM SYS.",
+            "EXEC ",
+            "EXECUTE ",
+            "XP_",
+            "SP_",
+            "OPENROWSET",
+            "OPENDATASOURCE",
+            "BACKUP DATABASE",
+            "RESTORE DATABASE",
+            "SHUTDOWN",
+            "KILL",
+        ],
+        "dangerous_urls": ["--", "/*", "*/", "xp_", "sp_", "exec", "execute", "script:", "javascript:", "data:"],
+    }
+
+    NORMAL_PATTERNS = {
+        "dangerous_paths": ["..", "~", "/etc", "/var", "\\windows\\system32"],
+        "dangerous_sql": ["DROP DATABASE", "EXEC ", "EXECUTE ", "XP_", "SP_"],
+        "dangerous_urls": ["script:", "javascript:", "data:"],
+    }
+
+    PERMISSIVE_PATTERNS = {"dangerous_paths": [".."], "dangerous_sql": [], "dangerous_urls": []}
 
     @staticmethod
-    def validate_file_path(
-        file_path: str,
-        config: SecurityConfig,
-    ) -> None:
-        """
-        Validate file path for security concerns.
-
-        Args:
-            file_path: Path to validate
-            config: Security configuration
-
-        Raises:
-            SecurityFileError: If path contains dangerous patterns or is invalid
-        """
-        if not file_path:
-            raise SecurityFileError("File path cannot be empty")
-
-        # Check for dangerous path patterns in the original path
-        file_path_lower = file_path.lower()
-        for pattern in config.validation.dangerous_path_patterns:
-            if pattern.lower() in file_path_lower:
-                raise SecurityFileError(
-                    f"File path contains dangerous pattern: {pattern}"
-                )
-
-        # Check file extension
-        if not config.is_file_extension_allowed(file_path):
-            raise SecurityFileError(
-                f"File extension not allowed: {Path(file_path).suffix}"
-            )
-
-        # Check if path is safe
-        if not config.is_path_safe(file_path):
-            raise SecurityFileError("File path is not safe")
-
-        try:
-            Path(file_path).stat()
-        except FileNotFoundError:
-            pass
-
-    @staticmethod
-    def validate_database_url(
-        database_url: str,
-        config: SecurityConfig,
-    ) -> None:
+    def validate_database_url(database_url: str, security_level: str = "normal") -> None:
         """
         Validate database URL for security concerns.
 
         Args:
             database_url: Database URL to validate
-            config: Security configuration
+            security_level: Security level ("strict", "normal", "permissive")
 
         Raises:
-            SecurityUrlError: If URL contains dangerous patterns or is invalid
+            SecurityUrlError: If URL contains dangerous patterns
         """
         if not database_url:
             raise SecurityUrlError("Database URL cannot be empty")
 
-        # Parse URL to check for dangerous patterns
+        if security_level == "permissive":
+            return  # Skip validation for permissive mode
+
+        # Parse URL
         try:
             parsed_url = urlparse(database_url)
         except Exception as e:
-            raise SecurityUrlError(f"Invalid database URL format: {e}")
+            raise SecurityUrlError(f"Invalid database URL format: {e}") from e
 
-        # Check for valid scheme
+        # Check for valid scheme (always required)
         if not parsed_url.scheme:
-            raise SecurityUrlError(
-                "Database URL must include a scheme (e.g., sqlite://, postgresql://)"
-            )
+            raise SecurityUrlError("Database URL must include a scheme (e.g., sqlite://, postgresql://)")
 
-        # Check for dangerous patterns in URL
+        # Check patterns based on security level
+        patterns = SecurityValidator._get_patterns(security_level)["dangerous_urls"]
         url_lower = database_url.lower()
-        for pattern in config.validation.dangerous_url_patterns:
-            if pattern.lower() in url_lower:
-                raise SecurityUrlError(
-                    f"Database URL contains dangerous pattern: {pattern}"
-                )
 
-        # Check for dangerous path patterns in URL
-        for pattern in config.validation.dangerous_path_patterns:
+        for pattern in patterns:
             if pattern.lower() in url_lower:
-                raise SecurityUrlError(
-                    f"Database URL contains dangerous path pattern: {pattern}"
-                )
-
-        # Check if URL is safe
-        if not config.is_url_safe(database_url):
-            raise SecurityUrlError("Database URL is not safe")
+                raise SecurityUrlError(f"Database URL contains dangerous pattern: {pattern}")
 
     @staticmethod
-    def validate_sql_content(
-        sql_content: str,
-        config: SecurityConfig,
-    ) -> None:
+    def validate_sql_content(sql_content: str, security_level: str = "normal", max_statements: int = 100) -> None:
         """
         Validate SQL content for security concerns.
 
         Args:
             sql_content: SQL content to validate
-            config: Security configuration
+            security_level: Security level ("strict", "normal", "permissive")
+            max_statements: Maximum allowed statements
 
         Raises:
-            SecurityValidationError: If SQL contains dangerous patterns or is invalid
+            SecurityValidationError: If SQL contains dangerous patterns
         """
         if not sql_content:
             return
 
-        # Check for dangerous SQL patterns
+        if security_level == "permissive":
+            return  # Skip validation for permissive mode
+
+        # Check dangerous SQL patterns
+        patterns = SecurityValidator._get_patterns(security_level)["dangerous_sql"]
         sql_upper = sql_content.upper()
-        for pattern in config.validation.dangerous_sql_patterns:
+
+        for pattern in patterns:
             if pattern.upper() in sql_upper:
+                raise SecurityValidationError(f"SQL content contains dangerous pattern: {pattern}")
+
+        # Check statement count (only for strict/normal modes)
+        if security_level in ("strict", "normal"):
+            from splurge_sql_runner.sql_helper import parse_sql_statements
+
+            statements = parse_sql_statements(sql_content)
+            if len(statements) > max_statements:
                 raise SecurityValidationError(
-                    f"SQL content contains dangerous pattern: {pattern}"
+                    f"Too many SQL statements ({len(statements)}). Maximum allowed: {max_statements}"
                 )
 
-        # Check statement length
-        if not config.is_statement_length_safe(sql_content):
-            raise SecurityValidationError(
-                f"SQL statement too long (max: {config.validation.max_statement_length} chars)"
-            )
-
-        # Check number of statements using proper SQL parsing
-        from splurge_sql_runner.sql_helper import parse_sql_statements
-
-        statements = parse_sql_statements(sql_content)
-        if len(statements) > config.max_statements_per_file:
-            raise SecurityValidationError(
-                f"Too many SQL statements ({len(statements)}). "
-                f"Maximum allowed: {config.max_statements_per_file}"
-            )
-
-        # Check if SQL is safe
-        if not config.is_sql_safe(sql_content):
-            raise SecurityValidationError("SQL content is not safe")
-
     @staticmethod
-    def sanitize_sql_content(sql_content: str) -> str:
-        """
-        Sanitize SQL content by removing or escaping dangerous patterns.
-
-        Args:
-            sql_content: SQL content to sanitize
-
-        Returns:
-            Sanitized SQL content
-        """
-        if not sql_content:
-            return sql_content
-
-        # Remove SQL comments
-        sql_content = re.sub(r"--.*$", "", sql_content, flags=re.MULTILINE)
-        sql_content = re.sub(r"/\*.*?\*/", "", sql_content, flags=re.DOTALL)
-
-        # Remove extra whitespace
-        sql_content = re.sub(r"\s+", " ", sql_content).strip()
-
-        return sql_content
-
-    @staticmethod
-    def is_safe_file_path(
-        file_path: str,
-        config: SecurityConfig,
-    ) -> bool:
-        """
-        Check if file path is safe.
-
-        Args:
-            file_path: Path to check
-            config: Security configuration
-
-        Returns:
-            True if path is safe, False otherwise
-        """
-        try:
-            SecurityValidator.validate_file_path(file_path, config)
-            return True
-        except SecurityFileError:
-            return False
-
-    @staticmethod
-    def is_safe_database_url(
-        database_url: str,
-        config: SecurityConfig,
-    ) -> bool:
-        """
-        Check if database URL is safe.
-
-        Args:
-            database_url: URL to check
-            config: Security configuration
-
-        Returns:
-            True if URL is safe, False otherwise
-        """
-        try:
-            SecurityValidator.validate_database_url(database_url, config)
-            return True
-        except SecurityUrlError:
-            return False
-
-    @staticmethod
-    def is_safe_sql_content(
-        sql_content: str,
-        config: SecurityConfig,
-    ) -> bool:
-        """
-        Check if SQL content is safe.
-
-        Args:
-            sql_content: SQL content to check
-            config: Security configuration
-
-        Returns:
-            True if SQL is safe, False otherwise
-        """
-        try:
-            SecurityValidator.validate_sql_content(sql_content, config)
-            return True
-        except SecurityValidationError:
-            return False
-
-    @staticmethod
-    def sanitize_shell_arguments(args: list[str]) -> list[str]:
-        """
-        Sanitize shell command arguments to prevent shell injection attacks.
-
-        Args:
-            args: List of command arguments to sanitize
-
-        Returns:
-            List of sanitized arguments
-
-        Raises:
-            ValueError: If any argument contains dangerous characters or is not a string
-        """
-        return _sanitize_shell_arguments(args)
+    def _get_patterns(security_level: str) -> dict:
+        """Get security patterns for the specified level."""
+        if security_level == "strict":
+            return SecurityValidator.STRICT_PATTERNS
+        elif security_level == "normal":
+            return SecurityValidator.NORMAL_PATTERNS
+        elif security_level == "permissive":
+            return SecurityValidator.PERMISSIVE_PATTERNS
+        else:
+            raise ValueError(f"Unknown security level: {security_level}")

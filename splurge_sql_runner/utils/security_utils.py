@@ -8,7 +8,6 @@ Copyright (c) 2025, Jim Schilling
 
 This module is licensed under the MIT License.
 """
- 
 
 from splurge_sql_runner.config.constants import DANGEROUS_SHELL_CHARACTERS
 
@@ -52,26 +51,3 @@ def sanitize_shell_arguments(args: list[str]) -> list[str]:
         sanitized_args.append(arg)
 
     return sanitized_args
-
-
-def is_safe_shell_argument(arg: str) -> bool:
-    """
-    Check if a single shell argument is safe from injection attacks.
-
-    Args:
-        arg: Single argument to check
-
-    Returns:
-        True if the argument is safe, False if it contains dangerous characters
-
-    Examples:
-        >>> is_safe_shell_argument('--help')
-        True
-
-        >>> is_safe_shell_argument('dangerous;command')
-        False
-    """
-    if not isinstance(arg, str):
-        return False
-
-    return not any(char in arg for char in DANGEROUS_SHELL_CHARACTERS)

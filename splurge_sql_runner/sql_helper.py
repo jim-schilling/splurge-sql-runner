@@ -8,15 +8,18 @@ Please keep this header when you use this code.
 This module is licensed under the MIT License.
 """
 
+from functools import lru_cache
 from pathlib import Path
-import sqlparse
-from sqlparse.tokens import Comment
-from sqlparse.sql import Token
-from splurge_sql_runner.errors import (
-    SqlFileError,
-    SqlValidationError,
-)
 
+import splurge_safe_io.exceptions as safe_io_exc
+import sqlparse
+from splurge_safe_io.safe_text_file_reader import SafeTextFileReader
+from sqlparse.sql import Token
+from sqlparse.tokens import Comment
+
+from splurge_sql_runner.exceptions import (
+    SqlFileError,
+)
 
 # Private constants for SQL statement types
 _FETCH_KEYWORDS: set[str] = {
@@ -33,7 +36,6 @@ _MODIFY_DML_KEYWORDS: set[str] = {"INSERT", "UPDATE", "DELETE"}
 # Private constants for SQL keywords and symbols
 _WITH_KEYWORD: str = "WITH"
 _AS_KEYWORD: str = "AS"
-_SELECT_KEYWORD: str = "SELECT"
 _SEMICOLON: str = ";"
 _COMMA: str = ","
 _PAREN_OPEN: str = "("
@@ -42,6 +44,20 @@ _PAREN_CLOSE: str = ")"
 # Public constants for statement type return values
 EXECUTE_STATEMENT: str = "execute"
 FETCH_STATEMENT: str = "fetch"
+
+# Memory limits for processing (simplified without external dependencies)
+MAX_MEMORY_MB: int = 512  # Maximum memory usage before chunking
+CHUNK_SIZE_MB: int = 50  # Size of chunks for large file processing
+
+
+def get_memory_usage_mb() -> float:
+    """Get current memory usage in MB (simplified implementation)."""
+    return 0.0  # Simplified - no external memory monitoring
+
+
+def should_use_chunked_processing(file_size_mb: float, current_memory_mb: float) -> bool:
+    """Determine if chunked processing should be used based on file size."""
+    return file_size_mb > CHUNK_SIZE_MB  # Only check file size
 
 
 def remove_sql_comments(sql_text: str) -> str:
@@ -68,11 +84,7 @@ def normalize_token(token: Token) -> str:
     """
     Return the uppercased, stripped value of a token.
     """
-    return (
-        str(token.value).strip().upper()
-        if hasattr(token, "value") and token.value
-        else ""
-    )
+    return str(token.value).strip().upper() if hasattr(token, "value") and token.value else ""
 
 
 def _next_significant_token(
@@ -129,10 +141,7 @@ def find_main_statement_after_with(tokens: list[Token]) -> str | None:
             i = next_i
 
             # Check if next token is opening parenthesis (CTE body)
-            if (
-                tokens[i].ttype == sqlparse.tokens.Punctuation
-                and tokens[i].value == _PAREN_OPEN
-            ):
+            if tokens[i].ttype == sqlparse.tokens.Punctuation and tokens[i].value == _PAREN_OPEN:
                 # Consume the entire CTE body by tracking parentheses
                 paren_level = 1
                 i += 1
@@ -152,10 +161,7 @@ def find_main_statement_after_with(tokens: list[Token]) -> str | None:
                 i = next_i
 
                 # Check if next token is comma (more CTEs to follow)
-                if (
-                    tokens[i].ttype == sqlparse.tokens.Punctuation
-                    and tokens[i].value == _COMMA
-                ):
+                if tokens[i].ttype == sqlparse.tokens.Punctuation and tokens[i].value == _COMMA:
                     i += 1  # Skip comma and continue to next CTE
                     continue
                 else:
@@ -179,6 +185,7 @@ def find_main_statement_after_with(tokens: list[Token]) -> str | None:
     return None
 
 
+@lru_cache(maxsize=512)
 def detect_statement_type(sql: str) -> str:
     """
     Detect if a SQL statement returns rows using advanced sqlparse analysis.
@@ -354,28 +361,28 @@ def parse_sql_statements(
     return filtered_stmts
 
 
-def split_sql_file(
+def parse_sql_file(
     file_path: str | Path,
     *,
     strip_semicolon: bool = False,
 ) -> list[str]:
     """
-    Read a SQL file and split it into individual executable statements.
+    Read a SQL file and parse it into individual executable statements.
 
     This function reads a SQL file and intelligently splits it into individual
     statements that can be executed separately. It handles complex SQL files
     with comments, multiple statements, and preserves statement integrity.
 
     Processing Steps:
-        1. Read file with UTF-8 encoding
-        2. Remove SQL comments (single-line -- and multi-line /* */)
-        3. Parse using sqlparse for accurate statement boundaries
-        4. Filter out empty statements and comment-only lines
-        5. Optionally strip trailing semicolons
+        1. Read entire file content using SafeTextFileReader.read()
+        2. Parse using sqlparse for accurate statement boundaries
+        3. Filter out empty statements and comment-only lines
+        4. Optionally strip trailing semicolons
 
     Args:
         file_path: Path to the SQL file to process. Can be a string path or
-            pathlib.Path object. File must exist and be readable.
+            pathlib.Path object. SafeTextFileReader validates the path during
+            instantiation, ensuring the file exists and is readable.
         strip_semicolon: If True, remove trailing semicolons from each statement.
             If False (default), preserve semicolons as they appear in the file.
             Useful when the execution engine expects statements without semicolons.
@@ -389,29 +396,26 @@ def split_sql_file(
 
     Raises:
         SqlFileError: If file operations fail, including:
+            - Invalid file path (None or wrong type)
             - File not found
             - Permission denied
             - I/O errors during reading
             - Encoding errors (non-UTF-8 content)
-        SqlValidationError: If input validation fails:
-            - file_path is None
-            - file_path is empty string
-            - file_path is not string or Path object
 
     Examples:
         Basic usage:
-            >>> statements = split_sql_file("setup.sql")
+            >>> statements = parse_sql_file("setup.sql")
             >>> for stmt in statements:
             ...     print(f"Statement: {stmt}")
 
         With semicolon stripping:
-            >>> statements = split_sql_file("migration.sql", strip_semicolon=True)
+            >>> statements = parse_sql_file("migration.sql", strip_semicolon=True)
             >>> # Statements will not have trailing semicolons
 
         Using pathlib.Path:
             >>> from pathlib import Path
             >>> sql_file = Path("database") / "schema.sql"
-            >>> statements = split_sql_file(sql_file)
+            >>> statements = parse_sql_file(sql_file)
 
         Handling complex SQL files:
             >>> # File content:
@@ -423,31 +427,43 @@ def split_sql_file(
             >>> #
             >>> # /* Insert sample data */
             >>> # INSERT INTO users (name) VALUES ('Alice'), ('Bob');
-            >>> statements = split_sql_file("complex.sql")
+            >>> statements = parse_sql_file("complex.sql")
             >>> len(statements)  # Returns 2 (CREATE and INSERT)
 
     Note:
-        - Files are read with UTF-8 encoding by default
+        - Files are read with UTF-8 encoding
+        - SafeTextFileReader normalizes newlines to \\n
         - Comments within string literals are preserved
         - Empty lines and comment-only lines are filtered out
-        - Statement boundaries are determined by sqlparse, not simple semicolon splitting
-        - Large files are processed efficiently without loading entire content into memory
+        - Statement boundaries are determined by sqlparse for accuracy
         - Thread-safe: Can be called concurrently from multiple threads
     """
+    # Basic input validation for cases SafeTextFileReader doesn't handle
     if file_path is None:
-        raise SqlValidationError("file_path cannot be None")
+        raise SqlFileError("Invalid file path: None")
 
-    if not isinstance(file_path, (str, Path)):
-        raise SqlValidationError("file_path must be a string or Path object")
-
-    if not file_path:
-        raise SqlValidationError("file_path cannot be empty")
+    if not isinstance(file_path, str | Path):
+        raise SqlFileError(f"Invalid file path type: {type(file_path).__name__}")
 
     try:
-        with open(file_path, encoding="utf-8") as f:
-            sql_content = f.read()
+        reader = SafeTextFileReader(file_path, encoding="utf-8")
+
+        # Read entire file content as a single string
+        sql_content = reader.read()
+
         return parse_sql_statements(sql_content, strip_semicolon=strip_semicolon)
-    except FileNotFoundError:
-        raise SqlFileError(f"SQL file not found: {file_path}") from None
-    except OSError as e:
-        raise SqlFileError(f"Error reading SQL file {file_path}: {e}") from e
+
+    except safe_io_exc.SplurgeSafeIoPathValidationError as exc:
+        raise SqlFileError(f"Invalid file path: {file_path}") from exc
+    except safe_io_exc.SplurgeSafeIoFileNotFoundError as exc:
+        raise SqlFileError(f"SQL file not found: {file_path}") from exc
+    except safe_io_exc.SplurgeSafeIoFilePermissionError as exc:
+        raise SqlFileError(f"Permission denied reading SQL file: {file_path}") from exc
+    except safe_io_exc.SplurgeSafeIoFileDecodingError as exc:
+        raise SqlFileError(f"Decoding error reading SQL file (not UTF-8?): {file_path}") from exc
+    except safe_io_exc.SplurgeSafeIoOsError as exc:
+        raise SqlFileError(f"I/O error reading SQL file: {file_path}") from exc
+    except safe_io_exc.SplurgeSafeIoUnknownError as exc:
+        raise SqlFileError(f"Unknown error reading SQL file: {file_path}") from exc
+    except Exception as exc:
+        raise SqlFileError(f"Unexpected error reading SQL file: {file_path}") from exc

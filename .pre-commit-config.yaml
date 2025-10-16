@@ -1,0 +1,24 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff-check
+        entry: .venv/Scripts/python.exe -m ruff check .
+        language: system
+        types: [python]
+        pass_filenames: false
+        files: '\.py$'
+      
+      - id: mypy-check
+        name: mypy-check
+        entry: .venv/Scripts/python.exe -m mypy splurge_sql_runner
+        language: system
+        pass_filenames: false
+        files: '\.py$'
+      
+      - id: pytest-run
+        name: pytest-run
+        entry: .venv/Scripts/python.exe -m pytest --disable-warnings
+        language: system
+        pass_filenames: false
+        files: ''

@@ -11,7 +11,8 @@ This module is licensed under the MIT License.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+from collections.abc import Sequence
+from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Any
 
@@ -67,7 +68,7 @@ def statement_result_to_dict(result: StatementResult) -> dict[str, Any]:
 
 
 def results_to_dicts(
-    results: list[StatementResult | dict[str, Any]],
+    results: Sequence[StatementResult | dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Normalize a list of mixed typed results or dicts to dicts."""
 

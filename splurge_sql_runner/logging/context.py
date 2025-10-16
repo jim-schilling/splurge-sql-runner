@@ -10,10 +10,11 @@ This module is licensed under the MIT License.
 """
 
 import logging
+import threading
 import uuid
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from typing import Any
-import threading
 
 # Thread-local storage for logging context
 _thread_local = threading.local()
@@ -66,7 +67,7 @@ def clear_correlation_id() -> None:
 
 
 @contextmanager
-def correlation_context(correlation_id: str | None = None):
+def correlation_context(correlation_id: str | None = None) -> Generator[str | None, None, None]:
     """
     Context manager for correlation ID management.
 
@@ -94,6 +95,9 @@ class ContextualLogger:
 
     Allows adding contextual data that will be included in all log messages.
     """
+
+    # type of the contextual data stored on this logger
+    _context: dict[str, Any]
 
     def __init__(self, logger: logging.Logger, custom_name: str | None = None) -> None:
         """
@@ -182,16 +186,17 @@ class LogContext:
     Context manager and decorator for temporary contextual logging.
     """
 
-    def __init__(self, **context: Any):
+    def __init__(self, **context: Any) -> None:
         """
         Initialize log context.
 
         Args:
             **context: Contextual key-value pairs
         """
-        self._context = context
+        # annotate attribute to avoid implicit Any on assignment
+        self._context: dict[str, Any] = context
 
-    def __enter__(self):
+    def __enter__(self) -> ContextualLogger:
         """Enter context manager."""
         # Get the current thread's context
         if not hasattr(_thread_local, "context_stack"):
@@ -209,26 +214,28 @@ class LogContext:
 
         return self._contextual_logger
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any) -> None:
         """Exit context manager."""
         # Remove context
         if _thread_local.context_stack:
             _thread_local.context_stack.pop()
 
-    def __call__(self, func):
+    def __call__(self, func: Callable) -> Callable:
         """Use as decorator."""
 
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             with self as contextual_logger:
                 # Make the contextual logger available to the function
                 if not hasattr(func, "_contextual_logger"):
-                    func._contextual_logger = contextual_logger
+                    # Use setattr so static checkers don't complain about unknown
+                    # attributes on arbitrary callables.
+                    func._contextual_logger = contextual_logger  # type: ignore[attr-defined]
                 return func(*args, **kwargs)
 
         return wrapper
 
 
-def log_context(*args, **context: Any):
+def log_context(*args: Any, **context: Any) -> Any:
     """
     Context manager and decorator for temporary contextual logging.
 
