@@ -5,9 +5,9 @@ Simple demonstration of splurge-sql-runner CLI functionality.
 This script provides a step-by-step walkthrough of the CLI features.
 """
 
+import os
 import subprocess
 import sys
-import os
 import tempfile
 from pathlib import Path
 
@@ -28,31 +28,41 @@ def sanitize_shell_arguments(args: list) -> list:
     # Dangerous characters that could enable shell injection
     dangerous_chars = (
         # Command separators and pipes
-        ';', '|', '&&', '||',
-
+        ";",
+        "|",
+        "&&",
+        "||",
         # Command substitution and evaluation
-        '`', '$(', '${',
-
+        "`",
+        "$(",
+        "${",
         # Redirection operators
-        '>>', '<<', '<<<',
-
+        ">>",
+        "<<",
+        "<<<",
         # Character classes (dangerous for injection)
-        '[', ']',
-
+        "[",
+        "]",
         # Escaping and quotes
-        '\'', '"',
-
+        "'",
+        '"',
         # History expansion
-        '!',
-
+        "!",
         # Whitespace that can separate commands
-        ' ', '\t', '\n', '\r',
-
+        " ",
+        "\t",
+        "\n",
+        "\r",
         # Process substitution
-        '<(', '>(',
-
+        "<(",
+        ">(",
         # Single-character operators that could be dangerous
-        '&', '<', '>', '$', '(', ')',
+        "&",
+        "<",
+        ">",
+        "$",
+        "(",
+        ")",
     )
 
     sanitized_args = []
@@ -96,27 +106,23 @@ def run_command(cmd: list, description: str = "") -> bool:
         )
 
         if result.returncode == 0:
-            print("✅ Command completed successfully")
+            print("SUCCESS: Command completed successfully")
             if result.stdout:
                 print("Output:")
-                print(
-                    result.stdout[:1000] + "..."
-                    if len(result.stdout) > 1000
-                    else result.stdout
-                )
+                print(result.stdout[:1000] + "..." if len(result.stdout) > 1000 else result.stdout)
             return True
         else:
-            print(f"❌ Command failed with exit code {result.returncode}")
+            print(f"ERROR: Command failed with exit code {result.returncode}")
             if result.stderr:
                 print("Error:")
                 print(result.stderr)
             return False
 
     except subprocess.TimeoutExpired:
-        print("❌ Command timed out")
+        print("ERROR: Command timed out")
         return False
     except Exception as e:
-        print(f"❌ Error running command: {e}")
+        print(f"ERROR: Error running command: {e}")
         return False
 
 
@@ -139,9 +145,9 @@ def main():
     try:
         import splurge_sql_runner  # noqa: F401
 
-        print("✅ splurge-sql-runner is available")
+        print("SUCCESS: splurge-sql-runner is available")
     except ImportError as e:
-        print(f"❌ splurge-sql-runner is not available: {e}")
+        print(f"ERROR: splurge-sql-runner is not available: {e}")
         print("Please install it with: pip install splurge-sql-runner")
         print("Or run from the project root directory")
         print("For development, make sure you're in the project root directory")
@@ -190,7 +196,7 @@ SELECT COUNT(*) as user_count FROM demo_users;
         )
 
         if not success:
-            print("❌ Setup failed, stopping demonstration")
+            print("ERROR: Setup failed, stopping demonstration")
             return
 
         migration_sql = """
@@ -241,7 +247,7 @@ SELECT role, COUNT(*) as count FROM demo_users GROUP BY role;
         )
 
         if not success:
-            print("❌ Migration failed, stopping demonstration")
+            print("ERROR: Migration failed, stopping demonstration")
             return
 
         analysis_sql = """
@@ -295,7 +301,7 @@ ORDER BY post_count DESC;
         )
 
         if not success:
-            print("❌ Analysis failed, stopping demonstration")
+            print("ERROR: Analysis failed, stopping demonstration")
             return
 
         print(f"\n{'=' * 60}")
@@ -460,14 +466,14 @@ SELECT 'Demonstration completed successfully!' as final_status;
         print(f"\n{'=' * 60}")
         print("DEMONSTRATION SUMMARY")
         print(f"{'=' * 60}")
-        print("✅ Basic database setup")
-        print("✅ Database migration")
-        print("✅ Data analysis")
-        print("✅ Pattern matching")
-        print("✅ Error handling")
-        print("✅ Security features")
-        print("✅ Final verification")
-        print("\n🎉 CLI demonstration completed successfully!")
+        print("SUCCESS: Basic database setup")
+        print("SUCCESS: Database migration")
+        print("SUCCESS: Data analysis")
+        print("SUCCESS: Pattern matching")
+        print("SUCCESS: Error handling")
+        print("SUCCESS: Security features")
+        print("SUCCESS: Final verification")
+        print("\nSUCCESS: CLI demonstration completed successfully!")
         print(f"\nDatabase file: {db_path}")
         print("You can inspect this file with any SQLite browser.")
 

@@ -8,9 +8,11 @@ import json
 import logging
 import os
 import tempfile
-import pytest
+from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
+
+import pytest
 
 # Test constants
 TEST_DATA_DIR = Path(__file__).parent / "test_data"
@@ -52,16 +54,13 @@ def temp_dir() -> Generator[Path, None, None]:
 def sample_config_data() -> dict[str, Any]:
     """Provide sample configuration data for testing."""
     return {
-        "database": {
-            "engine": "sqlite",
-            "connection": {"database": ":memory:", "echo": False},
-        },
-        "logging": {"level": "INFO", "format": "json", "file": None},
-        "security": {
-            "validate_sql": True,
-            "allowed_commands": ["SELECT", "INSERT", "UPDATE", "DELETE"],
-            "blocked_patterns": ["DROP", "TRUNCATE"],
-        },
+        "database_url": "sqlite:///:memory:",
+        "max_statements_per_file": 100,
+        "connection_timeout": 30.0,
+        "log_level": "INFO",
+        "security_level": "normal",
+        "enable_verbose": False,
+        "enable_debug": False,
     }
 
 
@@ -127,6 +126,7 @@ def reset_environment():
 
 # Integration and E2E specific fixtures
 
+
 @pytest.fixture(scope="session")
 def integration_test_db_path(tmp_path_factory):
     """Create a temporary database file for integration tests."""
@@ -143,10 +143,8 @@ def e2e_test_db_path(tmp_path_factory):
 def integration_db_client(integration_test_db_path):
     """Database client fixture for integration tests."""
     from splurge_sql_runner.database.database_client import DatabaseClient
-    from splurge_sql_runner.config.database_config import DatabaseConfig
 
-    config = DatabaseConfig(url=f"sqlite:///{integration_test_db_path}")
-    client = DatabaseClient(config)
+    client = DatabaseClient(database_url=f"sqlite:///{integration_test_db_path}")
     yield client
     client.close()
 
@@ -155,10 +153,8 @@ def integration_db_client(integration_test_db_path):
 def e2e_db_client(e2e_test_db_path):
     """Database client fixture for e2e tests."""
     from splurge_sql_runner.database.database_client import DatabaseClient
-    from splurge_sql_runner.config.database_config import DatabaseConfig
 
-    config = DatabaseConfig(url=f"sqlite:///{e2e_test_db_path}")
-    client = DatabaseClient(config)
+    client = DatabaseClient(database_url=f"sqlite:///{e2e_test_db_path}")
     yield client
     client.close()
 
@@ -166,22 +162,47 @@ def e2e_db_client(e2e_test_db_path):
 @pytest.fixture
 def temp_sql_file_factory(tmp_path):
     """Factory fixture for creating temporary SQL files."""
+
     def _create_sql_file(content: str, filename: str = "test.sql") -> Path:
         sql_file = tmp_path / filename
         sql_file.write_text(content)
         return sql_file
+
     return _create_sql_file
 
 
 @pytest.fixture
 def temp_config_file_factory(tmp_path):
     """Factory fixture for creating temporary config files."""
+
     def _create_config_file(config_data: dict, filename: str = "config.json") -> Path:
         config_file = tmp_path / filename
-        with open(config_file, 'w') as f:
+        with open(config_file, "w") as f:
             json.dump(config_data, f, indent=2)
         return config_file
+
     return _create_config_file
+
+
+@pytest.fixture
+def in_memory_db_client():
+    """Fast in-memory database client for unit tests."""
+    from splurge_sql_runner.database.database_client import DatabaseClient
+
+    client = DatabaseClient(database_url="sqlite:///:memory:")
+    yield client
+    client.close()
+
+
+@pytest.fixture
+def temp_db_client(tmp_path):
+    """Temporary file-based database client for tests needing persistence."""
+    from splurge_sql_runner.database.database_client import DatabaseClient
+
+    db_path = tmp_path / "test.db"
+    client = DatabaseClient(database_url=f"sqlite:///{db_path}")
+    yield client
+    client.close()
 
 
 @pytest.fixture
@@ -197,7 +218,7 @@ def complex_test_data():
             {"id": 1, "user_id": 1, "amount": 99.99, "status": "completed"},
             {"id": 2, "user_id": 1, "amount": 149.50, "status": "pending"},
             {"id": 3, "user_id": 2, "amount": 75.00, "status": "completed"},
-        ]
+        ],
     }
 
 
@@ -227,13 +248,17 @@ def sample_complex_sql(complex_test_data):
     # Insert users
     user_inserts = []
     for user in complex_test_data["users"]:
-        user_inserts.append(f"INSERT INTO users (id, name, email, department) VALUES ({user['id']}, '{user['name']}', '{user['email']}', '{user['department']}');")
+        user_inserts.append(
+            f"INSERT INTO users (id, name, email, department) VALUES ({user['id']}, '{user['name']}', '{user['email']}', '{user['department']}');"
+        )
     sql_parts.append("\n".join(user_inserts))
 
     # Insert orders
     order_inserts = []
     for order in complex_test_data["orders"]:
-        order_inserts.append(f"INSERT INTO orders (id, user_id, amount, status) VALUES ({order['id']}, {order['user_id']}, {order['amount']}, '{order['status']}');")
+        order_inserts.append(
+            f"INSERT INTO orders (id, user_id, amount, status) VALUES ({order['id']}, {order['user_id']}, {order['amount']}, '{order['status']}');"
+        )
     sql_parts.append("\n".join(order_inserts))
 
     # Complex query

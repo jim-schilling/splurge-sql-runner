@@ -9,7 +9,10 @@ Copyright (c) 2025, Jim Schilling
 This module is licensed under the MIT License.
 """
 
+import sys
+
 from splurge_sql_runner.cli import main
 
 if __name__ == "__main__":
-    main()
+    # Ensure the return code from main() is propagated to the process exit
+    sys.exit(main())

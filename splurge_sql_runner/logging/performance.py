@@ -10,9 +10,10 @@ This module is licensed under the MIT License.
 
 import logging
 import time
+from collections.abc import Callable
 from contextlib import contextmanager
 from functools import wraps
-from typing import Any, Callable, TypeVar, ParamSpec
+from typing import Any, ParamSpec, TypeVar
 
 # Type variables for generic decorators
 T = TypeVar("T")
@@ -42,9 +43,7 @@ class PerformanceLogger:
             duration: Duration in seconds
             **context: Additional context information
         """
-        context_str = (
-            " | ".join(f"{k}={v}" for k, v in context.items()) if context else ""
-        )
+        context_str = " | ".join(f"{k}={v}" for k, v in context.items()) if context else ""
         message = f"Performance: {operation} took {duration:.3f}s"
         if context_str:
             message += f" | {context_str}"
@@ -57,9 +56,7 @@ class PerformanceLogger:
         else:
             self._logger.debug(message)
 
-    def time_operation(
-        self, operation: str, **context: Any
-    ) -> Callable[[Callable[P, T]], Callable[P, T]]:
+    def time_operation(self, operation: str, **context: Any) -> Callable[[Callable[P, T]], Callable[P, T]]:
         """
         Decorator to time function execution.
 
@@ -87,9 +84,7 @@ class PerformanceLogger:
         return decorator
 
 
-def log_performance(
-    operation: str, **context: Any
-) -> Callable[[Callable[P, T]], Callable[P, T]]:
+def log_performance(operation: str, **context: Any) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """
     Decorator to log performance of function execution.
 
@@ -123,7 +118,7 @@ def log_performance(
 
 
 @contextmanager
-def performance_context(operation: str, **context: Any):
+def performance_context(operation: str, **context: Any) -> Any:
     """
     Context manager for performance monitoring.
 

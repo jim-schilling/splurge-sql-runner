@@ -9,8 +9,11 @@ __pycache__/
 *.db
 *.sqlite
 
-plans/
 logs/
+
+tmp/
+tests/data/tmp/
+tests/tmp/
 
 # Distribution / packaging
 .Python

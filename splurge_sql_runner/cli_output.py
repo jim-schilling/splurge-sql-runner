@@ -26,8 +26,8 @@ _DASH_SEPARATOR_LENGTH: int = 40
 _STATEMENT_TYPE_ERROR: str = "error"
 _STATEMENT_TYPE_FETCH: str = "fetch"
 _STATEMENT_TYPE_EXECUTE: str = "execute"
-_ERROR_EMOJI: str = "❌"
-_SUCCESS_EMOJI: str = "✅"
+_ERROR_PREFIX: str = "ERROR:"
+_SUCCESS_PREFIX: str = "SUCCESS:"
 _NO_ROWS_MESSAGE: str = "(No rows returned)"
 _SUCCESS_MESSAGE: str = "Statement executed successfully"
 
@@ -60,7 +60,7 @@ def simple_table_format(
 
     header_line = "|"
     separator_line = "|"
-    for header, width in zip(headers, col_widths):
+    for header, width in zip(headers, col_widths, strict=False):
         header_line += f" {str(header):<{width - 1}}|"
         separator_line += "-" * width + "|"
 
@@ -82,7 +82,6 @@ def pretty_print_results(
     file_path: str | None = None,
     *,
     output_json: bool = False,
-    no_emoji: bool = False,
 ) -> None:
     """Pretty print the results of SQL execution.
 
@@ -90,7 +89,6 @@ def pretty_print_results(
         results: List of result dictionaries from execution.
         file_path: Optional file path for context.
         output_json: If True, print JSON instead of human-readable table.
-        no_emoji: If True, use ASCII tags instead of emoji.
     """
     if output_json:
         payload = []
@@ -119,11 +117,9 @@ def pretty_print_results(
         print(f"SQL: {result['statement']}")
 
         if result["statement_type"] == _STATEMENT_TYPE_ERROR:
-            prefix = "[ERROR]" if no_emoji else _ERROR_EMOJI
-            print(f"{prefix} Error: {result['error']}")
+            print(f"{_ERROR_PREFIX} Error: {result['error']}")
         elif result["statement_type"] == _STATEMENT_TYPE_FETCH:
-            prefix = "[OK]" if no_emoji else _SUCCESS_EMOJI
-            print(f"{prefix} Rows returned: {result['row_count']}")
+            print(f"{_SUCCESS_PREFIX} Rows returned: {result['row_count']}")
             if result["result"]:
                 headers = list(result["result"][0].keys()) if result["result"] else []
                 rows = [list(row.values()) for row in result["result"]]
@@ -135,10 +131,9 @@ def pretty_print_results(
             else:
                 print(_NO_ROWS_MESSAGE)
         elif result["statement_type"] == _STATEMENT_TYPE_EXECUTE:
-            prefix = "[OK]" if no_emoji else _SUCCESS_EMOJI
             if "row_count" in result and result["row_count"] is not None:
-                print(f"{prefix} Rows affected: {result['row_count']}")
+                print(f"{_SUCCESS_PREFIX} Rows affected: {result['row_count']}")
             else:
-                print(f"{prefix} {_SUCCESS_MESSAGE}")
+                print(f"{_SUCCESS_PREFIX} {_SUCCESS_MESSAGE}")
 
         print("-" * _DASH_SEPARATOR_LENGTH)

@@ -9,114 +9,130 @@ Copyright (c) 2025, Jim Schilling
 This module is licensed under the MIT License.
 """
 
-from splurge_sql_runner.config import (
-    DatabaseConfig,
-    ConnectionConfig,
-    SecurityConfig,
-    ValidationConfig,
-    LoggingConfig,
-    LogLevel,
-    LogFormat,
-    AppConfig,
-)
+import json
+import os
+from pathlib import Path
 
-from splurge_sql_runner.database import (
-    DatabaseClient,
-)
+from splurge_safe_io.safe_text_file_reader import SafeTextFileReader
 
-from splurge_sql_runner.errors import (
-    SplurgeSqlRunnerError,
-    ConfigurationError,
-    ConfigValidationError,
-    ConfigFileError,
-    ValidationError,
-    OperationError,
-    # Database errors
-    DatabaseError,
-    DatabaseConnectionError,
-    DatabaseOperationError,
-    DatabaseBatchError,
-    DatabaseEngineError,
-    DatabaseTimeoutError,
-    DatabaseAuthenticationError,
-    # SQL errors
-    SqlError,
-    SqlParseError,
-    SqlFileError,
-    SqlValidationError,
-    SqlExecutionError,
-    # Security errors
-    SecurityError,
-    SecurityValidationError,
-    SecurityFileError,
-    SecurityUrlError,
-    # CLI errors
-    CliError,
+from splurge_sql_runner.database import DatabaseClient
+from splurge_sql_runner.exceptions import (
     CliArgumentError,
-    CliFileError,
+    CliError,
     CliExecutionError,
     CliSecurityError,
+    ConfigFileError,
+    ConfigurationError,
+    ConfigValidationError,
+    DatabaseAuthenticationError,
+    DatabaseBatchError,
+    DatabaseConnectionError,
+    DatabaseEngineError,
+    DatabaseError,
+    DatabaseOperationError,
+    DatabaseTimeoutError,
+    FileError,
+    OperationError,
+    SecurityError,
+    SecurityFileError,
+    SecurityUrlError,
+    SecurityValidationError,
+    SplurgeSqlRunnerError,
+    SqlError,
+    SqlExecutionError,
+    SqlFileError,
+    SqlParseError,
+    SqlValidationError,
+    ValidationError,
 )
-
 from splurge_sql_runner.logging import (
-    # Core logging
-    setup_logging,
-    get_logger,
+    ContextualLogger,
+    clear_correlation_id,
     configure_module_logging,
+    correlation_context,
+    generate_correlation_id,
+    get_contextual_logger,
+    get_correlation_id,
+    get_logger,
     get_logging_config,
     is_logging_configured,
-    # Context and correlation
-    generate_correlation_id,
-    set_correlation_id,
-    get_correlation_id,
-    clear_correlation_id,
-    correlation_context,
-    ContextualLogger,
-    get_contextual_logger,
     log_context,
+    set_correlation_id,
+    setup_logging,
 )
+
+
+# Simplified configuration system
+def load_config(config_file_path=None):
+    """Load configuration from environment variables and optional JSON file."""
+
+    config = {
+        "database_url": "sqlite:///:memory:",
+        "max_statements_per_file": 100,
+        "connection_timeout": 30.0,
+        "log_level": "INFO",
+        "enable_verbose": False,
+        "enable_debug": False,
+    }
+
+    # Load from JSON file if provided
+    if config_file_path and Path(config_file_path).exists():
+        try:
+            reader = SafeTextFileReader(config_file_path, encoding="utf-8")
+            json_config = json.load(reader.read())
+            config.update(json_config)
+        except Exception:
+            pass  # Use defaults if JSON loading fails
+
+    # Override with environment variables
+    if db_url := os.getenv("SPLURGE_SQL_RUNNER_DB_URL"):
+        config["database_url"] = db_url
+    if max_statements := os.getenv("SPLURGE_SQL_RUNNER_MAX_STATEMENTS_PER_FILE"):
+        try:
+            config["max_statements_per_file"] = int(max_statements)
+        except ValueError:
+            pass
+    if log_level := os.getenv("SPLURGE_SQL_RUNNER_LOG_LEVEL"):
+        config["log_level"] = log_level
+
+    return config
+
+
+__version__ = "2025.5.0"
 
 __all__ = [
     # Configuration
-    "ConfigurationError",
-    "ConfigValidationError",
-    "ConfigFileError",
-    "DatabaseConfig",
-    "ConnectionConfig",
-    "SecurityConfig",
-    "ValidationConfig",
-    "LoggingConfig",
-    "LogLevel",
-    "LogFormat",
-    "AppConfig",
+    "load_config",
     # Database
     "DatabaseClient",
     # Errors
     "SplurgeSqlRunnerError",
     "ConfigurationError",
+    "ConfigValidationError",
+    "ConfigFileError",
     "ValidationError",
     "OperationError",
-    "DatabaseError",
-    "DatabaseConnectionError",
-    "DatabaseOperationError",
-    "DatabaseBatchError",
-    "DatabaseEngineError",
-    "DatabaseTimeoutError",
-    "DatabaseAuthenticationError",
-    "SqlError",
-    "SqlParseError",
-    "SqlFileError",
-    "SqlValidationError",
-    "SqlExecutionError",
+    "FileError",  # Consolidates CliFileError, SqlFileError
+    "DatabaseError",  # Consolidates DatabaseConnectionError, DatabaseOperationError
     "SecurityError",
-    "SecurityValidationError",
     "SecurityFileError",
     "SecurityUrlError",
     "CliError",
     "CliArgumentError",
-    "CliFileError",
     "CliExecutionError",
     "CliSecurityError",
+    "DatabaseAuthenticationError",
+    "DatabaseBatchError",
+    "DatabaseConnectionError",
+    "DatabaseEngineError",
+    "DatabaseOperationError",
+    "DatabaseTimeoutError",
+    "SecurityValidationError",
+    "SqlError",
+    "SqlExecutionError",
+    "SqlFileError",
+    "SqlParseError",
+    "SqlValidationError",
     # Logging
     "setup_logging",
     "get_logger",
@@ -131,4 +147,6 @@ __all__ = [
     "ContextualLogger",
     "get_contextual_logger",
     "log_context",
+    # Version
+    "__version__",
 ]

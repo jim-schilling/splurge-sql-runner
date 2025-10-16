@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "splurge-sql-runner"
-version = "2025.4.2"
+version = "2025.5.0"
 description = "A Python utility for executing SQL files against databases with support for multiple statements, comments, and pretty-printed results"
 readme = "README.md"
 license = "MIT"
@@ -24,6 +24,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Database",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Utilities",
@@ -32,9 +33,10 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "sqlalchemy>=2.0.37",
-    "sqlparse>=0.4.0",
-    "tabulate>=0.9.0"
+    "sqlalchemy>=2.0.42",
+    "sqlparse>=0.5.3",
+    "tabulate>=0.9.0",
+    "splurge-safe-io>=2025.1.0",
 ]
 
 [project.urls]
@@ -49,31 +51,22 @@ splurge-sql-runner = "splurge_sql_runner.__main__:main"
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "pytest-xdist>=3.5.0",
-    "black>=23.0.0",
-    "flake8>=6.0.0",
-    "mypy>=1.0.0",
-    "pre-commit>=3.0.0",
-    "safety>=2.0.0",  # For vulnerability scanning
-    "bandit>=1.7.0",  # For security linting
-    "ruff>=0.4.0",
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "pytest-xdist>=3.8.0",
+    "pytest-mock>=3.15.1",
+    "mypy>=1.18.2",
+    "pre-commit>=4.3.0",
+    "ruff>=0.12.7",
 ]
 test = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "pytest-xdist>=3.5.0",
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "pytest-xdist>=3.8.0",
 ]
 lint = [
-    "black>=23.0.0",
-    "flake8>=6.0.0",
-    "mypy>=1.0.0",
-    "ruff>=0.4.0",
-]
-docs = [
-    "sphinx>=7.0.0",
-    "sphinx-rtd-theme>=1.0.0",
+    "mypy>=1.18.2",
+    "ruff>=0.12.7",
 ]
 
 [tool.setuptools.packages.find]
@@ -83,39 +76,9 @@ include = ["splurge_sql_runner*"]
 [tool.setuptools.package-data]
 splurge_sql_runner = ["*.sql"]
 
-[tool.black]
-line-length = 120
-target-version = ['py310']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
-
-[tool.flake8]
-max-line-length = 120
-extend-ignore = ["E203", "W503"]
-exclude = [
-    ".git",
-    "__pycache__",
-    "build",
-    "dist",
-    ".venv",
-    ".eggs",
-    "*.egg-info",
-]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -131,7 +94,7 @@ strict_equality = true
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-x -v -n auto --cov=splurge_sql_runner --cov-report=term-missing --cov-report=html --strict-markers --strict-config"
+addopts = "-x --tb=short -q --strict-markers --strict-config --disable-warnings"
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
@@ -144,6 +107,13 @@ markers = [
     "database: Tests requiring database connectivity",
     "security: Tests focused on security features",
     "performance: Tests measuring performance characteristics",
+    "critical: Critical path tests that must always pass",
+    "essential: Essential functionality tests",
+    "important: Important but not critical functionality",
+    "nice_to_have: Nice-to-have functionality tests",
+    "fast: Fast tests (< 0.1s each)",
+    "medium: Medium speed tests (0.1-1s each)",
+    "in_memory: Tests that can use in-memory databases",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",
@@ -178,7 +148,7 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
-ignore = []
+ignore = ["E501"]
 
 [tool.ruff.format]
 quote-style = "double"
