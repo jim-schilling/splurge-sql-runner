@@ -12,6 +12,7 @@ This module is licensed under the MIT License.
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 from splurge_safe_io.safe_text_file_reader import SafeTextFileReader
 
@@ -63,7 +64,7 @@ from splurge_sql_runner.logging import (
 
 
 # Simplified configuration system
-def load_config(config_file_path=None):
+def load_config(config_file_path: str | None = None) -> dict[str, Any]:
     """Load configuration from environment variables and optional JSON file."""
 
     config = {

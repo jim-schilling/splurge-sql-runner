@@ -12,7 +12,7 @@ This module is licensed under the MIT License.
 import logging
 import threading
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from typing import Any
 
@@ -67,7 +67,7 @@ def clear_correlation_id() -> None:
 
 
 @contextmanager
-def correlation_context(correlation_id: str | None = None):
+def correlation_context(correlation_id: str | None = None) -> Generator[str | None, None, None]:
     """
     Context manager for correlation ID management.
 
@@ -214,7 +214,7 @@ class LogContext:
 
         return self._contextual_logger
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any) -> None:
         """Exit context manager."""
         # Remove context
         if _thread_local.context_stack:
@@ -223,17 +223,19 @@ class LogContext:
     def __call__(self, func: Callable) -> Callable:
         """Use as decorator."""
 
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             with self as contextual_logger:
                 # Make the contextual logger available to the function
                 if not hasattr(func, "_contextual_logger"):
-                    func._contextual_logger = contextual_logger
+                    # Use setattr so static checkers don't complain about unknown
+                    # attributes on arbitrary callables.
+                    func._contextual_logger = contextual_logger  # type: ignore[attr-defined]
                 return func(*args, **kwargs)
 
         return wrapper
 
 
-def log_context(*args, **context: Any) -> Any:
+def log_context(*args: Any, **context: Any) -> Any:
     """
     Context manager and decorator for temporary contextual logging.
 

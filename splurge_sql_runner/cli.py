@@ -207,12 +207,10 @@ Examples:
         logger.error("Neither file nor pattern specified")
         # Let argparse format the error for consistency
         parser.error("Either -f/--file or -p/--pattern must be specified")
-        return EXIT_CODE_FAILURE
 
     # If both are provided, surface the argparse-style error consistently
     if args.file and args.pattern:
         parser.error("argument -p/--pattern: not allowed with argument -f/--file")
-        return EXIT_CODE_FAILURE
 
     try:
         exit_code = EXIT_CODE_UNKNOWN
@@ -300,11 +298,9 @@ Examples:
                     logger.info(f"All files processed successfully. Exiting with success code {EXIT_CODE_SUCCESS}")
                     exit_code = EXIT_CODE_SUCCESS
                 else:
-                    # this should be unreachable due to prior checks
                     logger.error(f"Unexpected summary state. Exiting with error code {EXIT_CODE_UNKNOWN}")
                     exit_code = EXIT_CODE_UNKNOWN
             else:
-                # this should be unreachable due to prior checks
                 logger.error(f"Unexpected summary state. Exiting with error code {EXIT_CODE_UNKNOWN}")
                 exit_code = EXIT_CODE_UNKNOWN
 
