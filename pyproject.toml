@@ -91,6 +91,10 @@ warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
+files = ["splurge_sql_runner"]
+show_error_codes = true
+# Allow missing imports for vendored/external helper package used at runtime
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "7.0"
