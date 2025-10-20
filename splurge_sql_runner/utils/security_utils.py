@@ -11,6 +11,11 @@ This module is licensed under the MIT License.
 
 from splurge_sql_runner.config.constants import DANGEROUS_SHELL_CHARACTERS
 
+# Module domains
+DOMAINS = ["utils", "security"]
+
+__all__ = ["sanitize_shell_arguments"]
+
 
 def sanitize_shell_arguments(args: list[str]) -> list[str]:
     """

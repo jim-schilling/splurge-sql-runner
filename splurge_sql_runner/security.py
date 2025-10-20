@@ -15,6 +15,11 @@ from splurge_sql_runner.exceptions import (
     SecurityValidationError,
 )
 
+# Module domains
+DOMAINS = ["security", "validation"]
+
+__all__ = ["SecurityValidator"]
+
 
 class SecurityValidator:
     """Risk-based security validation utilities."""

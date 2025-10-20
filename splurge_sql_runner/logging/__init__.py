@@ -32,6 +32,9 @@ from splurge_sql_runner.logging.performance import (
     performance_context,
 )
 
+# Package domains
+__domains__ = ["logging", "core", "context", "performance"]
+
 __all__ = [
     # Core logging
     "setup_logging",

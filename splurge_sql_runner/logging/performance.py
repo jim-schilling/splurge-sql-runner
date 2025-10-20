@@ -15,6 +15,11 @@ from contextlib import contextmanager
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar
 
+# Module domains
+DOMAINS = ["logging", "performance", "monitoring"]
+
+__all__ = ["PerformanceLogger", "log_performance", "performance_context"]
+
 # Type variables for generic decorators
 T = TypeVar("T")
 P = ParamSpec("P")

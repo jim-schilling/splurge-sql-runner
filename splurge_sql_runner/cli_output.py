@@ -18,6 +18,11 @@ try:
 except Exception:  # pragma: no cover - fallback when tabulate unavailable
     tabulate = None
 
+# Module domains
+DOMAINS = ["cli", "output", "formatting"]
+
+__all__ = ["simple_table_format", "pretty_print_results"]
+
 
 # Private constants for rendering
 _DEFAULT_COLUMN_WIDTH: int = 10

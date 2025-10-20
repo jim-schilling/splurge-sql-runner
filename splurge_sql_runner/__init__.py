@@ -61,6 +61,7 @@ from splurge_sql_runner.logging import (
     set_correlation_id,
     setup_logging,
 )
+from splurge_sql_runner.utils import FileIoAdapter
 
 
 # Simplified configuration system
@@ -99,13 +100,30 @@ def load_config(config_file_path: str | None = None) -> dict[str, Any]:
     return config
 
 
-__version__ = "2025.5.0"
+__version__ = "2025.5.1"
+
+# Package domains
+__domains__ = [
+    "api",
+    "cli",
+    "config",
+    "database",
+    "exceptions",
+    "io",
+    "logging",
+    "models",
+    "security",
+    "sql",
+    "utils",
+]
 
 __all__ = [
     # Configuration
     "load_config",
     # Database
     "DatabaseClient",
+    # File I/O
+    "FileIoAdapter",
     # Errors
     "SplurgeSqlRunnerError",
     "ConfigurationError",

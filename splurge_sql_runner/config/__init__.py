@@ -46,6 +46,9 @@ load_config = config_module.load_config
 load_json_config = config_module.load_json_config
 save_config = config_module.save_config
 
+# Package domains
+__domains__ = ["config", "constants"]
+
 __all__ = [
     # Main configuration functions
     "load_config",

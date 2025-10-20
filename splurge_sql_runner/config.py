@@ -14,15 +14,22 @@ import os
 from pathlib import Path
 from typing import Any
 
-from splurge_safe_io import exceptions as safe_io_exc
-from splurge_safe_io.safe_text_file_reader import SafeTextFileReader
-
 from splurge_sql_runner.config.constants import (
     DEFAULT_CONNECTION_TIMEOUT,
     DEFAULT_LOG_LEVEL,
     DEFAULT_MAX_STATEMENTS_PER_FILE,
 )
-from splurge_sql_runner.exceptions import ConfigFileError
+from splurge_sql_runner.exceptions import ConfigFileError, ConfigValidationError, FileError
+from splurge_sql_runner.utils.file_io_adapter import FileIoAdapter
+
+# Module domains
+DOMAINS = ["config", "configuration"]
+
+__all__ = ["load_config", "load_json_config"]
+
+# Validation constants
+VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+VALID_SECURITY_LEVELS = {"strict", "normal", "permissive"}
 
 
 def load_config(config_file_path: str | None = None) -> dict[str, Any]:
@@ -40,6 +47,7 @@ def load_config(config_file_path: str | None = None) -> dict[str, Any]:
 
     Raises:
         ConfigFileError: If configuration file cannot be read or parsed
+        ConfigValidationError: If configuration values are invalid
     """
     config = get_default_config()
 
@@ -50,6 +58,9 @@ def load_config(config_file_path: str | None = None) -> dict[str, Any]:
 
     # Override with environment variables (highest priority)
     config.update(get_env_config())
+
+    # Validate the final configuration
+    _validate_config(config)
 
     return config
 
@@ -117,15 +128,11 @@ def load_json_config(file_path: str) -> dict[str, Any]:
         ConfigFileError: If file cannot be read or parsed
     """
     try:
-        reader = SafeTextFileReader(file_path, encoding="utf-8")
-        config_data = json.loads(reader.read())
+        content = FileIoAdapter.read_file(file_path, context_type="config")
+        config_data = json.loads(content)
         return _parse_json_config(config_data)
-    except safe_io_exc.SplurgeSafeIoFileNotFoundError as e:
-        raise ConfigFileError(f"Configuration file not found: {file_path}") from e
-    except safe_io_exc.SplurgeSafeIoFilePermissionError as e:
-        raise ConfigFileError(f"Permission denied reading config file: {file_path}") from e
-    except safe_io_exc.SplurgeSafeIoUnknownError as e:
-        raise ConfigFileError(f"Unknown error reading config file: {file_path}") from e
+    except FileError as e:
+        raise ConfigFileError(f"Failed to read config file: {e}") from e
     except json.JSONDecodeError as e:
         raise ConfigFileError(f"Invalid JSON in config file: {e}") from e
     except Exception as e:
@@ -169,6 +176,56 @@ def _parse_json_config(config_data: dict[str, Any]) -> dict[str, Any]:
             config["security_level"] = security_level
 
     return config
+
+
+def _validate_config(config: dict[str, Any]) -> None:
+    """
+    Validate configuration values.
+
+    Args:
+        config: Configuration dictionary to validate
+
+    Raises:
+        ConfigValidationError: If any configuration value is invalid
+    """
+    errors: list[str] = []
+
+    # Validate database_url
+    if not isinstance(config.get("database_url"), str) or not config["database_url"]:
+        errors.append("database_url must be a non-empty string")
+
+    # Validate max_statements_per_file
+    max_stmts = config.get("max_statements_per_file")
+    if not isinstance(max_stmts, int) or max_stmts <= 0:
+        errors.append("max_statements_per_file must be a positive integer")
+
+    # Validate connection_timeout
+    timeout = config.get("connection_timeout")
+    if not isinstance(timeout, int | float) or timeout <= 0:
+        errors.append("connection_timeout must be a positive number")
+
+    # Validate log_level
+    log_level = config.get("log_level", "").upper()
+    if log_level and log_level not in VALID_LOG_LEVELS:
+        errors.append(f"log_level must be one of {VALID_LOG_LEVELS}")
+
+    # Validate security_level
+    security_level = config.get("security_level")
+    if security_level and security_level not in VALID_SECURITY_LEVELS:
+        errors.append(f"security_level must be one of {VALID_SECURITY_LEVELS}")
+
+    # Validate enable_verbose and enable_debug
+    if not isinstance(config.get("enable_verbose"), bool):
+        errors.append("enable_verbose must be a boolean")
+
+    if not isinstance(config.get("enable_debug"), bool):
+        errors.append("enable_debug must be a boolean")
+
+    if errors:
+        raise ConfigValidationError(
+            f"Configuration validation failed: {'; '.join(errors)}",
+            context={"errors": errors, "config_keys": list(config.keys())},
+        )
 
 
 def save_config(config: dict[str, Any], file_path: str) -> None:

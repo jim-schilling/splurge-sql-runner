@@ -16,6 +16,11 @@ from typing import Any
 
 from splurge_sql_runner.exceptions import ConfigValidationError
 
+# Module domains
+DOMAINS = ["logging", "core", "configuration"]
+
+__all__ = ["setup_logging", "get_logger", "configure_module_logging", "get_logging_config", "is_logging_configured"]
+
 # Global configuration registry to prevent multiple setups
 _LOGGING_CONFIGURED = False
 _LOGGING_CONFIG = {}
