@@ -154,7 +154,7 @@ class TestLoadJsonConfig:
 
     def test_nonexistent_file_raises_error(self):
         """Test that nonexistent file raises ConfigFileError."""
-        with pytest.raises(ConfigFileError, match="Configuration file not found"):
+        with pytest.raises(ConfigFileError, match="Failed to read config file"):
             load_json_config("nonexistent.json")
 
     def test_invalid_json_raises_error(self):

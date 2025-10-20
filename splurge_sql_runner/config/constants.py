@@ -9,6 +9,19 @@ Copyright (c) 2025, Jim Schilling
 This module is licensed under the MIT License.
 """
 
+# Module domains
+DOMAINS = ["config", "constants"]
+
+__all__ = [
+    "DEFAULT_MAX_STATEMENTS_PER_FILE",
+    "DEFAULT_MAX_STATEMENT_LENGTH",
+    "DEFAULT_CONNECTION_TIMEOUT",
+    "DEFAULT_LOG_LEVEL",
+    "DANGEROUS_PATH_PATTERNS",
+    "DANGEROUS_SQL_PATTERNS",
+    "DANGEROUS_URL_PATTERNS",
+]
+
 # Statement limits
 DEFAULT_MAX_STATEMENTS_PER_FILE: int = 100
 DEFAULT_MAX_STATEMENT_LENGTH: int = 10000

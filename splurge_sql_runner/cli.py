@@ -14,6 +14,7 @@ import argparse
 import glob
 import sys
 from pathlib import Path
+from typing import Any
 
 from splurge_sql_runner import load_config
 from splurge_sql_runner.cli_output import pretty_print_results, simple_table_format
@@ -29,6 +30,9 @@ from splurge_sql_runner.logging import configure_module_logging
 from splurge_sql_runner.logging.core import setup_logging
 from splurge_sql_runner.main import process_sql_files
 
+# Module domains
+DOMAINS = ["cli", "interface"]
+
 # No local tabulate usage; rendering lives in cli_output
 
 # Re-export public API
@@ -38,10 +42,10 @@ __all__ = [
     "main",
 ]
 
-
-_ERROR_PREFIX: str = "ERROR:"
-_SUCCESS_PREFIX: str = "SUCCESS:"
-_WARNING_PREFIX: str = "WARNING:"
+# Output formatting constants
+ERROR_PREFIX = "ERROR:"
+WARNING_PREFIX = "WARNING:"
+SUCCESS_PREFIX = "SUCCESS:"
 
 # Public return code constants
 EXIT_CODE_SUCCESS = 0
@@ -49,62 +53,94 @@ EXIT_CODE_FAILURE = 1
 EXIT_CODE_PARTIAL_SUCCESS = 2
 EXIT_CODE_UNKNOWN = 3
 
+# Security guidance messages
+SECURITY_GUIDANCE = {
+    "too_many_statements": "Tip: increase --max-statements for this run",
+    "too_long": "Tip: increase max_statement_length in your JSON config",
+    "file_extension": "Tip: add the extension to allowed_file_extensions in config",
+    "dangerous_pattern_file": "Tip: rename the file/path or adjust dangerous_path_patterns in config",
+    "dangerous_pattern_url": "Tip: correct the database URL or adjust dangerous_url_patterns in config",
+    "dangerous_pattern_sql": "Tip: remove the SQL pattern or adjust dangerous_sql_patterns in config",
+    "missing_scheme": "Tip: include a scheme like sqlite://, postgresql://, or mysql:// in the connection URL",
+}
 
-"""
-CLI for splurge-sql-runner
 
-Usage:
-    python -m splurge_sql_runner -c "sqlite:///database.db" -f "script.sql"
-    python -m splurge_sql_runner -c "sqlite:///database.db" -p "*.sql"
-"""
-
-
-def _print_security_guidance(error_message: str, *, context: str) -> None:
-    """Print actionable guidance for common security validation errors.
+def print_security_guidance(error_message: str, context: str = "file") -> None:
+    """Print actionable guidance for security validation errors.
 
     Args:
         error_message: The error message from validation.
         context: One of 'file', 'sql', 'url' to tailor hints.
     """
     msg = error_message.lower()
-
     hints: list[str] = []
 
-    if "too many sql statements" in msg:
-        hints.append(
-            "Tip: increase --max-statements for this run, or set security.max_statements_per_file in your JSON config."
-        )
-    if "too long" in msg or "statement too long" in msg:
-        hints.append("Tip: increase security.validation.max_statement_length in your JSON config.")
-    if "file extension not allowed" in msg:
-        hints.append("Tip: add the extension to security.allowed_file_extensions in your JSON config.")
+    if "too many" in msg:
+        hints.append(SECURITY_GUIDANCE["too_many_statements"])
+    if "too long" in msg:
+        hints.append(SECURITY_GUIDANCE["too_long"])
     if "dangerous pattern" in msg:
         if context == "file":
-            hints.append(
-                "Tip: rename the file/path or adjust security.validation.dangerous_path_patterns in your JSON config."
-            )
+            hints.append(SECURITY_GUIDANCE["dangerous_pattern_file"])
         elif context == "url":
-            hints.append(
-                "Tip: correct the database URL or adjust security.validation.dangerous_url_patterns in your JSON config."
-            )
+            hints.append(SECURITY_GUIDANCE["dangerous_pattern_url"])
         else:
-            hints.append(
-                "Tip: remove the SQL pattern or adjust security.validation.dangerous_sql_patterns in your JSON config."
-            )
-    if "not safe" in msg:
-        if context == "file":
-            hints.append(
-                "Tip: use a safe path or update security.validation.dangerous_path_patterns in your JSON config."
-            )
-        elif context == "url":
-            hints.append(
-                "Tip: use a safe URL or update security.validation.dangerous_url_patterns in your JSON config."
-            )
+            hints.append(SECURITY_GUIDANCE["dangerous_pattern_sql"])
     if "scheme" in msg and context == "url":
-        hints.append("Tip: include a scheme like sqlite:///, postgresql://, or mysql:// in the connection URL.")
+        hints.append(SECURITY_GUIDANCE["missing_scheme"])
 
     for hint in hints:
-        print(f"{_WARNING_PREFIX}  {hint}")
+        print(f"{WARNING_PREFIX}  {hint}")
+
+
+def discover_files(
+    file_path: str | None,
+    pattern: str | None,
+) -> list[str]:
+    """Discover SQL files to process.
+
+    Args:
+        file_path: Single file to process
+        pattern: Glob pattern to match multiple files
+
+    Returns:
+        Sorted list of absolute file paths
+
+    Raises:
+        FileError: If no files found or paths invalid
+    """
+    if file_path:
+        path_obj = Path(file_path).expanduser().resolve()
+        if not path_obj.exists():
+            raise FileError(f"File not found: {path_obj}")
+        return [str(path_obj)]
+
+    if pattern:
+        expanded = str(Path(pattern).expanduser())
+        files = [str(Path(p).resolve()) for p in glob.glob(expanded)]
+        if not files:
+            raise FileError(f"No files found matching pattern: {pattern}")
+        return sorted(files)
+
+    return []
+
+
+def report_execution_summary(summary: dict[str, Any], output_json: bool = False) -> None:
+    """Display execution summary and results.
+
+    Args:
+        summary: Processing summary from process_sql_files()
+        output_json: Whether to output JSON format
+    """
+    for fp, results in summary.get("results", {}).items():
+        pretty_print_results(results, fp, output_json=output_json)
+
+    files_processed = summary.get("files_processed", 0)
+    files_passed = summary.get("files_passed", 0)
+
+    print(f"\n{'=' * 60}")
+    print(f"Summary: {files_passed}/{files_processed} files processed successfully")
+    print(f"{'=' * 60}")
 
 
 def main() -> int:
@@ -239,27 +275,8 @@ Examples:
         if args.config_file and Path(args.config_file).exists():
             logger.info(f"Configuration loaded from: {args.config_file}")
 
-        # Build list of files to process
-        files_to_process = []
-
-        if args.file:
-            logger.info(f"Processing single file: {args.file}")
-            file_path_resolved = Path(args.file).expanduser().resolve()
-            if not file_path_resolved.exists():
-                logger.error(f"File not found: {file_path_resolved}")
-                raise FileError(f"File not found: {file_path_resolved}")
-            files_to_process = [str(file_path_resolved)]
-        elif args.pattern:
-            logger.info(f"Processing files matching pattern: {args.pattern}")
-            # Expand user home, but preserve wildcard for glob
-            pattern = str(Path(args.pattern).expanduser())
-            files_to_process = [str(Path(p).resolve()) for p in glob.glob(pattern)]
-            if not files_to_process:
-                logger.error(f"No files found matching pattern: {args.pattern}")
-                raise FileError(f"No files found matching pattern: {args.pattern}")
-            files_to_process.sort()
-            logger.debug(f"Found {len(files_to_process)} files matching pattern")
-
+        # Discover files to process
+        files_to_process = discover_files(args.file, args.pattern)
         if args.verbose:
             print(f"Found {len(files_to_process)} file(s) to process")
 
@@ -273,15 +290,8 @@ Examples:
                 stop_on_error=not args.continue_on_error,
             )
 
-            # Print results similar to previous behavior
-            for fp, results in summary.get("results", {}).items():
-                pretty_print_results(results, fp, output_json=args.output_json)
-
-            print(f"\n{'=' * 60}")
-            print(
-                f"Summary: {summary.get('success_count', 0)}/{summary.get('files_processed', 0)} files processed successfully"
-            )
-            print(f"{'=' * 60}")
+            # Print results using helper function
+            report_execution_summary(summary, output_json=args.output_json)
 
             files_processed = summary.get("files_processed", 0)
             files_passed = summary.get("files_passed", 0)
@@ -306,26 +316,26 @@ Examples:
 
         except (SecurityValidationError, SecurityUrlError) as e:
             logger.error(f"Security validation failed: {e}")
-            print(f"{_ERROR_PREFIX} Security validation failed: {e}")
-            _print_security_guidance(str(e), context="file")
+            print(f"{ERROR_PREFIX} Security validation failed: {e}")
+            print_security_guidance(str(e), context="file")
             exit_code = EXIT_CODE_FAILURE
 
     except DatabaseError as e:
         logger.error(f"Database error: {e}")
-        print(f"{_ERROR_PREFIX} Database error: {e}")
+        print(f"{ERROR_PREFIX} Database error: {e}")
         exit_code = EXIT_CODE_FAILURE
     except FileError as e:
         logger.error(f"File error: {e}")
-        print(f"{_ERROR_PREFIX} File error: {e}")
+        print(f"{ERROR_PREFIX} File error: {e}")
         exit_code = EXIT_CODE_FAILURE
     except CliSecurityError as e:
         logger.error(f"Security error: {e}")
-        print(f"{_ERROR_PREFIX} Security error: {e}")
-        _print_security_guidance(str(e), context="url")
+        print(f"{ERROR_PREFIX} Security error: {e}")
+        print_security_guidance(str(e), context="url")
         exit_code = EXIT_CODE_FAILURE
     except Exception as e:
         logger.error(f"Unexpected error: {e}", exc_info=True)
-        print(f"{_ERROR_PREFIX} Unexpected error: {e}")
+        print(f"{ERROR_PREFIX} Unexpected error: {e}")
         exit_code = EXIT_CODE_FAILURE
     finally:
         logger.info("splurge-sql-runner CLI completed")

@@ -16,6 +16,11 @@ from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Any
 
+# Module domains
+DOMAINS = ["models", "results", "execution"]
+
+__all__ = ["StatementType", "StatementResult", "statement_result_to_dict", "results_to_dicts"]
+
 
 class StatementType(str, Enum):
     """Enumerates supported statement result types."""

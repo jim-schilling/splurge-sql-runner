@@ -16,6 +16,21 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from typing import Any
 
+# Module domains
+DOMAINS = ["logging", "context", "correlation"]
+
+__all__ = [
+    "generate_correlation_id",
+    "set_correlation_id",
+    "get_correlation_id",
+    "clear_correlation_id",
+    "correlation_context",
+    "ContextualLogger",
+    "LogContext",
+    "log_context",
+    "get_contextual_logger",
+]
+
 # Thread-local storage for logging context
 _thread_local = threading.local()
 

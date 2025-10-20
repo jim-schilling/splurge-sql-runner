@@ -1,5 +1,30 @@
 ## Changelog
 
+### 2025.5.1 (10-19-2025)
+- **Error Message Improvements**
+  - Updated error messages in `test_database_client_basic.py` to provide clearer context
+    when exceptions are raised during database operations.
+  - Changed error message expectations in `test_config.py` for nonexistent configuration files
+    to better reflect the underlying issue.
+  - Improved error handling messages in `test_sql_helper.py` for non-existent and invalid SQL file paths,
+    enhancing clarity for users encountering these errors.
+- **Test Stability Enhancements**
+  - Modified test cases in `test_database_client_basic.py` to avoid variable name conflicts
+    and ensure consistent test execution.
+  - Refined exception handling in configuration and SQL helper tests to improve reliability
+    and reduce false negatives during test runs.
+- **Version Bump**
+  - Updated package version to `2025.5.1` in `pyproject.toml` and `__init__.py` to reflect
+    the latest changes and improvements.
+- **No Breaking Changes**
+  - All changes are backward compatible and do not affect existing functionality or APIs.
+- **Bug Fixes**
+  - Addressed minor issues in test assertions to ensure accurate validation of expected outcomes.
+  - Fixed incorrect error message assertions in `test_sql_helper.py` for SQL file errors.
+  - Improved error handling messages in `test_sql_helper.py` for non-existent and invalid SQL file paths.
+- **Documentation**
+  - No documentation changes were necessary for this release.
+
 ### 2025.5.0 (10-15-2025)
 
 - **Migration (CLI)**

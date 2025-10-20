@@ -14,8 +14,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from splurge_safe_io import SafeTextFileReader
-
 from splurge_sql_runner import load_config
 from splurge_sql_runner.database.database_client import DatabaseClient
 from splurge_sql_runner.exceptions import (
@@ -24,6 +22,12 @@ from splurge_sql_runner.exceptions import (
 from splurge_sql_runner.logging import configure_module_logging
 from splurge_sql_runner.security import SecurityValidator
 from splurge_sql_runner.sql_helper import parse_sql_statements
+from splurge_sql_runner.utils.file_io_adapter import FileIoAdapter
+
+# Module domains
+DOMAINS = ["api", "execution", "orchestration"]
+
+__all__ = ["process_sql", "process_sql_files"]
 
 logger = configure_module_logging("main")
 
@@ -107,8 +111,7 @@ def process_sql_files(
 
     for fp in file_paths:
         try:
-            reader = SafeTextFileReader(fp)
-            content = reader.read()
+            content = FileIoAdapter.read_file(fp, context_type="sql")
             results = process_sql(
                 content,
                 database_url=database_url,
@@ -133,6 +136,7 @@ def process_sql_files(
             raise
         except Exception as e:
             # Capture unexpected per-file errors into results
+            logger.error(f"Processing failed for {fp}", exc_info=True)
             summary["results"][fp] = [
                 {
                     "statement": "",

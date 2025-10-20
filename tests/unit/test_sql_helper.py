@@ -503,7 +503,7 @@ class TestSplitSqlFile:
 
     def test_parse_sql_file_nonexistent(self):
         """Test splitting non-existent SQL file."""
-        with pytest.raises(SqlFileError, match="SQL file not found"):
+        with pytest.raises(SqlFileError, match="Error reading SQL file"):
             parse_sql_file("nonexistent.sql")
 
     def test_parse_sql_file_none_path(self):
@@ -513,7 +513,7 @@ class TestSplitSqlFile:
 
     def test_parse_sql_file_empty_path(self):
         """Test splitting with empty file path."""
-        with pytest.raises(SqlFileError, match="Invalid file path"):
+        with pytest.raises(SqlFileError, match="Error reading SQL file"):
             parse_sql_file("")
 
     def test_parse_sql_file_invalid_type(self):

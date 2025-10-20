@@ -12,6 +12,40 @@ This module is licensed under the MIT License.
 import copy
 from typing import Any
 
+# Module domains
+DOMAINS = ["exceptions", "errors", "validation"]
+
+__all__ = [
+    "SplurgeSqlRunnerError",
+    "ConfigurationError",
+    "ConfigValidationError",
+    "ConfigFileError",
+    "ValidationError",
+    "OperationError",
+    "FileError",
+    "DatabaseError",
+    "CliError",
+    "CliArgumentError",
+    "CliFileError",
+    "CliExecutionError",
+    "CliSecurityError",
+    "DatabaseConnectionError",
+    "DatabaseOperationError",
+    "DatabaseBatchError",
+    "DatabaseEngineError",
+    "DatabaseTimeoutError",
+    "DatabaseAuthenticationError",
+    "SecurityError",
+    "SecurityValidationError",
+    "SecurityFileError",
+    "SecurityUrlError",
+    "SqlError",
+    "SqlParseError",
+    "SqlFileError",
+    "SqlValidationError",
+    "SqlExecutionError",
+]
+
 
 class SplurgeSqlRunnerError(Exception):
     """Base exception for all splurge-sql-runner errors."""

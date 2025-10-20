@@ -11,15 +11,19 @@ This module is licensed under the MIT License.
 from functools import lru_cache
 from pathlib import Path
 
-import splurge_safe_io.exceptions as safe_io_exc
 import sqlparse
-from splurge_safe_io.safe_text_file_reader import SafeTextFileReader
 from sqlparse.sql import Token
 from sqlparse.tokens import Comment
 
 from splurge_sql_runner.exceptions import (
     SqlFileError,
 )
+from splurge_sql_runner.utils.file_io_adapter import FileIoAdapter
+
+# Module domains
+DOMAINS = ["sql", "parsing", "helpers"]
+
+__all__ = ["parse_sql_statements", "parse_sql_file", "detect_statement_type"]
 
 # Private constants for SQL statement types
 _FETCH_KEYWORDS: set[str] = {
@@ -446,24 +450,10 @@ def parse_sql_file(
         raise SqlFileError(f"Invalid file path type: {type(file_path).__name__}")
 
     try:
-        reader = SafeTextFileReader(file_path, encoding="utf-8")
-
         # Read entire file content as a single string
-        sql_content = reader.read()
+        sql_content = FileIoAdapter.read_file(str(file_path), context_type="sql")
 
         return parse_sql_statements(sql_content, strip_semicolon=strip_semicolon)
 
-    except safe_io_exc.SplurgeSafeIoPathValidationError as exc:
-        raise SqlFileError(f"Invalid file path: {file_path}") from exc
-    except safe_io_exc.SplurgeSafeIoFileNotFoundError as exc:
-        raise SqlFileError(f"SQL file not found: {file_path}") from exc
-    except safe_io_exc.SplurgeSafeIoFilePermissionError as exc:
-        raise SqlFileError(f"Permission denied reading SQL file: {file_path}") from exc
-    except safe_io_exc.SplurgeSafeIoFileDecodingError as exc:
-        raise SqlFileError(f"Decoding error reading SQL file (not UTF-8?): {file_path}") from exc
-    except safe_io_exc.SplurgeSafeIoOsError as exc:
-        raise SqlFileError(f"I/O error reading SQL file: {file_path}") from exc
-    except safe_io_exc.SplurgeSafeIoUnknownError as exc:
-        raise SqlFileError(f"Unknown error reading SQL file: {file_path}") from exc
     except Exception as exc:
-        raise SqlFileError(f"Unexpected error reading SQL file: {file_path}") from exc
+        raise SqlFileError(f"Error reading SQL file: {file_path}") from exc
