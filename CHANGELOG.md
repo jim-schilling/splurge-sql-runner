@@ -1,5 +1,10 @@
 ## Changelog
 
+### 2025.5.2 (10-27-2025)
+- **Updated Dependency**
+  - Bumped `splurge-safe-io` dependency to `>=2025.1.0,<2025.2.0` in `pyproject.toml`
+    to incorporate the latest fixes and improvements from the `splurge-safe-io` package.
+
 ### 2025.5.1 (10-19-2025)
 - **Error Message Improvements**
   - Updated error messages in `test_database_client_basic.py` to provide clearer context
