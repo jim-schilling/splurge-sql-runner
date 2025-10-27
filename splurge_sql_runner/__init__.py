@@ -100,7 +100,7 @@ def load_config(config_file_path: str | None = None) -> dict[str, Any]:
     return config
 
 
-__version__ = "2025.5.1"
+__version__ = "2025.5.2"
 
 # Package domains
 __domains__ = [
