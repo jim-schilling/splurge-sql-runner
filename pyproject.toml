@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "splurge-sql-runner"
-version = "2025.5.2"
+version = "2025.6.0"
 description = "A Python utility for executing SQL files against databases with support for multiple statements, comments, and pretty-printed results"
 readme = "README.md"
 license = "MIT"
@@ -36,7 +36,6 @@ dependencies = [
     "sqlalchemy>=2.0.42",
     "sqlparse>=0.5.3",
     "tabulate>=0.9.0",
-    "splurge-safe-io>=2025.1.0,<2025.2.0",
 ]
 
 [project.urls]
@@ -91,14 +90,21 @@ warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
-files = ["splurge_sql_runner"]
 show_error_codes = true
 # Allow missing imports for vendored/external helper package used at runtime
 ignore_missing_imports = true
+exclude = ["tests/.*"]
+
+[[tool.mypy.overrides]]
+module = "examples.*"
+check_untyped_defs = false
+disallow_untyped_defs = false
+
+
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-x --tb=short -q --strict-markers --strict-config --disable-warnings"
+addopts = "-x -q --strict-markers --disable-warnings"
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
@@ -130,6 +136,8 @@ omit = [
     "*/tests/*",
     "*/test_*",
     "*/__pycache__/*",
+    "/_vendor/*",
+    "*/.venv/*",
 ]
 
 [tool.coverage.report]
@@ -144,6 +152,13 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
+]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/_vendor/*",
+    "*/.venv/*",
 ]
 
 [tool.ruff]

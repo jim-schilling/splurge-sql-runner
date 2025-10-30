@@ -10,7 +10,7 @@ This module is licensed under the MIT License.
 
 from urllib.parse import urlparse
 
-from splurge_sql_runner.exceptions import (
+from .exceptions import (
     SecurityUrlError,
     SecurityValidationError,
 )
@@ -131,7 +131,7 @@ class SecurityValidator:
 
         # Check statement count (only for strict/normal modes)
         if security_level in ("strict", "normal"):
-            from splurge_sql_runner.sql_helper import parse_sql_statements
+            from .sql_helper import parse_sql_statements
 
             statements = parse_sql_statements(sql_content)
             if len(statements) > max_statements:

@@ -1,5 +1,26 @@
 ## Changelog
 
+### 2025.6.0 (10-30-2025)
+- **Migrated Dependency**
+  - Replaced `splurge-safe-io` dependency with internal vendored copy located at
+    `splurge_sql_runner._vendor.splurge_safe_io`.
+  - This change improves control over the dependency and reduces external package dependencies.
+- **Added Vendored Package Imports**
+  - Added `splurge_sql_runner._vendor.splurge_exceptions` package.
+- **Updated Error Handling**
+  - Update base `SplurgeSqlRunnerError` to inherit from `*_vendor.splurge_exceptions.SplurgeFrameworkError`
+    to standardize error handling across the codebase.
+- **Version Bump**
+  - Updated package version to `2025.6.0` in `pyproject.toml` and `__init__.py` to reflect
+    the latest changes and improvements.
+- **Refactored Imports**
+  - Updated all imports of `splurge_safe_io` to use the vendored path
+    `splurge_sql_runner._vendor.splurge_safe_io` throughout the codebase.
+  - Changed all `splurge_sql_runner` import paths to be relative.
+- **Refactored Tests**
+  - Updated test imports to use the new vendored paths for `splurge_safe_io`.
+  - Ensured all tests pass with the new import structure and vendored dependencies.
+
 ### 2025.5.2 (10-27-2025)
 - **Updated Dependency**
   - Bumped `splurge-safe-io` dependency to `>=2025.1.0,<2025.2.0` in `pyproject.toml`

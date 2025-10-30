@@ -16,19 +16,19 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from splurge_sql_runner import load_config
-from splurge_sql_runner.cli_output import pretty_print_results, simple_table_format
-from splurge_sql_runner.config.constants import DEFAULT_MAX_STATEMENTS_PER_FILE
-from splurge_sql_runner.exceptions import (
+from . import load_config
+from .cli_output import pretty_print_results, simple_table_format
+from .config.constants import DEFAULT_MAX_STATEMENTS_PER_FILE
+from .exceptions import (
     CliSecurityError,
     DatabaseError,
     FileError,
     SecurityUrlError,
     SecurityValidationError,
 )
-from splurge_sql_runner.logging import configure_module_logging
-from splurge_sql_runner.logging.core import setup_logging
-from splurge_sql_runner.main import process_sql_files
+from .logging import configure_module_logging
+from .logging.core import setup_logging
+from .main import process_sql_files
 
 # Module domains
 DOMAINS = ["cli", "interface"]

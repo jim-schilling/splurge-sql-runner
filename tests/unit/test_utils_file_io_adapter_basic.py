@@ -68,17 +68,17 @@ class TestFileIoAdapterReadFile:
 
         assert "世界" in result
 
-    def test_read_file_error_includes_context(self, tmp_path: Path) -> None:
-        """Test that FileError includes context information."""
+    def test_read_file_error_includes_details(self, tmp_path: Path) -> None:
+        """Test that FileError includes details information."""
         missing_file = "/nonexistent/path/missing.txt"
 
         with pytest.raises(FileError) as exc_info:
             FileIoAdapter.read_file(missing_file)
 
         error = exc_info.value
-        assert hasattr(error, "context")
-        assert error.context is not None
-        assert "file_path" in error.context
+        assert hasattr(error, "details")
+        assert error.details is not None
+        assert "file_path" in error.details
 
 
 class TestFileIoAdapterValidateFileSize:
@@ -149,16 +149,16 @@ class TestFileIoAdapterErrorTranslation:
 
         assert "cannot open" in str(exc_info.value).lower() or "not found" in str(exc_info.value).lower()
 
-    def test_file_error_context_includes_operation(self, tmp_path: Path) -> None:
-        """Test FileError context includes operation type."""
+    def test_file_error_details_includes_operation(self, tmp_path: Path) -> None:
+        """Test FileError details includes operation type."""
         missing_file = "/nonexistent/config.json"
 
         with pytest.raises(FileError) as exc_info:
             FileIoAdapter.read_file(missing_file, context_type="config")
 
         error = exc_info.value
-        assert error.context is not None
-        assert error.context.get("context_type") == "config"
+        assert error.details is not None
+        assert error.details.get("context_type") == "config"
 
     def test_directory_instead_of_file_raises_error(self, tmp_path: Path) -> None:
         """Test reading directory as file raises error."""
@@ -181,10 +181,10 @@ class TestFileIoAdapterContextTypes:
 
         assert result == "content"
 
-    def test_context_type_in_error_context(self, tmp_path: Path) -> None:
-        """Test context_type appears in error context."""
+    def test_context_type_in_error_details(self, tmp_path: Path) -> None:
+        """Test context_type appears in error details."""
         with pytest.raises(FileError) as exc_info:
             FileIoAdapter.read_file("/nonexistent/test.sql", context_type="sql")
 
-        assert exc_info.value.context is not None
-        assert exc_info.value.context.get("context_type") == "sql"
+        assert exc_info.value.details is not None
+        assert exc_info.value.details.get("context_type") == "sql"

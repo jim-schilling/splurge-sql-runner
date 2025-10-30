@@ -54,8 +54,9 @@ splurge-sql-runner -c "sqlite:///database.db" -f "query.sql" --json
 ## 📋 Requirements
 
 - **Python**: 3.10 or higher
+- **sqlparse**: SQL parsing and validation
 - **SQLAlchemy**: Database connectivity
-- **splurge-safe-io**: Secure file I/O operations
+- **tabulate**: Pretty table formatting
 
 ## 🤝 Contributing
 

@@ -104,7 +104,7 @@ def log_performance(operation: str, **context: Any) -> Callable[[Callable[P, T]]
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         @wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-            from splurge_sql_runner.logging.core import get_logger
+            from ..logging.core import get_logger
 
             logger = get_logger()
             perf_logger = PerformanceLogger(logger)
@@ -134,7 +134,7 @@ def performance_context(operation: str, **context: Any) -> Any:
     Yields:
         PerformanceLogger instance
     """
-    from splurge_sql_runner.logging.core import get_logger
+    from ..logging.core import get_logger
 
     logger = get_logger()
     perf_logger = PerformanceLogger(logger)

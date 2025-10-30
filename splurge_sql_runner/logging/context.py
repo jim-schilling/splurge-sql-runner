@@ -218,7 +218,7 @@ class LogContext:
             _thread_local.context_stack = []
 
         # Create contextual logger
-        from splurge_sql_runner.logging.core import get_logger
+        from ..logging.core import get_logger
 
         base_logger = get_logger()
         self._contextual_logger = ContextualLogger(base_logger)
@@ -300,7 +300,7 @@ def get_contextual_logger(name: str | None = None) -> ContextualLogger:
         return _contextual_logger_cache[name]
 
     # Create new instance and cache it
-    from splurge_sql_runner.logging.core import get_logger
+    from ..logging.core import get_logger
 
     # Always use the main logger to ensure it has the proper configuration
     base_logger = get_logger("splurge_sql_runner")

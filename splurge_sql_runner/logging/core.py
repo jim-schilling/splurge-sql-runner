@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from splurge_sql_runner.exceptions import ConfigValidationError
+from ..exceptions import ConfigValidationError
 
 # Module domains
 DOMAINS = ["logging", "core", "configuration"]

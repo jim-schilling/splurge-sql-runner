@@ -16,9 +16,9 @@ from typing import Any
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Connection, Engine
 
-from splurge_sql_runner.exceptions import DatabaseError
-from splurge_sql_runner.logging import configure_module_logging
-from splurge_sql_runner.sql_helper import FETCH_STATEMENT, detect_statement_type
+from ..exceptions import DatabaseError
+from ..logging import configure_module_logging
+from ..sql_helper import FETCH_STATEMENT, detect_statement_type
 
 # Module domains
 DOMAINS = ["database", "client", "connection"]

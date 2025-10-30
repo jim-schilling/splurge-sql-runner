@@ -14,18 +14,18 @@ import os
 from pathlib import Path
 from typing import Any
 
-from splurge_sql_runner.config.constants import (
+from ..config.constants import (
     DEFAULT_CONNECTION_TIMEOUT,
     DEFAULT_LOG_LEVEL,
     DEFAULT_MAX_STATEMENTS_PER_FILE,
 )
-from splurge_sql_runner.exceptions import ConfigFileError, ConfigValidationError, FileError
-from splurge_sql_runner.utils.file_io_adapter import FileIoAdapter
+from ..exceptions import ConfigFileError, ConfigValidationError, FileError
+from ..utils.file_io_adapter import FileIoAdapter
 
 # Module domains
 DOMAINS = ["config", "configuration"]
 
-__all__ = ["load_config", "load_json_config"]
+__all__ = ["load_config", "load_json_config", "save_config", "get_default_config", "get_env_config"]
 
 # Validation constants
 VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
@@ -80,7 +80,7 @@ def get_default_config() -> dict[str, Any]:
 
 def get_env_config() -> dict[str, Any]:
     """Load configuration from environment variables."""
-    config = {}
+    config: dict[str, Any] = {}
 
     # Database configuration
     if db_url := os.getenv("SPLURGE_SQL_RUNNER_DB_URL"):
@@ -224,7 +224,7 @@ def _validate_config(config: dict[str, Any]) -> None:
     if errors:
         raise ConfigValidationError(
             f"Configuration validation failed: {'; '.join(errors)}",
-            context={"errors": errors, "config_keys": list(config.keys())},
+            details={"errors": errors, "config_keys": list(config.keys())},
         )
 
 
@@ -239,11 +239,10 @@ def save_config(config: dict[str, Any], file_path: str) -> None:
     Raises:
         ConfigFileError: If file cannot be written
     """
-    from splurge_safe_io import SafeTextFileWriter
+    from .._vendor.splurge_safe_io.safe_text_file_writer import open_safe_text_writer
 
     try:
-        writer = SafeTextFileWriter(file_path=file_path, encoding="utf-8")
-        writer.write(json.dumps(config, indent=2, ensure_ascii=False))
-        writer.close()
+        with open_safe_text_writer(file_path=file_path, encoding="utf-8") as writer:
+            writer.write(json.dumps(config, indent=2, ensure_ascii=False))
     except Exception as e:
         raise ConfigFileError(f"Failed to save config file: {e}") from e

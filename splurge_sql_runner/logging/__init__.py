@@ -9,7 +9,7 @@ Copyright (c) 2025, Jim Schilling
 This module is licensed under the MIT License.
 """
 
-from splurge_sql_runner.logging.context import (
+from ..logging.context import (
     ContextualLogger,
     clear_correlation_id,
     correlation_context,
@@ -19,14 +19,14 @@ from splurge_sql_runner.logging.context import (
     log_context,
     set_correlation_id,
 )
-from splurge_sql_runner.logging.core import (
+from ..logging.core import (
     configure_module_logging,
     get_logger,
     get_logging_config,
     is_logging_configured,
     setup_logging,
 )
-from splurge_sql_runner.logging.performance import (
+from ..logging.performance import (
     PerformanceLogger,
     log_performance,
     performance_context,
