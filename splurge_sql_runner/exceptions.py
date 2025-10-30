@@ -9,8 +9,7 @@ Copyright (c) 2025, Jim Schilling
 This module is licensed under the MIT License.
 """
 
-import copy
-from typing import Any
+from ._vendor.splurge_safe_io.exceptions import SplurgeFrameworkError
 
 # Module domains
 DOMAINS = ["exceptions", "errors", "validation"]
@@ -47,218 +46,176 @@ __all__ = [
 ]
 
 
-class SplurgeSqlRunnerError(Exception):
+class SplurgeSqlRunnerError(SplurgeFrameworkError):
     """Base exception for all splurge-sql-runner errors."""
 
-    def __init__(
-        self,
-        message: str,
-        context: dict[str, Any] | None = None,
-    ) -> None:
-        """
-        Initialize the base error.
-
-        Args:
-            message: Error message
-            context: Optional context information
-        """
-        super().__init__(message)
-        self.message = message
-        # Store context as empty dict if None is passed, otherwise make a deep copy
-        self._context = copy.deepcopy(context) if context is not None else {}
-
-    @property
-    def context(self) -> dict[str, Any]:
-        """Get the context information."""
-        return self._context
-
-    def __str__(self) -> str:
-        """Return string representation of the error."""
-        return self.message
-
-    def __eq__(self, other: Any) -> bool:
-        """Test equality with another error."""
-        if not isinstance(other, SplurgeSqlRunnerError):
-            return False
-        return self.message == other.message and self.context == other.context
-
-    def __hash__(self) -> int:
-        """Return hash of the error."""
-        return hash((self.message, str(self.context)))
-
-    def add_context(self, key: str, value: Any) -> None:
-        """Add context information to the error."""
-        self._context[key] = value
-
-    def get_context(self, key: str, default: Any = None) -> Any:
-        """Get context information from the error."""
-        return self._context.get(key, default)
+    _domain: str = "splurge-sql-runner"
 
 
 # Configuration errors
 class ConfigurationError(SplurgeSqlRunnerError):
-    """Base exception for configuration-related errors."""
+    """Exception raised when configuration is invalid."""
 
-    pass
+    _domain: str = "splurge-sql-runner.configuration"
 
 
 class ConfigValidationError(ConfigurationError):
     """Exception raised when configuration validation fails."""
 
-    pass
+    _domain: str = "splurge-sql-runner.configuration.validation"
 
 
 class ConfigFileError(ConfigurationError):
-    """Exception raised when configuration file operations fail."""
+    """Exception raised when configuration file cannot be read."""
 
-    pass
+    _domain: str = "splurge-sql-runner.configuration.file"
 
 
 # Validation errors
 class ValidationError(SplurgeSqlRunnerError):
     """Base exception for validation-related errors."""
 
-    pass
+    _domain: str = "splurge-sql-runner.validation"
 
 
 # Operation errors
 class OperationError(SplurgeSqlRunnerError):
     """Base exception for operation-related errors."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation"
 
 
 class FileError(OperationError):
     """Exception raised when file operations fail."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.file"
 
 
 class DatabaseError(OperationError):
     """Exception raised when database operations fail."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.database"
 
 
 # CLI errors
 class CliError(OperationError):
     """Base exception for all CLI-related errors."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.cli"
 
 
 class CliArgumentError(CliError):
     """Exception raised when CLI arguments are invalid."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.cli.argument"
 
 
 class CliFileError(CliError):
     """Exception raised when CLI file operations fail."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.cli.file"
 
 
 class CliExecutionError(CliError):
     """Exception raised when CLI execution fails."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.cli.execution"
 
 
 class CliSecurityError(CliError):
     """Exception raised when CLI security validation fails."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.cli.security"
 
 
 # Database errors
 class DatabaseConnectionError(DatabaseError):
     """Exception raised when database connection fails."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.database.connection"
 
 
 class DatabaseOperationError(DatabaseError):
     """Exception raised when a database operation fails."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.database.operation"
 
 
 class DatabaseBatchError(DatabaseError):
     """Exception raised when batch SQL execution fails."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.database.batch"
 
 
 class DatabaseEngineError(DatabaseError):
     """Exception raised when database engine initialization fails."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.database.engine"
 
 
 class DatabaseTimeoutError(DatabaseError):
     """Exception raised when database operation times out."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.database.timeout"
 
 
 class DatabaseAuthenticationError(DatabaseError):
     """Exception raised when database authentication fails."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.database.authentication"
 
 
 # Security errors
 class SecurityError(ValidationError):
     """Base exception for all security-related errors."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.security"
 
 
 class SecurityValidationError(SecurityError):
     """Exception raised when security validation fails."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.security.validation"
 
 
 class SecurityFileError(SecurityError):
     """Exception raised when file security checks fail."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.security.file"
 
 
 class SecurityUrlError(SecurityError):
     """Exception raised when URL security checks fail."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.security.url"
 
 
 # SQL errors
 class SqlError(OperationError):
     """Base exception for all SQL-related errors."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.sql"
 
 
 class SqlParseError(SqlError):
     """Exception raised when SQL parsing fails."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.sql.parse"
 
 
 class SqlFileError(SqlError):
     """Exception raised when SQL file operations fail."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.sql.file"
 
 
 class SqlValidationError(SqlError):
     """Exception raised when SQL validation fails."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.sql.validation"
 
 
 class SqlExecutionError(SqlError):
     """Exception raised when SQL execution fails."""
 
-    pass
+    _domain: str = "splurge-sql-runner.operation.sql.execution"

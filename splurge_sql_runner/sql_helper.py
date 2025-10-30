@@ -15,10 +15,10 @@ import sqlparse
 from sqlparse.sql import Token
 from sqlparse.tokens import Comment
 
-from splurge_sql_runner.exceptions import (
+from .exceptions import (
     SqlFileError,
 )
-from splurge_sql_runner.utils.file_io_adapter import FileIoAdapter
+from .utils.file_io_adapter import FileIoAdapter
 
 # Module domains
 DOMAINS = ["sql", "parsing", "helpers"]

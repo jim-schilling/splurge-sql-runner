@@ -13,13 +13,18 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from pathlib import Path
-from typing import cast
 
-import splurge_safe_io.exceptions as safe_io_exc
-from splurge_safe_io.safe_text_file_reader import SafeTextFileReader
-
-from splurge_sql_runner.exceptions import FileError
-from splurge_sql_runner.logging import configure_module_logging
+from .._vendor.splurge_safe_io.exceptions import (
+    SplurgeSafeIoFileNotFoundError,
+    SplurgeSafeIoLookupError,
+    SplurgeSafeIoOSError,
+    SplurgeSafeIoPermissionError,
+    SplurgeSafeIoRuntimeError,
+    SplurgeSafeIoUnicodeError,
+)
+from .._vendor.splurge_safe_io.safe_text_file_reader import SafeTextFileReader
+from ..exceptions import FileError
+from ..logging import configure_module_logging
 
 # Module domains
 DOMAINS = ["utils", "file", "io"]
@@ -71,42 +76,49 @@ class FileIoAdapter:
         """
         try:
             reader = SafeTextFileReader(file_path, encoding=encoding)
-            return cast(str, reader.read())
-        except safe_io_exc.SplurgeSafeIoFileNotFoundError as e:
-            msg = f"File not found: {file_path}"
-            logger.error(msg)
+            return reader.read()
+        except SplurgeSafeIoFileNotFoundError as e:
+            message = f"File not found: {file_path}"
+            logger.error(message)
             raise FileError(
-                msg,
-                context={"file_path": file_path, "context_type": context_type},
+                message,
+                details={"file_path": file_path, "context_type": context_type},
             ) from e
-        except safe_io_exc.SplurgeSafeIoFilePermissionError as e:
+        except SplurgeSafeIoPermissionError as e:
             context_name = CONTEXT_MESSAGES.get(context_type, context_type)
-            msg = f"Permission denied reading {context_name}: {file_path}"
-            logger.error(msg)
+            message = f"Permission denied reading {context_name}: {file_path}"
+            logger.error(message)
             raise FileError(
-                msg,
-                context={"file_path": file_path, "context_type": context_type},
+                message,
+                details={"file_path": file_path, "context_type": context_type},
             ) from e
-        except safe_io_exc.SplurgeSafeIoFileDecodingError as e:
-            msg = f"Invalid encoding in file: {file_path}"
-            logger.error(msg)
+        except SplurgeSafeIoLookupError as e:
+            message = f"Codecs initialization failed or codecs not found for file: {file_path} : encoding={encoding}"
+            logger.error(message)
             raise FileError(
-                msg,
-                context={"file_path": file_path, "context_type": context_type},
+                message,
+                details={"file_path": file_path, "encoding": encoding, "context_type": context_type},
             ) from e
-        except safe_io_exc.SplurgeSafeIoOsError as e:
-            msg = f"OS error reading file: {file_path}"
-            logger.error(msg)
+        except SplurgeSafeIoUnicodeError as e:
+            message = f"Invalid encoding in file: {file_path} : encoding={encoding}"
+            logger.error(message)
             raise FileError(
-                msg,
-                context={"file_path": file_path, "context_type": context_type},
+                message,
+                details={"file_path": file_path, "context_type": context_type},
             ) from e
-        except safe_io_exc.SplurgeSafeIoUnknownError as e:
-            msg = f"Unknown error reading file: {file_path}"
-            logger.error(msg)
+        except SplurgeSafeIoOSError as e:
+            message = f"OS error reading file: {file_path}"
+            logger.error(message)
             raise FileError(
-                msg,
-                context={"file_path": file_path, "context_type": context_type},
+                message,
+                details={"file_path": file_path, "context_type": context_type},
+            ) from e
+        except SplurgeSafeIoRuntimeError as e:
+            message = f"Runtimeerror reading file: {file_path}"
+            logger.error(message)
+            raise FileError(
+                message,
+                details={"file_path": file_path, "context_type": context_type},
             ) from e
 
     @staticmethod
@@ -139,41 +151,48 @@ class FileIoAdapter:
         try:
             reader = SafeTextFileReader(file_path, encoding=encoding)
             yield from reader.readlines_as_stream()
-        except safe_io_exc.SplurgeSafeIoFileNotFoundError as e:
-            msg = f"File not found: {file_path}"
-            logger.error(msg)
+        except SplurgeSafeIoFileNotFoundError as e:
+            message = f"File not found: {file_path}"
+            logger.error(message)
             raise FileError(
-                msg,
-                context={"file_path": file_path, "context_type": context_type},
+                message,
+                details={"file_path": file_path, "context_type": context_type},
             ) from e
-        except safe_io_exc.SplurgeSafeIoFilePermissionError as e:
+        except SplurgeSafeIoPermissionError as e:
             context_name = CONTEXT_MESSAGES.get(context_type, context_type)
-            msg = f"Permission denied reading {context_name}: {file_path}"
-            logger.error(msg)
+            message = f"Permission denied reading {context_name}: {file_path}"
+            logger.error(message)
             raise FileError(
-                msg,
-                context={"file_path": file_path, "context_type": context_type},
+                message,
+                details={"file_path": file_path, "context_type": context_type},
             ) from e
-        except safe_io_exc.SplurgeSafeIoFileDecodingError as e:
-            msg = f"Invalid encoding in file: {file_path}"
-            logger.error(msg)
+        except SplurgeSafeIoLookupError as e:
+            message = f"Codecs initialization failed or codecs not found for file: {file_path} : encoding={encoding}"
+            logger.error(message)
             raise FileError(
-                msg,
-                context={"file_path": file_path, "context_type": context_type},
+                message,
+                details={"file_path": file_path, "encoding": encoding, "context_type": context_type},
             ) from e
-        except safe_io_exc.SplurgeSafeIoOsError as e:
-            msg = f"OS error reading file: {file_path}"
-            logger.error(msg)
+        except SplurgeSafeIoUnicodeError as e:
+            message = f"Invalid encoding in file: {file_path} : encoding={encoding}"
+            logger.error(message)
             raise FileError(
-                msg,
-                context={"file_path": file_path, "context_type": context_type},
+                message,
+                details={"file_path": file_path, "context_type": context_type},
             ) from e
-        except safe_io_exc.SplurgeSafeIoUnknownError as e:
-            msg = f"Unknown error reading file: {file_path}"
-            logger.error(msg)
+        except SplurgeSafeIoOSError as e:
+            message = f"OS error reading file: {file_path}"
+            logger.error(message)
             raise FileError(
-                msg,
-                context={"file_path": file_path, "context_type": context_type},
+                message,
+                details={"file_path": file_path, "context_type": context_type},
+            ) from e
+        except SplurgeSafeIoRuntimeError as e:
+            message = f"Runtime error reading file: {file_path}"
+            logger.error(message)
+            raise FileError(
+                message,
+                details={"file_path": file_path, "context_type": context_type},
             ) from e
 
     @staticmethod
@@ -205,7 +224,7 @@ class FileIoAdapter:
                 logger.warning(msg)
                 raise FileError(
                     msg,
-                    context={
+                    details={
                         "file_path": file_path,
                         "size_mb": size_mb,
                         "limit_mb": max_size_mb,
@@ -218,11 +237,11 @@ class FileIoAdapter:
         except FileNotFoundError as e:
             msg = f"File not found: {file_path}"
             logger.error(msg)
-            raise FileError(msg, context={"file_path": file_path}) from e
+            raise FileError(msg, details={"file_path": file_path}) from e
         except Exception as e:
             msg = f"Error checking file size: {file_path}"
             logger.error(msg)
-            raise FileError(msg, context={"file_path": file_path}) from e
+            raise FileError(msg, details={"file_path": file_path}) from e
 
 
 __all__ = ["FileIoAdapter"]

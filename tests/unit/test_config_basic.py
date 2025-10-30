@@ -262,7 +262,7 @@ class TestConfigValidation:
         assert config.get("security_level") == "normal"
 
     def test_load_config_validation_error_has_context(self, tmp_path: Path) -> None:
-        """Test that ConfigValidationError includes context information."""
+        """Test that ConfigValidationError includes error details."""
         config_file = tmp_path / "config.json"
         config_data = {"database": {"url": ""}}
         config_file.write_text(json.dumps(config_data), encoding="utf-8")
@@ -271,5 +271,6 @@ class TestConfigValidation:
             load_config(str(config_file))
 
         error = exc_info.value
-        assert hasattr(error, "context")
-        assert error.context is not None
+        # Exceptions from SplurgeFrameworkError have 'details' not 'context'
+        assert hasattr(error, "details")
+        assert error.details is not None

@@ -5,7 +5,7 @@ Contains shared utility functions and helpers that can be used
 by both the main application and test suites.
 """
 
-from splurge_sql_runner.utils.file_io_adapter import FileIoAdapter
+from ..utils.file_io_adapter import FileIoAdapter
 
 # Package domains
 __domains__ = ["utils", "file", "io", "security"]

@@ -9,7 +9,7 @@ Copyright (c) 2025, Jim Schilling
 This module is licensed under the MIT License.
 """
 
-from splurge_sql_runner.config.constants import DANGEROUS_SHELL_CHARACTERS
+from ..config.constants import DANGEROUS_SHELL_CHARACTERS
 
 # Module domains
 DOMAINS = ["utils", "security"]

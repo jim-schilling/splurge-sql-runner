@@ -31,4 +31,4 @@ jobs:
         run: ruff check .
 
       - name: Run mypy
-        run: mypy splurge_sql_runner
+        run: mypy .

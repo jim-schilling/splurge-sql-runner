@@ -14,15 +14,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from splurge_sql_runner import load_config
-from splurge_sql_runner.database.database_client import DatabaseClient
-from splurge_sql_runner.exceptions import (
+from . import load_config
+from .database.database_client import DatabaseClient
+from .exceptions import (
     SecurityValidationError,
 )
-from splurge_sql_runner.logging import configure_module_logging
-from splurge_sql_runner.security import SecurityValidator
-from splurge_sql_runner.sql_helper import parse_sql_statements
-from splurge_sql_runner.utils.file_io_adapter import FileIoAdapter
+from .logging import configure_module_logging
+from .security import SecurityValidator
+from .sql_helper import parse_sql_statements
+from .utils.file_io_adapter import FileIoAdapter
 
 # Module domains
 DOMAINS = ["api", "execution", "orchestration"]
