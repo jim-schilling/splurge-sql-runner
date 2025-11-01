@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from splurge_sql_runner.exceptions import FileError
+from splurge_sql_runner.exceptions import SplurgeSqlRunnerFileError
 from splurge_sql_runner.utils.file_io_adapter import FileIoAdapter
 
 
@@ -45,7 +45,7 @@ class TestFileIoAdapterReadFile:
 
     def test_read_file_nonexistent_file_raises_error(self) -> None:
         """Test reading nonexistent file raises FileError."""
-        with pytest.raises(FileError) as exc_info:
+        with pytest.raises(SplurgeSqlRunnerFileError) as exc_info:
             FileIoAdapter.read_file("/nonexistent/file.txt")
 
         assert "file.txt" in str(exc_info.value)
@@ -72,7 +72,7 @@ class TestFileIoAdapterReadFile:
         """Test that FileError includes details information."""
         missing_file = "/nonexistent/path/missing.txt"
 
-        with pytest.raises(FileError) as exc_info:
+        with pytest.raises(SplurgeSqlRunnerFileError) as exc_info:
             FileIoAdapter.read_file(missing_file)
 
         error = exc_info.value
@@ -105,7 +105,7 @@ class TestFileIoAdapterValidateFileSize:
 
     def test_validate_file_size_nonexistent_file_raises_error(self) -> None:
         """Test validating nonexistent file raises error."""
-        with pytest.raises(FileError):
+        with pytest.raises(SplurgeSqlRunnerFileError):
             FileIoAdapter.validate_file_size("/nonexistent/file.txt")
 
 
@@ -133,7 +133,7 @@ class TestFileIoAdapterChunkedReading:
 
     def test_read_file_chunked_nonexistent_file_raises_error(self) -> None:
         """Test read_file_chunked with nonexistent file raises error."""
-        with pytest.raises(FileError):
+        with pytest.raises(SplurgeSqlRunnerFileError):
             list(FileIoAdapter.read_file_chunked("/nonexistent/file.txt"))
 
 
@@ -144,7 +144,7 @@ class TestFileIoAdapterErrorTranslation:
         """Test FileError has informative message."""
         missing_file = "/nonexistent/test.txt"
 
-        with pytest.raises(FileError) as exc_info:
+        with pytest.raises(SplurgeSqlRunnerFileError) as exc_info:
             FileIoAdapter.read_file(missing_file)
 
         assert "cannot open" in str(exc_info.value).lower() or "not found" in str(exc_info.value).lower()
@@ -153,7 +153,7 @@ class TestFileIoAdapterErrorTranslation:
         """Test FileError details includes operation type."""
         missing_file = "/nonexistent/config.json"
 
-        with pytest.raises(FileError) as exc_info:
+        with pytest.raises(SplurgeSqlRunnerFileError) as exc_info:
             FileIoAdapter.read_file(missing_file, context_type="config")
 
         error = exc_info.value
@@ -165,7 +165,7 @@ class TestFileIoAdapterErrorTranslation:
         dir_path = tmp_path / "subdir"
         dir_path.mkdir()
 
-        with pytest.raises((FileError, Exception)):
+        with pytest.raises((SplurgeSqlRunnerFileError, Exception)):
             FileIoAdapter.read_file(str(dir_path))
 
 
@@ -183,7 +183,7 @@ class TestFileIoAdapterContextTypes:
 
     def test_context_type_in_error_details(self, tmp_path: Path) -> None:
         """Test context_type appears in error details."""
-        with pytest.raises(FileError) as exc_info:
+        with pytest.raises(SplurgeSqlRunnerFileError) as exc_info:
             FileIoAdapter.read_file("/nonexistent/test.sql", context_type="sql")
 
         assert exc_info.value.details is not None

@@ -212,7 +212,11 @@ class LogContext:
         self._context: dict[str, Any] = context
 
     def __enter__(self) -> ContextualLogger:
-        """Enter context manager."""
+        """Enter context manager and return contextual logger.
+
+        Returns:
+            ContextualLogger instance with the context bound for this scope.
+        """
         # Get the current thread's context
         if not hasattr(_thread_local, "context_stack"):
             _thread_local.context_stack = []
@@ -230,13 +234,26 @@ class LogContext:
         return self._contextual_logger
 
     def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any) -> None:
-        """Exit context manager."""
+        """Exit context manager and clean up contextual logging state.
+
+        Args:
+            exc_type: Exception type if an exception was raised (None otherwise)
+            exc_val: Exception value if an exception was raised (None otherwise)
+            exc_tb: Exception traceback if an exception was raised (None otherwise)
+        """
         # Remove context
         if _thread_local.context_stack:
             _thread_local.context_stack.pop()
 
     def __call__(self, func: Callable) -> Callable:
-        """Use as decorator."""
+        """Use LogContext as a decorator to add contextual logging to a function.
+
+        Args:
+            func: Function to be decorated
+
+        Returns:
+            Decorated function that logs with context when called
+        """
 
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             with self as contextual_logger:

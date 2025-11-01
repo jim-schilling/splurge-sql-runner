@@ -15,7 +15,7 @@ from splurge_sql_runner.config import (
     load_config,
     load_json_config,
 )
-from splurge_sql_runner.exceptions import ConfigFileError, ConfigValidationError
+from splurge_sql_runner.exceptions import SplurgeSqlRunnerFileError, SplurgeSqlRunnerValueError
 
 
 class TestGetDefaultConfig:
@@ -134,7 +134,7 @@ class TestLoadJsonConfig:
 
     def test_load_json_config_nonexistent_file_raises_error(self) -> None:
         """Test loading nonexistent config file raises ConfigFileError."""
-        with pytest.raises(ConfigFileError):
+        with pytest.raises(SplurgeSqlRunnerFileError):
             load_json_config("/nonexistent/config.json")
 
     def test_load_json_config_invalid_json_raises_error(self, tmp_path: Path) -> None:
@@ -142,7 +142,7 @@ class TestLoadJsonConfig:
         config_file = tmp_path / "bad.json"
         config_file.write_text("{invalid json}", encoding="utf-8")
 
-        with pytest.raises(ConfigFileError) as exc_info:
+        with pytest.raises(SplurgeSqlRunnerFileError) as exc_info:
             load_json_config(str(config_file))
 
         assert "JSON" in str(exc_info.value)
@@ -208,7 +208,7 @@ class TestLoadConfig:
         config_data = {"database": {"url": ""}}  # Empty URL
         config_file.write_text(json.dumps(config_data), encoding="utf-8")
 
-        with pytest.raises(ConfigValidationError):
+        with pytest.raises(SplurgeSqlRunnerValueError):
             load_config(str(config_file))
 
     def test_load_config_nonexistent_json_uses_defaults(self) -> None:
@@ -224,7 +224,7 @@ class TestLoadConfig:
         config_data = {"max_statements_per_file": -1}
         config_file.write_text(json.dumps(config_data), encoding="utf-8")
 
-        with pytest.raises(ConfigValidationError):
+        with pytest.raises(SplurgeSqlRunnerValueError):
             load_config(str(config_file))
 
     def test_load_config_invalid_timeout_raises_error(self, tmp_path: Path) -> None:
@@ -233,7 +233,7 @@ class TestLoadConfig:
         config_data = {"database": {"connection": {"timeout": -5}}}
         config_file.write_text(json.dumps(config_data), encoding="utf-8")
 
-        with pytest.raises(ConfigValidationError):
+        with pytest.raises(SplurgeSqlRunnerValueError):
             load_config(str(config_file))
 
 
@@ -246,7 +246,7 @@ class TestConfigValidation:
         config_data = {"logging": {"level": "INVALID_LEVEL"}}
         config_file.write_text(json.dumps(config_data), encoding="utf-8")
 
-        with pytest.raises(ConfigValidationError) as exc_info:
+        with pytest.raises(SplurgeSqlRunnerValueError) as exc_info:
             load_config(str(config_file))
 
         assert "log_level" in str(exc_info.value)
@@ -262,12 +262,12 @@ class TestConfigValidation:
         assert config.get("security_level") == "normal"
 
     def test_load_config_validation_error_has_context(self, tmp_path: Path) -> None:
-        """Test that ConfigValidationError includes error details."""
+        """Test that SplurgeSqlRunnerValueError includes error details."""
         config_file = tmp_path / "config.json"
         config_data = {"database": {"url": ""}}
         config_file.write_text(json.dumps(config_data), encoding="utf-8")
 
-        with pytest.raises(ConfigValidationError) as exc_info:
+        with pytest.raises(SplurgeSqlRunnerValueError) as exc_info:
             load_config(str(config_file))
 
         error = exc_info.value

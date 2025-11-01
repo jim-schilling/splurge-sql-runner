@@ -23,7 +23,7 @@ from .._vendor.splurge_safe_io.exceptions import (
     SplurgeSafeIoUnicodeError,
 )
 from .._vendor.splurge_safe_io.safe_text_file_reader import SafeTextFileReader
-from ..exceptions import FileError
+from ..exceptions import SplurgeSqlRunnerFileError
 from ..logging import configure_module_logging
 
 # Module domains
@@ -69,7 +69,7 @@ class FileIoAdapter:
             File content as string
 
         Raises:
-            FileError: If file cannot be read (wraps SplurgeSafeIo* errors)
+            SplurgeSqlRunnerFileError: If file cannot be read (wraps SplurgeSafeIo* errors)
 
         Example:
             >>> content = FileIoAdapter.read_file("query.sql", context_type="sql")
@@ -80,7 +80,7 @@ class FileIoAdapter:
         except SplurgeSafeIoFileNotFoundError as e:
             message = f"File not found: {file_path}"
             logger.error(message)
-            raise FileError(
+            raise SplurgeSqlRunnerFileError(
                 message,
                 details={"file_path": file_path, "context_type": context_type},
             ) from e
@@ -88,35 +88,35 @@ class FileIoAdapter:
             context_name = CONTEXT_MESSAGES.get(context_type, context_type)
             message = f"Permission denied reading {context_name}: {file_path}"
             logger.error(message)
-            raise FileError(
+            raise SplurgeSqlRunnerFileError(
                 message,
                 details={"file_path": file_path, "context_type": context_type},
             ) from e
         except SplurgeSafeIoLookupError as e:
             message = f"Codecs initialization failed or codecs not found for file: {file_path} : encoding={encoding}"
             logger.error(message)
-            raise FileError(
+            raise SplurgeSqlRunnerFileError(
                 message,
                 details={"file_path": file_path, "encoding": encoding, "context_type": context_type},
             ) from e
         except SplurgeSafeIoUnicodeError as e:
             message = f"Invalid encoding in file: {file_path} : encoding={encoding}"
             logger.error(message)
-            raise FileError(
+            raise SplurgeSqlRunnerFileError(
                 message,
                 details={"file_path": file_path, "context_type": context_type},
             ) from e
         except SplurgeSafeIoOSError as e:
             message = f"OS error reading file: {file_path}"
             logger.error(message)
-            raise FileError(
+            raise SplurgeSqlRunnerFileError(
                 message,
                 details={"file_path": file_path, "context_type": context_type},
             ) from e
         except SplurgeSafeIoRuntimeError as e:
-            message = f"Runtimeerror reading file: {file_path}"
+            message = f"Runtime error reading file: {file_path}"
             logger.error(message)
-            raise FileError(
+            raise SplurgeSqlRunnerFileError(
                 message,
                 details={"file_path": file_path, "context_type": context_type},
             ) from e
@@ -141,7 +141,7 @@ class FileIoAdapter:
             Lists of lines (each list has <= 1000 lines per chunk)
 
         Raises:
-            FileError: If file cannot be read (wraps SplurgeSafeIo* errors)
+            SplurgeSqlRunnerFileError: If file cannot be read (wraps SplurgeSafeIo* errors)
 
         Example:
             >>> for chunk in FileIoAdapter.read_file_chunked("large.sql"):
@@ -154,7 +154,7 @@ class FileIoAdapter:
         except SplurgeSafeIoFileNotFoundError as e:
             message = f"File not found: {file_path}"
             logger.error(message)
-            raise FileError(
+            raise SplurgeSqlRunnerFileError(
                 message,
                 details={"file_path": file_path, "context_type": context_type},
             ) from e
@@ -162,35 +162,35 @@ class FileIoAdapter:
             context_name = CONTEXT_MESSAGES.get(context_type, context_type)
             message = f"Permission denied reading {context_name}: {file_path}"
             logger.error(message)
-            raise FileError(
+            raise SplurgeSqlRunnerFileError(
                 message,
                 details={"file_path": file_path, "context_type": context_type},
             ) from e
         except SplurgeSafeIoLookupError as e:
             message = f"Codecs initialization failed or codecs not found for file: {file_path} : encoding={encoding}"
             logger.error(message)
-            raise FileError(
+            raise SplurgeSqlRunnerFileError(
                 message,
                 details={"file_path": file_path, "encoding": encoding, "context_type": context_type},
             ) from e
         except SplurgeSafeIoUnicodeError as e:
             message = f"Invalid encoding in file: {file_path} : encoding={encoding}"
             logger.error(message)
-            raise FileError(
+            raise SplurgeSqlRunnerFileError(
                 message,
                 details={"file_path": file_path, "context_type": context_type},
             ) from e
         except SplurgeSafeIoOSError as e:
             message = f"OS error reading file: {file_path}"
             logger.error(message)
-            raise FileError(
+            raise SplurgeSqlRunnerFileError(
                 message,
                 details={"file_path": file_path, "context_type": context_type},
             ) from e
         except SplurgeSafeIoRuntimeError as e:
             message = f"Runtime error reading file: {file_path}"
             logger.error(message)
-            raise FileError(
+            raise SplurgeSqlRunnerFileError(
                 message,
                 details={"file_path": file_path, "context_type": context_type},
             ) from e
@@ -210,7 +210,7 @@ class FileIoAdapter:
             File size in MB
 
         Raises:
-            FileError: If file exceeds max size
+            SplurgeSqlRunnerFileError: If file exceeds max size or cannot be accessed
 
         Example:
             >>> size = FileIoAdapter.validate_file_size("query.sql")
@@ -222,7 +222,7 @@ class FileIoAdapter:
             if size_mb > max_size_mb:
                 msg = f"File too large: {size_mb:.1f}MB (max: {max_size_mb}MB)"
                 logger.warning(msg)
-                raise FileError(
+                raise SplurgeSqlRunnerFileError(
                     msg,
                     details={
                         "file_path": file_path,
@@ -232,16 +232,16 @@ class FileIoAdapter:
                 )
 
             return size_mb
-        except FileError:
+        except SplurgeSqlRunnerFileError:
             raise
         except FileNotFoundError as e:
             msg = f"File not found: {file_path}"
             logger.error(msg)
-            raise FileError(msg, details={"file_path": file_path}) from e
+            raise SplurgeSqlRunnerFileError(msg, details={"file_path": file_path}) from e
         except Exception as e:
             msg = f"Error checking file size: {file_path}"
             logger.error(msg)
-            raise FileError(msg, details={"file_path": file_path}) from e
+            raise SplurgeSqlRunnerFileError(msg, details={"file_path": file_path}) from e
 
 
 __all__ = ["FileIoAdapter"]

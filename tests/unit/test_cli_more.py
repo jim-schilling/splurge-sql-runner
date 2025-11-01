@@ -2,8 +2,8 @@ import sys
 
 import splurge_sql_runner.cli as cli_mod
 from splurge_sql_runner.exceptions import (
-    DatabaseError,
-    SecurityValidationError,
+    SplurgeSqlRunnerDatabaseError,
+    SplurgeSqlRunnerSecurityError,
 )
 
 
@@ -98,7 +98,7 @@ def test_security_validation_error_prints_guidance_and_exits(monkeypatch, tmp_pa
     monkeypatch.setattr(cli_mod, "load_config", lambda cfg: {"database_url": "sqlite:///tmp.db"})
 
     def fake_process(*_args, **_kwargs):
-        raise SecurityValidationError("Too many SQL statements in file")
+        raise SplurgeSqlRunnerSecurityError("Too many SQL statements in file")
 
     monkeypatch.setattr(cli_mod, "process_sql_files", fake_process)
 
@@ -115,7 +115,7 @@ def test_database_error_exits_one(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(cli_mod, "load_config", lambda cfg: {"database_url": "sqlite:///tmp.db"})
 
     def fake_process(*_args, **_kwargs):
-        raise DatabaseError("connection failed")
+        raise SplurgeSqlRunnerDatabaseError("connection failed")
 
     monkeypatch.setattr(cli_mod, "process_sql_files", fake_process)
 

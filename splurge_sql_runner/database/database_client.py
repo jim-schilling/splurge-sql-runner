@@ -16,7 +16,7 @@ from typing import Any
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Connection, Engine
 
-from ..exceptions import DatabaseError
+from ..exceptions import SplurgeSqlRunnerDatabaseError
 from ..logging import configure_module_logging
 from ..sql_helper import FETCH_STATEMENT, detect_statement_type
 
@@ -41,7 +41,19 @@ class DatabaseClient:
         max_overflow: int = 10,
         pool_pre_ping: bool = True,
     ):
-        """Initialize database client with URL, timeout, and connection pooling."""
+        """Initialize database client with URL, timeout, and connection pooling.
+
+        Args:
+            database_url: Database connection URL (e.g., sqlite:///database.db,
+                postgresql://user:pass@host/db, mysql://user:pass@host/db)
+            connection_timeout: Connection timeout in seconds (default: 30.0)
+            pool_size: Number of connections to maintain in the pool for non-SQLite
+                databases (default: 5). SQLite does not use connection pooling.
+            max_overflow: Maximum overflow connections beyond pool_size for non-SQLite
+                databases (default: 10). SQLite does not use connection pooling.
+            pool_pre_ping: If True, validate connections before use for non-SQLite
+                databases (default: True). SQLite does not use connection pooling.
+        """
         self.database_url = database_url
         self.connection_timeout = connection_timeout
         self.pool_size = pool_size
@@ -54,7 +66,7 @@ class DatabaseClient:
         """Create a database connection.
 
         Raises:
-            DatabaseError: If connection cannot be established
+            SplurgeSqlRunnerDatabaseError: If connection cannot be established
         """
         if self._engine is None:
             try:
@@ -83,7 +95,7 @@ class DatabaseClient:
                     exc_info=True,
                     extra={"engine_type": "sqlite" if is_sqlite else "other"},
                 )
-                raise DatabaseError(f"Failed to create database engine: {exc}") from exc
+                raise SplurgeSqlRunnerDatabaseError(f"Failed to create database engine: {exc}") from exc
 
         try:
             assert self._engine is not None  # Engine should be created above
@@ -95,7 +107,7 @@ class DatabaseClient:
                 f"Failed to connect to database: {type(exc).__name__}: {exc}",
                 exc_info=True,
             )
-            raise DatabaseError(f"Failed to connect to database: {exc}") from exc
+            raise SplurgeSqlRunnerDatabaseError(f"Failed to connect to database: {exc}") from exc
 
     def execute_sql(
         self,
@@ -107,13 +119,22 @@ class DatabaseClient:
 
         Args:
             statements: List of SQL statements to execute
-            stop_on_error: If True, stop execution on first error; if False, continue execution
+            stop_on_error: If True, stop execution on first error and rollback the
+                transaction; if False, continue execution with separate transactions
+                for each statement
 
         Returns:
-            List of result dictionaries with statement, type, result, row_count, and errors
+            List of result dictionaries, each containing:
+            - statement: The SQL statement text
+            - statement_type: One of "fetch", "execute", or "error"
+            - result: Query results (for fetch) or True/None (for execute) or None (for error)
+            - row_count: Number of rows returned/affected (for fetch/execute) or None
+            - error: Error message string (only for error type results)
 
-        Raises:
-            DatabaseError: On connection errors or critical execution failures
+        Note:
+            This method does not raise exceptions; errors are captured in the result
+            dictionaries with statement_type="error". However, connection failures
+            may raise SplurgeSqlRunnerDatabaseError.
         """
         if not statements:
             self._logger.debug("execute_sql: no statements to execute")
@@ -171,10 +192,11 @@ class DatabaseClient:
             stmt: SQL statement to execute
 
         Returns:
-            Result dictionary with statement, type, result, and row_count/error
+            Result dictionary with statement, type, result, and row_count/error.
+            Returns empty dict if statement is empty or whitespace-only after stripping.
 
         Raises:
-            Exception: Propagates database execution errors
+            Exception: Propagates database execution errors from SQLAlchemy
         """
         stmt = stmt.strip().rstrip(";")
         if not stmt:
@@ -215,7 +237,7 @@ class DatabaseClient:
             List of result dictionaries
 
         Raises:
-            DatabaseError: On connection errors
+            SplurgeSqlRunnerDatabaseError: On transaction errors
         """
         conn.exec_driver_sql("BEGIN")
         results: list[dict[str, Any]] = []
@@ -241,7 +263,7 @@ class DatabaseClient:
             conn.exec_driver_sql("COMMIT")
         except Exception as exc:
             conn.exec_driver_sql("ROLLBACK")
-            raise DatabaseError(f"Transaction error: {exc}") from exc
+            raise SplurgeSqlRunnerDatabaseError(f"Transaction error: {exc}") from exc
 
         return results
 

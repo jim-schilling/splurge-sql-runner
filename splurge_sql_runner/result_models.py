@@ -52,8 +52,16 @@ class StatementResult:
 
 
 def statement_result_to_dict(result: StatementResult) -> dict[str, Any]:
-    """Convert a ``StatementResult`` to the legacy dict structure."""
+    """Convert a ``StatementResult`` to the legacy dict structure.
 
+    Args:
+        result: StatementResult instance to convert
+
+    Returns:
+        Dictionary with keys: statement, statement_type, result (or error),
+        row_count (optional), file_path (optional). The structure matches the
+        format returned by DatabaseClient.execute_sql() for backward compatibility.
+    """
     data = asdict(result)
     # Map enum to its value for JSON/legacy compatibility
     data["statement_type"] = result.statement_type.value
@@ -75,8 +83,16 @@ def statement_result_to_dict(result: StatementResult) -> dict[str, Any]:
 def results_to_dicts(
     results: Sequence[StatementResult | dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Normalize a list of mixed typed results or dicts to dicts."""
+    """Normalize a list of mixed typed results or dicts to dicts.
 
+    Args:
+        results: Sequence containing StatementResult instances or dicts,
+            or a mix of both
+
+    Returns:
+        List of dictionaries. StatementResult instances are converted using
+        statement_result_to_dict(); existing dicts are passed through unchanged.
+    """
     normalized: list[dict[str, Any]] = []
     for item in results:
         if isinstance(item, StatementResult):

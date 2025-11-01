@@ -6,7 +6,10 @@ Tests risk-based security validation at three levels: strict, normal, permissive
 
 import pytest
 
-from splurge_sql_runner.exceptions import SecurityUrlError, SecurityValidationError
+from splurge_sql_runner.exceptions import (
+    SplurgeSqlRunnerSecurityError,
+    SplurgeSqlRunnerValueError,
+)
 from splurge_sql_runner.security import SecurityValidator
 
 
@@ -30,9 +33,9 @@ class TestSecurityValidatorDatabaseUrl:
         SecurityValidator.validate_database_url(url, "normal")
 
     def test_validate_database_url_missing_scheme_raises_error(self) -> None:
-        """Test URL without scheme raises SecurityUrlError."""
+        """Test URL without scheme raises SplurgeSqlRunnerValueError."""
         url = "localhost/database"
-        with pytest.raises(SecurityUrlError):
+        with pytest.raises(SplurgeSqlRunnerValueError):
             SecurityValidator.validate_database_url(url, "normal")
 
     def test_validate_database_url_strict_mode(self) -> None:
@@ -63,19 +66,19 @@ class TestSecurityValidatorSqlContent:
     def test_validate_sql_content_too_many_statements_raises_error(self) -> None:
         """Test exceeding max_statements raises error."""
         sql = ";".join(["SELECT 1" for _ in range(101)])
-        with pytest.raises(SecurityValidationError):
+        with pytest.raises(SplurgeSqlRunnerSecurityError):
             SecurityValidator.validate_sql_content(sql, "normal", max_statements=100)
 
     def test_validate_sql_content_drop_database_in_strict_mode(self) -> None:
         """Test DROP DATABASE is blocked in strict mode."""
         sql = "DROP DATABASE users;"
-        with pytest.raises(SecurityValidationError):
+        with pytest.raises(SplurgeSqlRunnerSecurityError):
             SecurityValidator.validate_sql_content(sql, "strict", max_statements=100)
 
     def test_validate_sql_content_truncate_in_strict_mode(self) -> None:
         """Test TRUNCATE DATABASE is blocked in strict mode."""
         sql = "TRUNCATE DATABASE users;"
-        with pytest.raises(SecurityValidationError):
+        with pytest.raises(SplurgeSqlRunnerSecurityError):
             SecurityValidator.validate_sql_content(sql, "strict", max_statements=100)
 
     def test_validate_sql_content_permissive_allows_more(self) -> None:
@@ -121,7 +124,7 @@ class TestSecurityLevels:
 
     def test_invalid_security_level_raises_error(self) -> None:
         """Test invalid security level raises error."""
-        with pytest.raises(ValueError):
+        with pytest.raises(SplurgeSqlRunnerValueError):
             # This will be raised when trying to validate with invalid level
             SecurityValidator.validate_sql_content("SELECT 1", security_level="invalid")
 
@@ -146,7 +149,7 @@ class TestSecurityValidationEdgeCases:
 
     def test_validate_database_url_empty_string(self) -> None:
         """Test empty database URL."""
-        with pytest.raises(SecurityUrlError):
+        with pytest.raises(SplurgeSqlRunnerValueError):
             SecurityValidator.validate_database_url("", "normal")
 
 
@@ -156,7 +159,7 @@ class TestSecurityValidationMessages:
     def test_validation_error_includes_helpful_message(self) -> None:
         """Test validation errors include helpful information."""
         sql = ";".join(["SELECT 1" for _ in range(101)])
-        with pytest.raises(SecurityValidationError) as exc_info:
+        with pytest.raises(SplurgeSqlRunnerSecurityError) as exc_info:
             SecurityValidator.validate_sql_content(sql, "normal", max_statements=100)
 
         error_msg = str(exc_info.value)
@@ -165,7 +168,7 @@ class TestSecurityValidationMessages:
     def test_url_validation_error_includes_details(self) -> None:
         """Test URL validation error includes helpful information."""
         url = "invalid-url-without-scheme"
-        with pytest.raises(SecurityUrlError) as exc_info:
+        with pytest.raises(SplurgeSqlRunnerValueError) as exc_info:
             SecurityValidator.validate_database_url(url, "strict")
 
         error_msg = str(exc_info.value)

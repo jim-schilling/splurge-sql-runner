@@ -34,9 +34,9 @@ Splurge SQL Runner is a robust, secure, and user-friendly Python utility for exe
 
 ### 🛠️ Developer Experience
 - **Type Safety**: Full mypy type checking
-- **Comprehensive Testing**: 240+ unit tests covering all functionality
+- **Comprehensive Testing**: 500+ tests covering all functionality, including extensive end-to-end tests with real databases
 - **Clean Architecture**: Modular design with clear separation of concerns
-- **Error Handling**: Robust error recovery and informative messages
+- **Error Handling**: Robust error recovery and informative messages with simplified exception hierarchy
 
 ## Quick Start Guide
 
@@ -247,26 +247,37 @@ ORDER BY created_at DESC;
 
 ## Error Handling
 
+All errors inherit from `SplurgeSqlRunnerError` which provides structured error information with context details. The exception hierarchy was simplified in version 2025.7.0 for easier error handling.
+
+### Exception Types
+
+- **`SplurgeSqlRunnerFileError`**: File I/O operations, reading files, file validation
+- **`SplurgeSqlRunnerDatabaseError`**: Database connection and operation failures
+- **`SplurgeSqlRunnerSecurityError`**: Security validation failures (SQL content, URLs, paths)
+- **`SplurgeSqlRunnerValueError`**: Invalid configuration values, validation errors
+- **`SplurgeSqlRunnerConfigurationError`**: Configuration loading and parsing errors
+- **`SplurgeSqlRunnerOSError`**: Operating system level errors
+- **`SplurgeSqlRunnerRuntimeError`**: Runtime errors and unexpected conditions
+
 ### Common Errors and Solutions
 
-#### File Errors
-- **"SQL file not found"**: Check file path and permissions
-- **"Permission denied"**: Ensure read access to file
-- **"Decoding error"**: Save file as UTF-8 encoding
-- **"Invalid file path"**: Use valid file path characters
+#### File Errors (`SplurgeSqlRunnerFileError`)
+- **"File not found"**: Check file path and permissions
+- **"Permission denied reading [file type]"**: Ensure read access to file
+- **"Invalid encoding in file"**: Save file as UTF-8 encoding
 
-#### Database Errors
+#### Database Errors (`SplurgeSqlRunnerDatabaseError`)
 - **"Failed to create database engine"**: Check database URL format
 - **"Failed to connect to database"**: Verify credentials and connectivity
-- **Connection timeout**: Increase timeout or check network
 
-#### Security Errors
+#### Security Errors (`SplurgeSqlRunnerSecurityError`)
 - **"SQL content security validation failed"**: Remove dangerous patterns or use permissive mode
 - **"Database URL contains dangerous pattern"**: Use safe URL format
 
-#### Validation Errors
+#### Validation Errors (`SplurgeSqlRunnerValueError`)
 - **"Maximum statements per file exceeded"**: Split large files or increase limit
 - **"No files found matching pattern"**: Check glob pattern and file locations
+- **Configuration validation errors**: Check configuration values for required format
 
 ## Advanced Usage
 
@@ -428,4 +439,4 @@ For issues, questions, or contributions:
 
 ---
 
-*Last updated: October 15, 2025*
+*Last updated: November 1, 2025*

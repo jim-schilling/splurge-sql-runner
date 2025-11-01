@@ -16,8 +16,8 @@ from pathlib import Path
 import pytest
 
 from splurge_sql_runner.exceptions import (
-    SecurityUrlError,
-    SecurityValidationError,
+    SplurgeSqlRunnerSecurityError,
+    SplurgeSqlRunnerValueError,
 )
 from splurge_sql_runner.main import process_sql, process_sql_files
 
@@ -158,7 +158,7 @@ class TestProcessSqlBasic:
         """Test that process_sql raises SecurityValidationError for too many statements."""
         db_url = f"sqlite:///{tmp_path}/test.db"
 
-        with pytest.raises(SecurityValidationError):
+        with pytest.raises(SplurgeSqlRunnerSecurityError):
             process_sql(
                 TOO_MANY_STATEMENTS,
                 database_url=db_url,
@@ -171,7 +171,7 @@ class TestProcessSqlBasic:
         db_url = f"sqlite:///{tmp_path}/test.db"
 
         # This should raise in strict mode
-        with pytest.raises(SecurityValidationError):
+        with pytest.raises(SplurgeSqlRunnerSecurityError):
             process_sql(
                 UNSAFE_SQL,
                 database_url=db_url,
@@ -199,7 +199,7 @@ class TestProcessSqlBasic:
 
     def test_process_sql_with_invalid_database_url(self) -> None:
         """Test that process_sql raises on invalid database URL (no scheme)."""
-        with pytest.raises(SecurityUrlError):
+        with pytest.raises(SplurgeSqlRunnerValueError):
             process_sql(
                 SIMPLE_CREATE_TABLE,
                 database_url="invalid_without_scheme",
@@ -443,7 +443,7 @@ class TestProcessSqlFilesBasic:
         file1 = tmp_path / "file1.sql"
         file1.write_text(TOO_MANY_STATEMENTS)
 
-        with pytest.raises(SecurityValidationError):
+        with pytest.raises(SplurgeSqlRunnerSecurityError):
             process_sql_files(
                 [str(file1)],
                 database_url=db_url,
@@ -521,7 +521,7 @@ class TestProcessSqlFilesSecurityValidation:
         sql_file = tmp_path / "test.sql"
         sql_file.write_text(UNSAFE_SQL)
 
-        with pytest.raises(SecurityValidationError):
+        with pytest.raises(SplurgeSqlRunnerSecurityError):
             process_sql_files(
                 [str(sql_file)],
                 database_url=db_url,
@@ -605,7 +605,7 @@ class TestProcessSqlFilesErrorHandling:
         file_with_too_many = tmp_path / "many.sql"
         file_with_too_many.write_text(TOO_MANY_STATEMENTS)
 
-        with pytest.raises(SecurityValidationError):
+        with pytest.raises(SplurgeSqlRunnerSecurityError):
             process_sql_files(
                 [str(file_with_too_many)],
                 database_url=db_url,

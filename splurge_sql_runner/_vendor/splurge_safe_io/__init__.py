@@ -6,7 +6,7 @@ Expose commonly-used helpers and constants for convenience.
 
 from __future__ import annotations
 
-__version__ = "2025.4.2"
+__version__ = "2025.4.3"
 
 # Public exports (import lazily to avoid side-effects)
 from .constants import CANONICAL_NEWLINE, DEFAULT_ENCODING

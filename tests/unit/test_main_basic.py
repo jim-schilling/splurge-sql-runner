@@ -39,17 +39,17 @@ class TestDiscoverFiles:
 
     def test_discover_files_nonexistent_file_raises_error(self, tmp_path: Path) -> None:
         """Test discovering nonexistent file raises FileError."""
-        from splurge_sql_runner.exceptions import FileError
+        from splurge_sql_runner.exceptions import SplurgeSqlRunnerFileError
 
-        with pytest.raises(FileError):
+        with pytest.raises(SplurgeSqlRunnerFileError):
             discover_files(file_path=str(tmp_path / "nonexistent.sql"), pattern=None)
 
     def test_discover_files_no_matches_raises_error(self, tmp_path: Path) -> None:
         """Test discovering with no matches raises FileError."""
-        from splurge_sql_runner.exceptions import FileError
+        from splurge_sql_runner.exceptions import SplurgeSqlRunnerFileError
 
         pattern = str(tmp_path / "*.sql")
-        with pytest.raises(FileError):
+        with pytest.raises(SplurgeSqlRunnerFileError):
             discover_files(file_path=None, pattern=pattern)
 
 

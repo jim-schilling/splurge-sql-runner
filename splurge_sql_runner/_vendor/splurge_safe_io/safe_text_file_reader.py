@@ -117,7 +117,7 @@ class SafeTextFileReader:
 
     Raises:
         SplurgeSafeIoFileNotFoundError: If the file does not exist.
-        SplurgeSafeIoFilePermissionError: If the file cannot be read due to permission issues.
+        SplurgeSafeIoPermissionError: If the file cannot be read due to permission issues.
         SplurgeSafeIoPathValidationError: If the provided path fails validation checks.
     """
 
@@ -195,7 +195,7 @@ class SafeTextFileReader:
             SplurgeSafeIoLookupError: If codecs initializer fails or codecs not found.
             SplurgeSafeIoUnicodeError: If decoding fails.
             SplurgeSafeIoFileNotFoundError: If the file does not exist.
-            SplurgeSafeIoFilePermissionError: If the file cannot be read due to permission issues.
+            SplurgeSafeIoPermissionError: If the file cannot be read due to permission issues.
             SplurgeSafeIoOSError: If other general OS error occurs.
             SplurgeSafeIoRuntimeError: If other general runtime error occurs.
         """
@@ -257,7 +257,7 @@ class SafeTextFileReader:
             SplurgeSafeIoLookupError: If codecs initializer fails or codecs not found.
             SplurgeSafeIoUnicodeError: If decoding fails.
             SplurgeSafeIoFileNotFoundError: If the file does not exist.
-            SplurgeSafeIoFilePermissionError: If the file cannot be read due to permission issues.
+            SplurgeSafeIoPermissionError: If the file cannot be read due to permission issues.
             SplurgeSafeIoOSError: For other general OS-level errors.
             SplurgeSafeIoRuntimeError: For other general runtime errors.
 
@@ -278,7 +278,7 @@ class SafeTextFileReader:
             SplurgeSafeIoLookupError: If codecs initializer fails or codecs not found.
             SplurgeSafeIoUnicodeError: If decoding fails.
             SplurgeSafeIoFileNotFoundError: If the file does not exist.
-            SplurgeSafeIoFilePermissionError: If the file cannot be read due to permission issues.
+            SplurgeSafeIoPermissionError: If the file cannot be read due to permission issues.
             SplurgeSafeIoOSError: For other general OS-level errors.
             SplurgeSafeIoRuntimeError: For other general runtime errors.
         """
@@ -325,7 +325,7 @@ class SafeTextFileReader:
             SplurgeSafeIoLookupError: If codecs initializer fails or codecs not found.
             SplurgeSafeIoUnicodeError: If decoding fails.
             SplurgeSafeIoFileNotFoundError: If the file does not exist.
-            SplurgeSafeIoFilePermissionError: If the file cannot be read due to permission issues.
+            SplurgeSafeIoPermissionError: If the file cannot be read due to permission issues.
             SplurgeSafeIoOSError: For other general OS-level errors.
             SplurgeSafeIoRuntimeError: For other general runtime errors.
         """
@@ -517,7 +517,7 @@ class SafeTextFileReader:
             SplurgeSafeIoPathValidationError: if the file path is invalid.
             SplurgeSafeIoLookupError: If codecs initialization fails or codecs not found.
             SplurgeSafeIoFileNotFoundError: If the file does not exist.
-            SplurgeSafeIoFilePermissionError: If the file cannot be read due to permission issues.
+            SplurgeSafeIoPermissionError: If the file cannot be read due to permission issues.
             SplurgeSafeIoUnicodeError: If decoding fails.
             SplurgeSafeIoOSError: For other general OS-level errors.
             SplurgeSafeIoRuntimeError: For other general runtime errors.
@@ -592,7 +592,7 @@ class SafeTextFileReader:
             SplurgeSafeIoValueError: If `threshold_bytes` is too small.
             SplurgeSafeIoLookupError: If codecs initialization fails or codecs not found.
             SplurgeSafeIoFileNotFoundError: If the file does not exist.
-            SplurgeSafeIoFilePermissionError: If the file cannot be read due to permission issues.
+            SplurgeSafeIoPermissionError: If the file cannot be read due to permission issues.
             SplurgeSafeIoUnicodeError: If decoding fails.
             SplurgeSafeIoOSError: For other general OS-level errors.
             SplurgeSafeIoRuntimeError: For other general runtime errors.
@@ -688,7 +688,7 @@ def open_safe_text_reader(
         SplurgeSafeIoPathValidationError: if the file path is invalid.
         SplurgeSafeIoLookupError: If codecs initialization fails or codecs not found.
         SplurgeSafeIoFileNotFoundError: If the file does not exist.
-        SplurgeSafeIoFilePermissionError: If the file cannot be read due to permission issues.
+        SplurgeSafeIoPermissionError: If the file cannot be read due to permission issues.
         SplurgeSafeIoUnicodeError: If decoding fails.
         SplurgeSafeIoOSError: For other general OS-level errors.
         SplurgeSafeIoRuntimeError: For other general runtime errors.
@@ -765,7 +765,7 @@ def open_safe_text_reader_as_stream(
         SplurgeSafeIoPathValidationError: if the file path is invalid.
         SplurgeSafeIoLookupError: If codecs initialization fails or codecs not found.
         SplurgeSafeIoFileNotFoundError: If the file does not exist.
-        SplurgeSafeIoFilePermissionError: If the file cannot be read due to permission issues.
+        SplurgeSafeIoPermissionError: If the file cannot be read due to permission issues.
         SplurgeSafeIoUnicodeError: If decoding fails.
         SplurgeSafeIoOSError: For other general OS-level errors.
         SplurgeSafeIoRuntimeError: For other general runtime errors.

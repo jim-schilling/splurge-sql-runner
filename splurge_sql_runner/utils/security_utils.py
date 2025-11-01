@@ -10,6 +10,7 @@ This module is licensed under the MIT License.
 """
 
 from ..config.constants import DANGEROUS_SHELL_CHARACTERS
+from ..exceptions import SplurgeSqlRunnerValueError
 
 # Module domains
 DOMAINS = ["utils", "security"]
@@ -32,26 +33,26 @@ def sanitize_shell_arguments(args: list[str]) -> list[str]:
         List of sanitized arguments (same as input if validation passes)
 
     Raises:
-        ValueError: If any argument contains dangerous characters or is not a string
+        SplurgeSqlRunnerValueError: If any argument contains dangerous characters or is not a string
 
     Examples:
         >>> sanitize_shell_arguments(['--help', '--verbose'])
         ['--help', '--verbose']
 
         >>> sanitize_shell_arguments(['safe', 'dangerous;rm -rf /'])
-        ValueError: Potentially dangerous characters found in argument: dangerous;rm -rf /
+        SplurgeSqlRunnerValueError: Potentially dangerous characters found in argument: dangerous;rm -rf /
     """
     if not isinstance(args, list):
-        raise ValueError("args must be a list of strings")
+        raise SplurgeSqlRunnerValueError("args must be a list of strings")
 
     sanitized_args = []
     for arg in args:
         if not isinstance(arg, str):
-            raise ValueError("All command arguments must be strings")
+            raise SplurgeSqlRunnerValueError("All command arguments must be strings")
 
         # Check for dangerous characters that could enable shell injection
         if any(char in arg for char in DANGEROUS_SHELL_CHARACTERS):
-            raise ValueError(f"Potentially dangerous characters found in argument: {arg}")
+            raise SplurgeSqlRunnerValueError(f"Potentially dangerous characters found in argument: {arg}")
 
         sanitized_args.append(arg)
 

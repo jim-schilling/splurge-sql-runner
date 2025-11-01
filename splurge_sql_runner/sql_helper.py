@@ -16,7 +16,7 @@ from sqlparse.sql import Token
 from sqlparse.tokens import Comment
 
 from .exceptions import (
-    SqlFileError,
+    SplurgeSqlRunnerFileError,
 )
 from .utils.file_io_adapter import FileIoAdapter
 
@@ -85,8 +85,14 @@ def remove_sql_comments(sql_text: str) -> str:
 
 
 def normalize_token(token: Token) -> str:
-    """
-    Return the uppercased, stripped value of a token.
+    """Return the uppercased, stripped value of a token.
+
+    Args:
+        token: sqlparse Token object to normalize
+
+    Returns:
+        Uppercased and stripped string value of the token, or empty string if
+        token has no value attribute or value is None/empty.
     """
     return str(token.value).strip().upper() if hasattr(token, "value") and token.value else ""
 
@@ -96,8 +102,16 @@ def _next_significant_token(
     *,
     start: int = 0,
 ) -> tuple[int | None, Token | None]:
-    """
-    Return the index and token of the next non-whitespace, non-comment token.
+    """Return the index and token of the next non-whitespace, non-comment token.
+
+    Args:
+        tokens: List of sqlparse tokens to search
+        start: Starting index in the tokens list (default: 0)
+
+    Returns:
+        Tuple containing (index, token) if found, or (None, None) if no significant
+        token is found after the start index. The index is the position in the tokens
+        list, and the token is the first non-whitespace, non-comment token encountered.
     """
     for i in range(start, len(tokens)):
         token = tokens[i]
@@ -327,6 +341,7 @@ def parse_sql_statements(
     Args:
         sql_text: SQL string that may contain multiple statements
         strip_semicolon: If True, strip trailing semicolons in statements (default: False)
+
     Returns:
         List of individual SQL statements (with or without trailing semicolons based on parameter)
     """
@@ -399,7 +414,7 @@ def parse_sql_file(
         - Optionally without trailing semicolons
 
     Raises:
-        SqlFileError: If file operations fail, including:
+        SplurgeSqlRunnerFileError: If file operations fail, including:
             - Invalid file path (None or wrong type)
             - File not found
             - Permission denied
@@ -444,10 +459,10 @@ def parse_sql_file(
     """
     # Basic input validation for cases SafeTextFileReader doesn't handle
     if file_path is None:
-        raise SqlFileError("Invalid file path: None")
+        raise SplurgeSqlRunnerFileError("Invalid file path: None")
 
     if not isinstance(file_path, str | Path):
-        raise SqlFileError(f"Invalid file path type: {type(file_path).__name__}")
+        raise SplurgeSqlRunnerFileError(f"Invalid file path type: {type(file_path).__name__}")
 
     try:
         # Read entire file content as a single string
@@ -456,4 +471,4 @@ def parse_sql_file(
         return parse_sql_statements(sql_content, strip_semicolon=strip_semicolon)
 
     except Exception as exc:
-        raise SqlFileError(f"Error reading SQL file: {file_path}") from exc
+        raise SplurgeSqlRunnerFileError(f"Error reading SQL file: {file_path}") from exc

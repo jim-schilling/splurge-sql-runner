@@ -12,33 +12,15 @@ This module is licensed under the MIT License.
 from .config import load_config
 from .database import DatabaseClient
 from .exceptions import (
-    CliArgumentError,
-    CliError,
-    CliExecutionError,
-    CliSecurityError,
-    ConfigFileError,
-    ConfigurationError,
-    ConfigValidationError,
-    DatabaseAuthenticationError,
-    DatabaseBatchError,
-    DatabaseConnectionError,
-    DatabaseEngineError,
-    DatabaseError,
-    DatabaseOperationError,
-    DatabaseTimeoutError,
-    FileError,
-    OperationError,
-    SecurityError,
-    SecurityFileError,
-    SecurityUrlError,
-    SecurityValidationError,
+    SplurgeSqlRunnerConfigurationError,
+    SplurgeSqlRunnerDatabaseError,
     SplurgeSqlRunnerError,
-    SqlError,
-    SqlExecutionError,
-    SqlFileError,
-    SqlParseError,
-    SqlValidationError,
-    ValidationError,
+    SplurgeSqlRunnerFileError,
+    SplurgeSqlRunnerOSError,
+    SplurgeSqlRunnerRuntimeError,
+    SplurgeSqlRunnerSecurityError,
+    SplurgeSqlRunnerTypeError,
+    SplurgeSqlRunnerValueError,
 )
 from .logging import (
     ContextualLogger,
@@ -57,7 +39,7 @@ from .logging import (
 )
 from .utils import FileIoAdapter
 
-__version__ = "2025.6.0"
+__version__ = "2025.7.0"
 
 # Package domains
 __domains__ = [
@@ -83,32 +65,14 @@ __all__ = [
     "FileIoAdapter",
     # Errors
     "SplurgeSqlRunnerError",
-    "ConfigurationError",
-    "ConfigValidationError",
-    "ConfigFileError",
-    "ValidationError",
-    "OperationError",
-    "FileError",  # Consolidates CliFileError, SqlFileError
-    "DatabaseError",  # Consolidates DatabaseConnectionError, DatabaseOperationError
-    "SecurityError",
-    "SecurityFileError",
-    "SecurityUrlError",
-    "CliError",
-    "CliArgumentError",
-    "CliExecutionError",
-    "CliSecurityError",
-    "DatabaseAuthenticationError",
-    "DatabaseBatchError",
-    "DatabaseConnectionError",
-    "DatabaseEngineError",
-    "DatabaseOperationError",
-    "DatabaseTimeoutError",
-    "SecurityValidationError",
-    "SqlError",
-    "SqlExecutionError",
-    "SqlFileError",
-    "SqlParseError",
-    "SqlValidationError",
+    "SplurgeSqlRunnerOSError",
+    "SplurgeSqlRunnerRuntimeError",
+    "SplurgeSqlRunnerValueError",
+    "SplurgeSqlRunnerTypeError",
+    "SplurgeSqlRunnerConfigurationError",
+    "SplurgeSqlRunnerFileError",
+    "SplurgeSqlRunnerDatabaseError",
+    "SplurgeSqlRunnerSecurityError",
     # Logging
     "setup_logging",
     "get_logger",

@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from splurge_sql_runner.exceptions import SecurityValidationError
+from splurge_sql_runner.exceptions import SplurgeSqlRunnerSecurityError
 from splurge_sql_runner.security import SecurityValidator
 from splurge_sql_runner.sql_helper import parse_sql_file
 
@@ -60,7 +60,7 @@ class TestCriticalSecurityValidation:
     def test_strict_security_blocks_dangerous_sql(self):
         """Test that strict security blocks dangerous SQL."""
         dangerous_sql = "DROP DATABASE test;"
-        with pytest.raises(SecurityValidationError):
+        with pytest.raises(SplurgeSqlRunnerSecurityError):
             SecurityValidator.validate_sql_content(dangerous_sql, "strict")
 
 

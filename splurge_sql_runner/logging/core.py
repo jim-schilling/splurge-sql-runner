@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from ..exceptions import ConfigValidationError
+from ..exceptions import SplurgeSqlRunnerOSError, SplurgeSqlRunnerValueError
 
 # Module domains
 DOMAINS = ["logging", "core", "configuration"]
@@ -58,14 +58,14 @@ def setup_logging(
         Configured logger instance
 
     Raises:
-        ValueError: If log_level is invalid
-        OSError: If log directory cannot be created
+        SplurgeSqlRunnerValueError: If log_level is invalid
+        SplurgeSqlRunnerOSError: If log directory cannot be created
     """
     global _LOGGING_CONFIGURED, _LOGGING_CONFIG
 
     # Validate log level
     if log_level.upper() not in _VALID_LOG_LEVELS:
-        raise ConfigValidationError(f"Invalid log level: {log_level}. Must be one of {_VALID_LOG_LEVELS}")
+        raise SplurgeSqlRunnerValueError(f"Invalid log level: {log_level}. Must be one of {_VALID_LOG_LEVELS}")
 
     # Store configuration
     _LOGGING_CONFIG = {
@@ -77,19 +77,22 @@ def setup_logging(
         "backup_count": backup_count,
     }
 
-    # Determine log file path
-    if log_file:
-        log_path = Path(log_file)
-    elif log_dir:
-        log_dir_path = Path(log_dir)
-        log_dir_path.mkdir(parents=True, exist_ok=True)
-        log_path = log_dir_path / _DEFAULT_LOG_FILENAME
-    else:
-        # Default to user's home directory
-        home_dir = Path.home()
-        log_dir_path = home_dir / _DEFAULT_LOG_SUBDIR / _DEFAULT_LOG_DIR
-        log_dir_path.mkdir(parents=True, exist_ok=True)
-        log_path = log_dir_path / _DEFAULT_LOG_FILENAME
+    try:
+        # Determine log file path
+        if log_file:
+            log_path = Path(log_file)
+        elif log_dir:
+            log_dir_path = Path(log_dir)
+            log_dir_path.mkdir(parents=True, exist_ok=True)
+            log_path = log_dir_path / _DEFAULT_LOG_FILENAME
+        else:
+            # Default to user's home directory
+            home_dir = Path.home()
+            log_dir_path = home_dir / _DEFAULT_LOG_SUBDIR / _DEFAULT_LOG_DIR
+            log_dir_path.mkdir(parents=True, exist_ok=True)
+            log_path = log_dir_path / _DEFAULT_LOG_FILENAME
+    except Exception as e:
+        raise SplurgeSqlRunnerOSError(f"OS error creating log file path: {str(e)}") from e
 
     # Create logger
     logger = logging.getLogger("splurge_sql_runner")

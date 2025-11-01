@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from splurge_sql_runner.database.database_client import DatabaseClient
-from splurge_sql_runner.exceptions import DatabaseError
+from splurge_sql_runner.exceptions import SplurgeSqlRunnerDatabaseError
 
 
 class DummyCursor:
@@ -192,7 +192,7 @@ class TestDatabaseClientConnection:
         """Test connection failure."""
         client = DatabaseClient(database_url="invalid://url")
 
-        with pytest.raises(DatabaseError):
+        with pytest.raises(SplurgeSqlRunnerDatabaseError):
             client.connect()
 
 

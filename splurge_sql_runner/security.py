@@ -11,8 +11,8 @@ This module is licensed under the MIT License.
 from urllib.parse import urlparse
 
 from .exceptions import (
-    SecurityUrlError,
-    SecurityValidationError,
+    SplurgeSqlRunnerSecurityError,
+    SplurgeSqlRunnerValueError,
 )
 
 # Module domains
@@ -76,10 +76,11 @@ class SecurityValidator:
             security_level: Security level ("strict", "normal", "permissive")
 
         Raises:
-            SecurityUrlError: If URL contains dangerous patterns
+            SplurgeSqlRunnerSecurityError: If URL contains dangerous patterns
+            SplurgeSqlRunnerValueError: If URL format is invalid, empty, or unsupported security level is provided
         """
         if not database_url:
-            raise SecurityUrlError("Database URL cannot be empty")
+            raise SplurgeSqlRunnerValueError("Database URL cannot be empty")
 
         if security_level == "permissive":
             return  # Skip validation for permissive mode
@@ -88,11 +89,11 @@ class SecurityValidator:
         try:
             parsed_url = urlparse(database_url)
         except Exception as e:
-            raise SecurityUrlError(f"Invalid database URL format: {e}") from e
+            raise SplurgeSqlRunnerValueError(f"Invalid database URL format: {e}") from e
 
         # Check for valid scheme (always required)
         if not parsed_url.scheme:
-            raise SecurityUrlError("Database URL must include a scheme (e.g., sqlite://, postgresql://)")
+            raise SplurgeSqlRunnerValueError("Database URL must include a scheme (e.g., sqlite://, postgresql://)")
 
         # Check patterns based on security level
         patterns = SecurityValidator._get_patterns(security_level)["dangerous_urls"]
@@ -100,7 +101,7 @@ class SecurityValidator:
 
         for pattern in patterns:
             if pattern.lower() in url_lower:
-                raise SecurityUrlError(f"Database URL contains dangerous pattern: {pattern}")
+                raise SplurgeSqlRunnerSecurityError(f"Database URL contains dangerous pattern: {pattern}")
 
     @staticmethod
     def validate_sql_content(sql_content: str, security_level: str = "normal", max_statements: int = 100) -> None:
@@ -113,7 +114,9 @@ class SecurityValidator:
             max_statements: Maximum allowed statements
 
         Raises:
-            SecurityValidationError: If SQL contains dangerous patterns
+            SplurgeSqlRunnerSecurityError: If SQL contains dangerous pattern
+            SplurgeSqlRunnerSecurityError: If statement count is too high
+            SplurgeSqlRunnerValueError: If unsupported security level is provided
         """
         if not sql_content:
             return
@@ -127,7 +130,7 @@ class SecurityValidator:
 
         for pattern in patterns:
             if pattern.upper() in sql_upper:
-                raise SecurityValidationError(f"SQL content contains dangerous pattern: {pattern}")
+                raise SplurgeSqlRunnerSecurityError(f"SQL content contains dangerous pattern: {pattern}")
 
         # Check statement count (only for strict/normal modes)
         if security_level in ("strict", "normal"):
@@ -135,13 +138,24 @@ class SecurityValidator:
 
             statements = parse_sql_statements(sql_content)
             if len(statements) > max_statements:
-                raise SecurityValidationError(
+                raise SplurgeSqlRunnerSecurityError(
                     f"Too many SQL statements ({len(statements)}). Maximum allowed: {max_statements}"
                 )
 
     @staticmethod
     def _get_patterns(security_level: str) -> dict:
-        """Get security patterns for the specified level."""
+        """
+        Get security patterns for the specified level.
+
+        Args:
+            security_level: Security level ("strict", "normal", "permissive")
+
+        Returns:
+            dict: Security patterns for the specified level
+
+        Raises:
+            SplurgeSqlRunnerValueError: If unsupported security level is provided
+        """
         if security_level == "strict":
             return SecurityValidator.STRICT_PATTERNS
         elif security_level == "normal":
@@ -149,4 +163,4 @@ class SecurityValidator:
         elif security_level == "permissive":
             return SecurityValidator.PERMISSIVE_PATTERNS
         else:
-            raise ValueError(f"Unknown security level: {security_level}")
+            raise SplurgeSqlRunnerValueError(f"Unsupported security level: {security_level}")

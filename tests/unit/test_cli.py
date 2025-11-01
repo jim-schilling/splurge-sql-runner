@@ -129,10 +129,10 @@ class TestCliMain:
     def test_main_security_validation_error_returns_failure(self, temp_sql_file, sqlite_db_path, mocker):
         mocker.patch("sys.argv", new=["splurge_sql_runner", "-c", f"sqlite:///{sqlite_db_path}", "-f", temp_sql_file])
         mocker.patch.object(cli_mod, "load_config", return_value={})
-        from splurge_sql_runner.exceptions import SecurityValidationError
+        from splurge_sql_runner.exceptions import SplurgeSqlRunnerSecurityError
 
         mocker.patch.object(
-            cli_mod, "process_sql_files", side_effect=SecurityValidationError("Too many sql statements")
+            cli_mod, "process_sql_files", side_effect=SplurgeSqlRunnerSecurityError("Too many sql statements")
         )
         ret = cli_mod.main()
         assert ret == cli_mod.EXIT_CODE_FAILURE

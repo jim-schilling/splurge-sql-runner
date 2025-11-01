@@ -1,5 +1,59 @@
 ## Changelog
 
+### 2025.7.0 (11-01-2025)
+
+- **Exception Simplification**
+  - Consolidated exception hierarchy to simplify error handling across the codebase
+  - Security validation errors now raise `SplurgeSqlRunnerSecurityError` instead of specific subclasses
+    - `SplurgeSqlRunnerSecurityValidationError` → `SplurgeSqlRunnerSecurityError`
+    - `SplurgeSqlRunnerSecurityUrlError` → `SplurgeSqlRunnerSecurityError` (for pattern violations) or `SplurgeSqlRunnerValueError` (for format errors)
+    - `SplurgeSqlRunnerSecurityFileError` → `SplurgeSqlRunnerSecurityError`
+    - `SplurgeSqlRunnerCliSecurityError` → `SplurgeSqlRunnerSecurityError`
+  - File operation errors unified under `SplurgeSqlRunnerFileError`
+    - `SplurgeSqlRunnerConfigFileError` → `SplurgeSqlRunnerFileError`
+    - `SplurgeSqlRunnerSqlFileError` → `SplurgeSqlRunnerFileError`
+  - Configuration validation errors now raise `SplurgeSqlRunnerValueError`
+    - `SplurgeSqlRunnerConfigValidationError` → `SplurgeSqlRunnerValueError`
+  - Logging configuration errors updated
+    - Invalid log levels now raise `SplurgeSqlRunnerValueError` (was `SplurgeSqlRunnerConfigValidationError`)
+    - OS errors during log setup now raise `SplurgeSqlRunnerOSError` (was generic `OSError`)
+
+- **Docstring Review and Improvements**
+  - Comprehensive review of all functions, classes, and modules (excluding `_vendor` sub-folders)
+  - Enhanced docstrings with complete Args, Returns, and Raises sections
+  - Fixed inaccurate exception documentation throughout the codebase
+  - Improved docstrings for:
+    - `DatabaseClient.__init__()`: Added detailed parameter descriptions
+    - `DatabaseClient.execute_sql()`: Clarified behavior and return format
+    - `LogContext` methods: Added Args and Returns sections
+    - `sql_helper` functions: Enhanced `normalize_token()` and `_next_significant_token()`
+    - `result_models` functions: Added comprehensive Args and Returns
+    - Configuration functions: Enhanced with detailed return value descriptions
+
+- **Documentation Updates**
+  - Updated `docs/api/API-REFERENCE.md` to version 2025.7.0
+  - Added comprehensive Exception Migration Guide section documenting:
+    - Exception mapping table (old → new exceptions)
+    - Migration examples (before/after code samples)
+    - Benefits of simplified exception hierarchy
+  - Updated all code examples to use new exception names
+  - Corrected result format documentation (removed obsolete "success" field, uses "statement_type")
+  - Updated exception hierarchy diagram to reflect simplified structure
+  - Fixed all API examples to match current implementation
+
+- **Code Quality**
+  - All docstrings now accurately reflect implementation, behavior, and raised errors
+  - Consistent use of full qualified exception names in Raises sections
+  - Enhanced error documentation with context about when exceptions are raised
+
+- **Version Bump**
+  - Updated package version to `2025.7.0` in `__init__.py`
+
+- **Backward Compatibility**
+  - Old exception classes may still exist in `exceptions.py` for compatibility
+  - Code now uses simplified exceptions, but catch handlers for old exceptions may still work
+  - Developers should migrate to new exception names as documented in API-REFERENCE.md
+
 ### 2025.6.0 (10-30-2025)
 - **Migrated Dependency**
   - Replaced `splurge-safe-io` dependency with internal vendored copy located at
