@@ -10,8 +10,8 @@ import tempfile
 import pytest
 
 from splurge_sql_runner.exceptions import (
-    SecurityUrlError,
-    SecurityValidationError,
+    SplurgeSqlRunnerSecurityError,
+    SplurgeSqlRunnerValueError,
 )
 from splurge_sql_runner.security import SecurityValidator
 
@@ -62,24 +62,24 @@ class TestValidateDatabaseUrl(TestSecurityValidator):
 
     def test_empty_url(self):
         """Test validation of empty URL."""
-        with pytest.raises(SecurityUrlError, match="Database URL cannot be empty"):
+        with pytest.raises(SplurgeSqlRunnerValueError, match="Database URL cannot be empty"):
             SecurityValidator.validate_database_url("", "normal")
 
     def test_none_url(self):
         """Test validation of None URL."""
-        with pytest.raises(SecurityUrlError, match="Database URL cannot be empty"):
+        with pytest.raises(SplurgeSqlRunnerValueError, match="Database URL cannot be empty"):
             SecurityValidator.validate_database_url(None, "normal")
 
     def test_url_without_scheme(self):
         """Test validation of URL without scheme."""
         url = "localhost/database"
-        with pytest.raises(SecurityUrlError, match="Database URL must include a scheme"):
+        with pytest.raises(SplurgeSqlRunnerValueError, match="Database URL must include a scheme"):
             SecurityValidator.validate_database_url(url, "normal")
 
     def test_invalid_url_format(self):
         """Test validation of invalid URL format."""
         url = "invalid://[invalid"
-        with pytest.raises(SecurityUrlError, match="Invalid database URL format"):
+        with pytest.raises(SplurgeSqlRunnerValueError, match="Invalid database URL format"):
             SecurityValidator.validate_database_url(url, "normal")
 
     def test_valid_sql_content_normal(self):
@@ -105,19 +105,19 @@ class TestValidateDatabaseUrl(TestSecurityValidator):
     def test_case_insensitive_pattern_matching(self):
         """Test that pattern matching is case insensitive."""
         sql = "SELECT * FROM users; drop database users;"
-        with pytest.raises(SecurityValidationError, match="dangerous pattern"):
+        with pytest.raises(SplurgeSqlRunnerSecurityError, match="dangerous pattern"):
             SecurityValidator.validate_sql_content(sql, "normal")
 
     def test_too_many_statements_normal(self):
         """Test validation of SQL with too many statements (normal)."""
         many_statements = "; ".join([f"SELECT {i} FROM users" for i in range(200)])
-        with pytest.raises(SecurityValidationError, match="Too many SQL statements"):
+        with pytest.raises(SplurgeSqlRunnerSecurityError, match="Too many SQL statements"):
             SecurityValidator.validate_sql_content(many_statements, "normal", 100)
 
     def test_too_many_statements_strict(self):
         """Test validation of SQL with too many statements (strict)."""
         many_statements = "; ".join([f"SELECT {i} FROM users" for i in range(200)])
-        with pytest.raises(SecurityValidationError, match="Too many SQL statements"):
+        with pytest.raises(SplurgeSqlRunnerSecurityError, match="Too many SQL statements"):
             SecurityValidator.validate_sql_content(many_statements, "strict", 100)
 
     def test_normal_allows_reasonable_statements(self):
@@ -208,8 +208,8 @@ class TestSecurityValidatorIntegration(TestSecurityValidator):
     def test_security_level_validation(self):
         """Test that invalid security levels raise errors."""
 
-        with pytest.raises(ValueError, match="Unknown security level"):
+        with pytest.raises(SplurgeSqlRunnerValueError, match="Unsupported security level"):
             SecurityValidator.validate_database_url("sqlite:///test.db", "invalid")
 
-        with pytest.raises(ValueError, match="Unknown security level"):
+        with pytest.raises(SplurgeSqlRunnerValueError, match="Unsupported security level"):
             SecurityValidator.validate_sql_content("SELECT 1", "invalid")

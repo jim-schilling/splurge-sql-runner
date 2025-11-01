@@ -19,7 +19,10 @@ from ..config.constants import (
     DEFAULT_LOG_LEVEL,
     DEFAULT_MAX_STATEMENTS_PER_FILE,
 )
-from ..exceptions import ConfigFileError, ConfigValidationError, FileError
+from ..exceptions import (
+    SplurgeSqlRunnerFileError,
+    SplurgeSqlRunnerValueError,
+)
 from ..utils.file_io_adapter import FileIoAdapter
 
 # Module domains
@@ -46,8 +49,8 @@ def load_config(config_file_path: str | None = None) -> dict[str, Any]:
         Dictionary containing configuration values
 
     Raises:
-        ConfigFileError: If configuration file cannot be read or parsed
-        ConfigValidationError: If configuration values are invalid
+        SplurgeSqlRunnerFileError: If configuration file cannot be read or parsed
+        SplurgeSqlRunnerValueError: If configuration values are invalid
     """
     config = get_default_config()
 
@@ -66,7 +69,13 @@ def load_config(config_file_path: str | None = None) -> dict[str, Any]:
 
 
 def get_default_config() -> dict[str, Any]:
-    """Get default configuration values."""
+    """Get default configuration values.
+
+    Returns:
+        Dictionary containing default configuration settings including database_url,
+        max_statements_per_file, connection_timeout, log_level, security_level,
+        enable_verbose, and enable_debug.
+    """
     return {
         "database_url": "sqlite:///:memory:",
         "max_statements_per_file": DEFAULT_MAX_STATEMENTS_PER_FILE,
@@ -79,7 +88,16 @@ def get_default_config() -> dict[str, Any]:
 
 
 def get_env_config() -> dict[str, Any]:
-    """Load configuration from environment variables."""
+    """Load configuration from environment variables.
+
+    Reads configuration values from environment variables prefixed with
+    SPLURGE_SQL_RUNNER_. Supports database_url, max_statements_per_file,
+    connection_timeout, log_level, verbose, and debug settings.
+
+    Returns:
+        Dictionary containing configuration values loaded from environment
+        variables. Returns empty dictionary if no environment variables are set.
+    """
     config: dict[str, Any] = {}
 
     # Database configuration
@@ -125,18 +143,18 @@ def load_json_config(file_path: str) -> dict[str, Any]:
         Dictionary of configuration values from JSON
 
     Raises:
-        ConfigFileError: If file cannot be read or parsed
+        SplurgeSqlRunnerFileError: If file cannot be read or parsed
     """
     try:
         content = FileIoAdapter.read_file(file_path, context_type="config")
         config_data = json.loads(content)
         return _parse_json_config(config_data)
-    except FileError as e:
-        raise ConfigFileError(f"Failed to read config file: {e}") from e
+    except SplurgeSqlRunnerFileError as e:
+        raise SplurgeSqlRunnerFileError(f"Failed to read config file: {e}") from e
     except json.JSONDecodeError as e:
-        raise ConfigFileError(f"Invalid JSON in config file: {e}") from e
+        raise SplurgeSqlRunnerFileError(f"Invalid JSON in config file: {e}") from e
     except Exception as e:
-        raise ConfigFileError(f"Failed to read config file: {e}") from e
+        raise SplurgeSqlRunnerFileError(f"Failed to read config file: {e}") from e
 
 
 def _parse_json_config(config_data: dict[str, Any]) -> dict[str, Any]:
@@ -186,7 +204,7 @@ def _validate_config(config: dict[str, Any]) -> None:
         config: Configuration dictionary to validate
 
     Raises:
-        ConfigValidationError: If any configuration value is invalid
+        SplurgeSqlRunnerValueError: If any configuration value is invalid
     """
     errors: list[str] = []
 
@@ -222,7 +240,7 @@ def _validate_config(config: dict[str, Any]) -> None:
         errors.append("enable_debug must be a boolean")
 
     if errors:
-        raise ConfigValidationError(
+        raise SplurgeSqlRunnerValueError(
             f"Configuration validation failed: {'; '.join(errors)}",
             details={"errors": errors, "config_keys": list(config.keys())},
         )
@@ -237,7 +255,7 @@ def save_config(config: dict[str, Any], file_path: str) -> None:
         file_path: Path where to save the configuration file
 
     Raises:
-        ConfigFileError: If file cannot be written
+        SplurgeSqlRunnerFileError: If file cannot be written
     """
     from .._vendor.splurge_safe_io.safe_text_file_writer import open_safe_text_writer
 
@@ -245,4 +263,4 @@ def save_config(config: dict[str, Any], file_path: str) -> None:
         with open_safe_text_writer(file_path=file_path, encoding="utf-8") as writer:
             writer.write(json.dumps(config, indent=2, ensure_ascii=False))
     except Exception as e:
-        raise ConfigFileError(f"Failed to save config file: {e}") from e
+        raise SplurgeSqlRunnerFileError(f"Failed to save config file: {e}") from e

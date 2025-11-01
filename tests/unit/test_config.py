@@ -20,7 +20,7 @@ from splurge_sql_runner.config import (
     load_json_config,
     save_config,
 )
-from splurge_sql_runner.exceptions import ConfigFileError
+from splurge_sql_runner.exceptions import SplurgeSqlRunnerFileError
 
 
 class TestGetDefaultConfig:
@@ -154,7 +154,7 @@ class TestLoadJsonConfig:
 
     def test_nonexistent_file_raises_error(self):
         """Test that nonexistent file raises ConfigFileError."""
-        with pytest.raises(ConfigFileError, match="Failed to read config file"):
+        with pytest.raises(SplurgeSqlRunnerFileError, match="Failed to read config file"):
             load_json_config("nonexistent.json")
 
     def test_invalid_json_raises_error(self):
@@ -164,7 +164,7 @@ class TestLoadJsonConfig:
             temp_file = f.name
 
         try:
-            with pytest.raises(ConfigFileError, match="Invalid JSON"):
+            with pytest.raises(SplurgeSqlRunnerFileError, match="Invalid JSON"):
                 load_json_config(temp_file)
         finally:
             Path(temp_file).unlink()
@@ -247,5 +247,5 @@ class TestSaveConfig:
         # Try to save to a directory that doesn't exist
         invalid_path = "/nonexistent/directory/config.json"
 
-        with pytest.raises(ConfigFileError):
+        with pytest.raises(SplurgeSqlRunnerFileError):
             save_config(config, invalid_path)

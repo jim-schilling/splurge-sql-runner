@@ -8,6 +8,7 @@ Covers happy paths and error branches for:
 
 import pytest
 
+from splurge_sql_runner.exceptions import SplurgeSqlRunnerValueError
 from splurge_sql_runner.utils.security_utils import (
     sanitize_shell_arguments,
 )
@@ -21,14 +22,14 @@ def test_sanitize_shell_arguments_accepts_simple_flags() -> None:
 
 @pytest.mark.unit
 def test_sanitize_shell_arguments_rejects_non_list() -> None:
-    with pytest.raises(ValueError, match="args must be a list of strings"):
+    with pytest.raises(SplurgeSqlRunnerValueError, match="args must be a list of strings"):
         # type: ignore[arg-type]
         sanitize_shell_arguments("--help")
 
 
 @pytest.mark.unit
 def test_sanitize_shell_arguments_rejects_non_string_items() -> None:
-    with pytest.raises(ValueError, match="All command arguments must be strings"):
+    with pytest.raises(SplurgeSqlRunnerValueError, match="All command arguments must be strings"):
         # type: ignore[list-item]
         sanitize_shell_arguments(["--ok", 123])
 
@@ -60,5 +61,5 @@ def test_sanitize_shell_arguments_rejects_non_string_items() -> None:
     ],
 )
 def test_sanitize_shell_arguments_blocks_dangerous_characters(bad_arg: str) -> None:
-    with pytest.raises(ValueError, match="Potentially dangerous characters"):
+    with pytest.raises(SplurgeSqlRunnerValueError, match="Potentially dangerous characters"):
         sanitize_shell_arguments([bad_arg])

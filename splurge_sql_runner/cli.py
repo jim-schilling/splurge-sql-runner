@@ -19,13 +19,7 @@ from typing import Any
 from . import load_config
 from .cli_output import pretty_print_results, simple_table_format
 from .config.constants import DEFAULT_MAX_STATEMENTS_PER_FILE
-from .exceptions import (
-    CliSecurityError,
-    DatabaseError,
-    FileError,
-    SecurityUrlError,
-    SecurityValidationError,
-)
+from .exceptions import SplurgeSqlRunnerDatabaseError, SplurgeSqlRunnerFileError, SplurgeSqlRunnerSecurityError
 from .logging import configure_module_logging
 from .logging.core import setup_logging
 from .main import process_sql_files
@@ -107,19 +101,19 @@ def discover_files(
         Sorted list of absolute file paths
 
     Raises:
-        FileError: If no files found or paths invalid
+        SplurgeSqlRunnerFileError: If no files found or paths invalid
     """
     if file_path:
         path_obj = Path(file_path).expanduser().resolve()
         if not path_obj.exists():
-            raise FileError(f"File not found: {path_obj}")
+            raise SplurgeSqlRunnerFileError(f"File not found: {path_obj}")
         return [str(path_obj)]
 
     if pattern:
         expanded = str(Path(pattern).expanduser())
         files = [str(Path(p).resolve()) for p in glob.glob(expanded)]
         if not files:
-            raise FileError(f"No files found matching pattern: {pattern}")
+            raise SplurgeSqlRunnerFileError(f"No files found matching pattern: {pattern}")
         return sorted(files)
 
     return []
@@ -144,7 +138,15 @@ def report_execution_summary(summary: dict[str, Any], output_json: bool = False)
 
 
 def main() -> int:
-    """Main CLI entry point."""
+    """Main CLI entry point.
+
+    Parses command-line arguments, loads configuration, discovers SQL files,
+    executes them against the specified database, and prints results.
+
+    Returns:
+        Exit code: 0 for success, 1 for failure, 2 for partial success,
+        3 for unknown/unexpected state
+    """
     # Some Python runtimes expose reconfigure on TextIO; narrow before calling
     try:
         from io import TextIOWrapper
@@ -314,28 +316,28 @@ Examples:
                 logger.error(f"Unexpected summary state. Exiting with error code {EXIT_CODE_UNKNOWN}")
                 exit_code = EXIT_CODE_UNKNOWN
 
-        except (SecurityValidationError, SecurityUrlError) as e:
+        except SplurgeSqlRunnerSecurityError as e:
             logger.error(f"Security validation failed: {e}")
             print(f"{ERROR_PREFIX} Security validation failed: {e}")
             print_security_guidance(str(e), context="file")
             exit_code = EXIT_CODE_FAILURE
 
-    except DatabaseError as e:
+    except SplurgeSqlRunnerDatabaseError as e:
         logger.error(f"Database error: {e}")
         print(f"{ERROR_PREFIX} Database error: {e}")
         exit_code = EXIT_CODE_FAILURE
-    except FileError as e:
+    except SplurgeSqlRunnerFileError as e:
         logger.error(f"File error: {e}")
         print(f"{ERROR_PREFIX} File error: {e}")
         exit_code = EXIT_CODE_FAILURE
-    except CliSecurityError as e:
+    except SplurgeSqlRunnerSecurityError as e:
         logger.error(f"Security error: {e}")
         print(f"{ERROR_PREFIX} Security error: {e}")
         print_security_guidance(str(e), context="url")
         exit_code = EXIT_CODE_FAILURE
     except Exception as e:
-        logger.error(f"Unexpected error: {e}", exc_info=True)
-        print(f"{ERROR_PREFIX} Unexpected error: {e}")
+        logger.error(f"Runtimeerror: {e}", exc_info=True)
+        print(f"{ERROR_PREFIX} Runtime error: {e}")
         exit_code = EXIT_CODE_FAILURE
     finally:
         logger.info("splurge-sql-runner CLI completed")

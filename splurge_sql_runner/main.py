@@ -17,7 +17,7 @@ from typing import Any
 from . import load_config
 from .database.database_client import DatabaseClient
 from .exceptions import (
-    SecurityValidationError,
+    SplurgeSqlRunnerSecurityError,
 )
 from .logging import configure_module_logging
 from .security import SecurityValidator
@@ -55,7 +55,9 @@ def process_sql(
         List of result dicts from DatabaseClient.execute_sql
 
     Raises:
-        SecurityValidationError, SecurityUrlError, FileError
+        SplurgeSqlRunnerSecurityError
+        SplurgeSqlRunnerFileError
+        SplurgeSqlRunnerValueError
     """
     logger.debug("process_sql: starting")
 
@@ -93,8 +95,22 @@ def process_sql_files(
     """Process one or more SQL files and execute them.
 
     Returns a summary dict with per-file results and counts.
-    This function raises FileError if any file is missing/unreadable, and
-    may raise SecurityValidationError for invalid SQL content.
+
+    Args:
+        file_paths: List of file paths to process
+        database_url: Database connection string
+        config: Optional configuration dict. If None, load defaults via load_config(None).
+        security_level: Security validation level.
+        max_statements_per_file: Max statements allowed in this SQL blob.
+        stop_on_error: Whether to stop on first statement error.
+
+    Returns:
+        Dictionary with per-file results and counts.
+
+    Raises:
+        SplurgeSqlRunnerSecurityError: If SQL content or database URL fails security validation
+        SplurgeSqlRunnerFileError: If file cannot be read
+        SplurgeSqlRunnerValueError: If validation fails (invalid security level, URL format, etc.)
     """
     logger.debug("process_sql_files: starting")
 
@@ -131,7 +147,7 @@ def process_sql_files(
             else:
                 summary["files_mixed"] += 1
             summary["results"][fp] = results
-        except SecurityValidationError:
+        except SplurgeSqlRunnerSecurityError:
             # Re-raise; caller (CLI or API) can decide how to handle
             raise
         except Exception as e:

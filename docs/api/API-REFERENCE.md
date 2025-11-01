@@ -2,7 +2,7 @@
 
 A comprehensive guide to the public APIs and error handling for `splurge-sql-runner`.
 
-**Version**: 2025.6.0
+**Version**: 2025.7.0
 
 ---
 
@@ -11,12 +11,13 @@ A comprehensive guide to the public APIs and error handling for `splurge-sql-run
 1. [Core APIs](#core-apis)
 2. [Configuration](#configuration)
 3. [Error Handling](#error-handling)
-4. [Security](#security)
-5. [Database Operations](#database-operations)
-6. [Logging](#logging)
-7. [Utilities](#utilities)
-8. [CLI Usage](#cli-usage)
-9. [Example Usage](#example-usage)
+4. [Exception Migration Guide](#exception-migration-guide)
+5. [Security](#security)
+6. [Database Operations](#database-operations)
+7. [Logging](#logging)
+8. [Utilities](#utilities)
+9. [CLI Usage](#cli-usage)
+10. [Example Usage](#example-usage)
 
 ---
 
@@ -48,12 +49,17 @@ def process_sql(
 - `max_statements_per_file` (int): Maximum statements allowed (default: 100)
 - `stop_on_error` (bool): Whether to stop on first statement error (default: True)
 
-**Returns**: List of result dictionaries from SQL execution
+**Returns**: List of result dictionaries from SQL execution. Each result contains:
+- `statement` (str): The SQL statement text
+- `statement_type` (str): One of `"fetch"`, `"execute"`, or `"error"`
+- `result` (list[dict] | bool | None): Query results for fetch statements, True/None for execute statements, None for errors
+- `row_count` (int | None): Number of rows returned/affected
+- `error` (str | None): Error message if statement_type is "error"
 
 **Raises**:
-- `SecurityValidationError`: If SQL content fails security validation
-- `SecurityUrlError`: If database URL fails security validation
-- `DatabaseError`: If database connection or execution fails
+- `SplurgeSqlRunnerSecurityError`: If SQL content or database URL fails security validation
+- `SplurgeSqlRunnerFileError`: If configuration file cannot be read
+- `SplurgeSqlRunnerValueError`: If validation fails (invalid security level, URL format, etc.)
 
 **Example**:
 ```python
@@ -66,7 +72,12 @@ results = process_sql(
     max_statements_per_file=100
 )
 for result in results:
-    print(f"Statement: {result['statement']}, Rows: {result.get('row_count', 0)}")
+    if result["statement_type"] == "fetch":
+        print(f"Rows returned: {result['row_count']}")
+        for row in result["result"]:
+            print(row)
+    elif result["statement_type"] == "error":
+        print(f"Error: {result['error']}")
 ```
 
 ---
@@ -86,7 +97,7 @@ def process_sql_files(
     security_level: str = "normal",
     max_statements_per_file: int = 100,
     stop_on_error: bool = True,
-) -> list[dict[str, Any]]:
+) -> dict[str, Any]:
 ```
 
 **Parameters**:
@@ -97,24 +108,34 @@ def process_sql_files(
 - `max_statements_per_file` (int): Maximum statements per file
 - `stop_on_error` (bool): Whether to stop on first statement error
 
-**Returns**: List of result dictionaries
+**Returns**: Dictionary with:
+- `files_processed` (int): Total number of files processed
+- `files_passed` (int): Number of files with all statements successful
+- `files_failed` (int): Number of files with all statements failed
+- `files_mixed` (int): Number of files with mixed success/failure
+- `results` (dict[str, list[dict]]): Mapping of file path to list of result dictionaries
 
 **Raises**:
-- `SecurityValidationError`: If file path or content fails security validation
-- `SecurityFileError`: If file access is blocked by security policy
-- `FileError`: If file cannot be read
-- `DatabaseError`: If database operation fails
+- `SplurgeSqlRunnerSecurityError`: If SQL content fails security validation
+- `SplurgeSqlRunnerValueError`: If database URL validation fails or other validation errors
+- `SplurgeSqlRunnerFileError`: If file cannot be read
 
 **Example**:
 ```python
 from splurge_sql_runner import process_sql_files
 
-results = process_sql_files(
+summary = process_sql_files(
     ["/path/to/schema.sql", "/path/to/data.sql"],
     database_url="postgresql://user:pass@localhost/db",
     security_level="strict",
     max_statements_per_file=50
 )
+print(f"Processed: {summary['files_processed']}")
+print(f"Passed: {summary['files_passed']}")
+for file_path, results in summary["results"].items():
+    print(f"\n{file_path}:")
+    for result in results:
+        print(f"  {result['statement_type']}: {result.get('row_count', 'N/A')}")
 ```
 
 ---
@@ -123,7 +144,7 @@ results = process_sql_files(
 
 Low-level database client for direct SQL execution.
 
-**Location**: `splurge_sql_runner.DatabaseClient`
+**Location**: `splurge_sql_runner.database.database_client.DatabaseClient`
 
 ```python
 class DatabaseClient:
@@ -153,7 +174,7 @@ finally:
     db_client.close()
 ```
 
-**Raises**: `DatabaseConnectionError` if connection cannot be established
+**Raises**: `SplurgeSqlRunnerDatabaseError` if connection cannot be established
 
 #### `execute_sql(statements: list[str], stop_on_error: bool = True) -> list[dict[str, Any]]`
 Execute a list of SQL statements.
@@ -171,22 +192,15 @@ results = db_client.execute_sql([
 
 **Returns**: List of result dicts with keys:
 - `statement` (str): The executed statement
-- `success` (bool): Whether execution succeeded
-- `row_count` (int): For DML, rows affected; for SELECT, rows returned
-- `error` (str, optional): Error message if execution failed
-- `error_type` (str, optional): Type of error if execution failed
+- `statement_type` (str): `"fetch"`, `"execute"`, or `"error"`
+- `result` (list[dict] | bool | None): Query results for fetch, True/None for execute, None for error
+- `row_count` (int | None): Number of rows returned/affected
+- `error` (str | None): Error message if statement_type is "error"
 
-#### `execute_select(query: str) -> list[dict[str, Any]]`
-Execute a SELECT query and return rows.
-
-```python
-rows = db_client.execute_select("SELECT * FROM users WHERE active = true")
-for row in rows:
-    print(row)
-```
+**Note**: This method typically does not raise exceptions; errors are captured in result dictionaries. Connection failures may raise `SplurgeSqlRunnerDatabaseError`.
 
 #### `close() -> None`
-Close the database connection.
+Close the database connection and dispose of connection pool.
 
 ```python
 db_client.close()
@@ -200,7 +214,7 @@ db_client.close()
 
 Load application configuration from file and environment variables.
 
-**Location**: `splurge_sql_runner.load_config`
+**Location**: `splurge_sql_runner.config.load_config`
 
 ```python
 def load_config(config_file_path: str | None = None) -> dict[str, Any]:
@@ -217,6 +231,10 @@ def load_config(config_file_path: str | None = None) -> dict[str, Any]:
 - `security_level` (str): Security level (strict, normal, permissive)
 - `enable_verbose` (bool): Verbose output enabled
 - `enable_debug` (bool): Debug mode enabled
+
+**Raises**:
+- `SplurgeSqlRunnerFileError`: If configuration file cannot be read or parsed
+- `SplurgeSqlRunnerValueError`: If configuration values are invalid
 
 **Environment Variables**:
 - `SPLURGE_SQL_RUNNER_DB_URL`: Database URL
@@ -265,52 +283,32 @@ print(f"Max statements: {config['max_statements_per_file']}")
 
 All errors inherit from `SplurgeSqlRunnerError` which inherits from `SplurgeFrameworkError`.
 
-### Exception Hierarchy
+### Simplified Exception Hierarchy
+
+The package uses a simplified exception hierarchy for easier error handling:
 
 ```
 SplurgeFrameworkError (from _vendor.splurge_safe_io)
 └── SplurgeSqlRunnerError
-    ├── ConfigurationError
-    │   ├── ConfigValidationError
-    │   └── ConfigFileError
-    ├── ValidationError
-    │   └── SecurityError
-    │       ├── SecurityValidationError
-    │       ├── SecurityFileError
-    │       └── SecurityUrlError
-    ├── OperationError
-    │   ├── FileError
-    │   ├── DatabaseError
-    │   │   ├── DatabaseConnectionError
-    │   │   ├── DatabaseOperationError
-    │   │   ├── DatabaseBatchError
-    │   │   ├── DatabaseEngineError
-    │   │   ├── DatabaseTimeoutError
-    │   │   └── DatabaseAuthenticationError
-    │   ├── CliError
-    │   │   ├── CliArgumentError
-    │   │   ├── CliFileError
-    │   │   ├── CliExecutionError
-    │   │   └── CliSecurityError
-    │   └── SqlError
-    │       ├── SqlParseError
-    │       ├── SqlFileError
-    │       ├── SqlValidationError
-    │       └── SqlExecutionError
+    ├── SplurgeSqlRunnerOSError
+    ├── SplurgeSqlRunnerRuntimeError
+    ├── SplurgeSqlRunnerValueError
+    ├── SplurgeSqlRunnerTypeError
+    ├── SplurgeSqlRunnerConfigurationError
+    ├── SplurgeSqlRunnerFileError
+    ├── SplurgeSqlRunnerDatabaseError
+    └── SplurgeSqlRunnerSecurityError
 ```
 
 ### Common Errors
 
-#### `SecurityValidationError`
-Raised when SQL content fails security validation.
-
-**Attributes**:
-- `message` (str): Description of the security violation
-- `details` (dict): Additional context
+#### `SplurgeSqlRunnerSecurityError`
+Raised when security validation fails (SQL content, database URL patterns, etc.).
 
 **Example**:
 ```python
-from splurge_sql_runner import process_sql, SecurityValidationError
+from splurge_sql_runner import process_sql
+from splurge_sql_runner.exceptions import SplurgeSqlRunnerSecurityError
 
 try:
     results = process_sql(
@@ -318,74 +316,133 @@ try:
         database_url="postgresql://localhost/db",
         security_level="strict"
     )
-except SecurityValidationError as e:
+except SplurgeSqlRunnerSecurityError as e:
     print(f"Security check failed: {e}")
-    print(f"Details: {e.details}")
 ```
 
-#### `SecurityUrlError`
-Raised when database URL fails security validation.
+#### `SplurgeSqlRunnerFileError`
+Raised when file operations fail (reading config files, SQL files, etc.).
 
 **Example**:
 ```python
-from splurge_sql_runner import process_sql, SecurityUrlError
-
-try:
-    results = process_sql(
-        "SELECT 1;",
-        database_url="invalid://url",
-        security_level="strict"
-    )
-except SecurityUrlError as e:
-    print(f"Invalid database URL: {e}")
-```
-
-#### `SecurityFileError`
-Raised when file path fails security checks.
-
-**Example**:
-```python
-from splurge_sql_runner import process_sql_files, SecurityFileError
-
-try:
-    results = process_sql_files(
-        ["/etc/passwd"],  # Blocked path
-        database_url="sqlite:///app.db",
-        security_level="strict"
-    )
-except SecurityFileError as e:
-    print(f"File access denied: {e}")
-```
-
-#### `DatabaseConnectionError`
-Raised when database connection fails.
-
-**Example**:
-```python
-from splurge_sql_runner import DatabaseClient, DatabaseConnectionError
-
-try:
-    client = DatabaseClient("postgresql://invalid-host/db")
-    client.connect()
-except DatabaseConnectionError as e:
-    print(f"Cannot connect to database: {e}")
-```
-
-#### `FileError`
-Raised when file operations fail.
-
-**Example**:
-```python
-from splurge_sql_runner import process_sql_files, FileError
+from splurge_sql_runner import process_sql_files
+from splurge_sql_runner.exceptions import SplurgeSqlRunnerFileError
 
 try:
     results = process_sql_files(
         ["/nonexistent/file.sql"],
         database_url="sqlite:///app.db"
     )
-except FileError as e:
-    print(f"File not found: {e}")
+except SplurgeSqlRunnerFileError as e:
+    print(f"File error: {e}")
 ```
+
+#### `SplurgeSqlRunnerDatabaseError`
+Raised when database operations fail (connection, execution, etc.).
+
+**Example**:
+```python
+from splurge_sql_runner import DatabaseClient
+from splurge_sql_runner.exceptions import SplurgeSqlRunnerDatabaseError
+
+try:
+    client = DatabaseClient("postgresql://invalid-host/db")
+    client.connect()
+except SplurgeSqlRunnerDatabaseError as e:
+    print(f"Cannot connect to database: {e}")
+```
+
+#### `SplurgeSqlRunnerValueError`
+Raised when validation fails (invalid security level, configuration values, etc.).
+
+**Example**:
+```python
+from splurge_sql_runner.security import SecurityValidator
+from splurge_sql_runner.exceptions import SplurgeSqlRunnerValueError
+
+try:
+    SecurityValidator.validate_database_url(
+        "postgresql://localhost/db",
+        security_level="invalid_level"
+    )
+except SplurgeSqlRunnerValueError as e:
+    print(f"Invalid value: {e}")
+```
+
+---
+
+## Exception Migration Guide
+
+### Overview
+
+As of version 2025.7.0, the exception hierarchy has been simplified. Specific exception types have been consolidated into more general categories to simplify error handling.
+
+### Exception Mapping
+
+| Old Exception (Deprecated) | New Exception | Notes |
+|---------------------------|---------------|-------|
+| `SplurgeSqlRunnerSecurityValidationError` | `SplurgeSqlRunnerSecurityError` | All security validation errors |
+| `SplurgeSqlRunnerSecurityUrlError` | `SplurgeSqlRunnerSecurityError` or `SplurgeSqlRunnerValueError` | URL pattern errors → SecurityError, format errors → ValueError |
+| `SplurgeSqlRunnerSecurityFileError` | `SplurgeSqlRunnerSecurityError` | File security validation errors |
+| `SplurgeSqlRunnerConfigFileError` | `SplurgeSqlRunnerFileError` | Configuration file errors |
+| `SplurgeSqlRunnerConfigValidationError` | `SplurgeSqlRunnerValueError` | Configuration validation errors |
+| `SplurgeSqlRunnerSqlFileError` | `SplurgeSqlRunnerFileError` | SQL file reading errors |
+| `SplurgeSqlRunnerCliSecurityError` | `SplurgeSqlRunnerSecurityError` | CLI security errors |
+
+### Migration Examples
+
+**Before**:
+```python
+from splurge_sql_runner.exceptions import (
+    SplurgeSqlRunnerSecurityValidationError,
+    SplurgeSqlRunnerSecurityUrlError,
+    SplurgeSqlRunnerConfigFileError,
+    SplurgeSqlRunnerSqlFileError,
+)
+
+try:
+    results = process_sql_files(["schema.sql"], database_url="...")
+except SplurgeSqlRunnerSecurityValidationError:
+    # Handle SQL validation error
+    pass
+except SplurgeSqlRunnerSecurityUrlError:
+    # Handle URL validation error
+    pass
+except SplurgeSqlRunnerConfigFileError:
+    # Handle config file error
+    pass
+except SplurgeSqlRunnerSqlFileError:
+    # Handle SQL file error
+    pass
+```
+
+**After**:
+```python
+from splurge_sql_runner.exceptions import (
+    SplurgeSqlRunnerSecurityError,
+    SplurgeSqlRunnerFileError,
+    SplurgeSqlRunnerValueError,
+)
+
+try:
+    results = process_sql_files(["schema.sql"], database_url="...")
+except SplurgeSqlRunnerSecurityError:
+    # Handle all security validation errors (SQL, URL patterns)
+    pass
+except SplurgeSqlRunnerFileError:
+    # Handle all file errors (config files, SQL files)
+    pass
+except SplurgeSqlRunnerValueError:
+    # Handle validation errors (invalid security level, URL format, etc.)
+    pass
+```
+
+### Benefits of Simplified Exceptions
+
+1. **Easier Error Handling**: Fewer exception types to catch
+2. **Clearer Intent**: Group related errors together
+3. **Backward Compatible**: Old exception names still exist but are deprecated
+4. **Simpler API**: Less to remember and document
 
 ---
 
@@ -424,29 +481,35 @@ Minimal validation; only checks basic constraints.
 **Location**: `splurge_sql_runner.security.SecurityValidator`
 
 #### `validate_database_url(database_url: str, security_level: str = "normal")`
+
 Validate database URL for security concerns.
 
 ```python
 from splurge_sql_runner.security import SecurityValidator
-from splurge_sql_runner.exceptions import SecurityUrlError
+from splurge_sql_runner.exceptions import SplurgeSqlRunnerSecurityError, SplurgeSqlRunnerValueError
 
 try:
     SecurityValidator.validate_database_url(
         "postgresql://user:pass@localhost/db",
         security_level="strict"
     )
-except SecurityUrlError as e:
-    print(f"Invalid URL: {e}")
+except SplurgeSqlRunnerSecurityError as e:
+    print(f"URL contains dangerous pattern: {e}")
+except SplurgeSqlRunnerValueError as e:
+    print(f"Invalid URL format: {e}")
 ```
 
-**Raises**: `SecurityUrlError` if URL contains dangerous patterns
+**Raises**:
+- `SplurgeSqlRunnerSecurityError`: If URL contains dangerous patterns
+- `SplurgeSqlRunnerValueError`: If URL format is invalid or security level is unsupported
 
 #### `validate_sql_content(sql: str, security_level: str, max_statements: int)`
+
 Validate SQL content for security concerns.
 
 ```python
 from splurge_sql_runner.security import SecurityValidator
-from splurge_sql_runner.exceptions import SecurityValidationError
+from splurge_sql_runner.exceptions import SplurgeSqlRunnerSecurityError, SplurgeSqlRunnerValueError
 
 try:
     SecurityValidator.validate_sql_content(
@@ -454,29 +517,15 @@ try:
         security_level="normal",
         max_statements=100
     )
-except SecurityValidationError as e:
+except SplurgeSqlRunnerSecurityError as e:
     print(f"SQL validation failed: {e}")
+except SplurgeSqlRunnerValueError as e:
+    print(f"Invalid security level: {e}")
 ```
 
-**Raises**: `SecurityValidationError` if SQL fails validation
-
-#### `validate_file_path(file_path: str, security_level: str)`
-Validate file path for security concerns.
-
-```python
-from splurge_sql_runner.security import SecurityValidator
-from splurge_sql_runner.exceptions import SecurityFileError
-
-try:
-    SecurityValidator.validate_file_path(
-        "/app/scripts/schema.sql",
-        security_level="strict"
-    )
-except SecurityFileError as e:
-    print(f"File path rejected: {e}")
-```
-
-**Raises**: `SecurityFileError` if file path fails validation
+**Raises**:
+- `SplurgeSqlRunnerSecurityError`: If SQL contains dangerous patterns or exceeds statement limit
+- `SplurgeSqlRunnerValueError`: If security level is unsupported
 
 ---
 
@@ -497,25 +546,39 @@ The system uses SQLAlchemy and supports any database with a SQLAlchemy dialect:
 
 Each result dictionary contains:
 
+**For fetch statements (SELECT, VALUES, etc.)**:
 ```python
 {
     "statement": "SELECT * FROM users;",
-    "success": True,
-    "row_count": 5,  # For SELECT, number of rows; for INSERT/UPDATE/DELETE, rows affected
-    "error": None,
-    "error_type": None
+    "statement_type": "fetch",
+    "result": [
+        {"id": 1, "name": "Alice"},
+        {"id": 2, "name": "Bob"}
+    ],
+    "row_count": 2,
+    "error": None
 }
 ```
 
-Or on error:
+**For execute statements (INSERT, UPDATE, DELETE, DDL)**:
+```python
+{
+    "statement": "INSERT INTO users (name) VALUES ('Charlie');",
+    "statement_type": "execute",
+    "result": True,
+    "row_count": 1,
+    "error": None
+}
+```
 
+**For errors**:
 ```python
 {
     "statement": "INVALID SQL SYNTAX;",
-    "success": False,
-    "row_count": 0,
-    "error": "Syntax error at offset 0",
-    "error_type": "ProgrammingError"
+    "statement_type": "error",
+    "result": None,
+    "row_count": None,
+    "error": "Syntax error: near 'INVALID'"
 }
 ```
 
@@ -529,8 +592,8 @@ from splurge_sql_runner import DatabaseClient
 client = DatabaseClient(
     "sqlite:///app.db",
     connection_timeout=30.0,
-    pool_size=5,        # For non-SQLite
-    max_overflow=10,    # For non-SQLite
+    pool_size=5,        # For non-SQLite databases
+    max_overflow=10,    # For non-SQLite databases
     pool_pre_ping=True  # Verify connections before use
 )
 
@@ -541,6 +604,8 @@ finally:
     client.close()  # Always close to release connections
 ```
 
+**Note**: SQLite does not use connection pooling and ignores `pool_size`, `max_overflow`, and `pool_pre_ping` parameters.
+
 ---
 
 ## Logging
@@ -549,23 +614,36 @@ finally:
 
 Configure application logging.
 
-**Location**: `splurge_sql_runner.setup_logging`
+**Location**: `splurge_sql_runner.logging.setup_logging`
 
 ```python
 from splurge_sql_runner import setup_logging
 
 setup_logging(
-    level="INFO",
-    format="json",  # or "text"
-    file="/var/log/app.log"
+    log_level="INFO",
+    log_file="/var/log/app.log",
+    enable_console=True,
+    backup_count=7
 )
 ```
+
+**Parameters**:
+- `log_level` (str): Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `log_file` (str | None): Specific log file path (optional)
+- `log_dir` (str | None): Directory for log files (optional)
+- `enable_console` (bool): Whether to enable console logging (default: True)
+- `enable_json` (bool): Whether to use JSON formatting for file logs (default: False)
+- `backup_count` (int): Number of backup files to keep (default: 7)
+
+**Raises**:
+- `SplurgeSqlRunnerValueError`: If log_level is invalid
+- `SplurgeSqlRunnerOSError`: If log directory cannot be created
 
 ### Get Logger
 
 Get a module-specific logger.
 
-**Location**: `splurge_sql_runner.get_logger`
+**Location**: `splurge_sql_runner.logging.get_logger`
 
 ```python
 from splurge_sql_runner import get_logger
@@ -598,6 +676,7 @@ logger.info("Processing request")
 
 # Or use context manager
 with correlation_context("new-request-id"):
+    logger = get_contextual_logger("my_module")
     logger.info("Inside context")
 ```
 
@@ -607,9 +686,9 @@ with correlation_context("new-request-id"):
 
 ### FileIoAdapter
 
-Secure file I/O operations.
+Secure file I/O operations with error translation.
 
-**Location**: `splurge_sql_runner.FileIoAdapter`
+**Location**: `splurge_sql_runner.utils.file_io_adapter.FileIoAdapter`
 
 ```python
 from splurge_sql_runner import FileIoAdapter
@@ -620,13 +699,22 @@ content = FileIoAdapter.read_file(
     context_type="sql"
 )
 
-# Write file
-FileIoAdapter.write_file(
-    "/path/to/output.txt",
-    "content",
-    context_type="output"
+# Read file in chunks (for large files)
+for chunk in FileIoAdapter.read_file_chunked(
+    "/path/to/large.sql",
+    context_type="sql"
+):
+    for line in chunk:
+        process_line(line)
+
+# Validate file size
+size_mb = FileIoAdapter.validate_file_size(
+    "/path/to/file.sql",
+    max_size_mb=500
 )
 ```
+
+**Raises**: `SplurgeSqlRunnerFileError` if file operations fail
 
 ---
 
@@ -636,30 +724,36 @@ FileIoAdapter.write_file(
 
 Execute SQL files from the command line.
 
-**Location**: `splurge_sql_runner/__main__.py`
+**Location**: `splurge_sql_runner.cli.main`
 
 ```bash
 # Run single SQL file
-python -m splurge_sql_runner --file schema.sql --database-url "sqlite:///app.db"
+python -m splurge_sql_runner -c "sqlite:///app.db" -f "schema.sql"
 
 # Run files matching pattern
-python -m splurge_sql_runner --pattern "migrations/*.sql" --database-url "postgresql://localhost/db"
+python -m splurge_sql_runner -c "postgresql://localhost/db" -p "migrations/*.sql"
 
 # With configuration file
-python -m splurge_sql_runner --file data.sql --config config.json
+python -m splurge_sql_runner -f "data.sql" --config config.json -c "sqlite:///app.db"
 
 # Verbose output
-python -m splurge_sql_runner --file schema.sql --database-url "sqlite:///app.db" --verbose
+python -m splurge_sql_runner -c "sqlite:///app.db" -f "schema.sql" -v
 
 # Set max statements
-python -m splurge_sql_runner --file large.sql --database-url "sqlite:///app.db" --max-statements 500
+python -m splurge_sql_runner -c "sqlite:///app.db" -f "large.sql" --max-statements 500
+
+# Continue on error
+python -m splurge_sql_runner -c "sqlite:///app.db" -f "script.sql" --continue-on-error
+
+# JSON output
+python -m splurge_sql_runner -c "sqlite:///app.db" -f "queries.sql" --json
 ```
 
 ### Exit Codes
 
-- `0`: Success - all statements executed
-- `1`: Failure - one or more statements failed
-- `2`: Partial success - some statements succeeded, some failed
+- `0`: Success - all files processed successfully
+- `1`: Failure - all files failed to process
+- `2`: Partial success - some files succeeded, some failed
 - `3`: Unknown error - configuration or setup error
 
 ### Environment Variables
@@ -679,14 +773,18 @@ python -m splurge_sql_runner --file large.sql --database-url "sqlite:///app.db" 
 
 ```python
 from splurge_sql_runner import process_sql_files, load_config
-from splurge_sql_runner.exceptions import SplurgeSqlRunnerError
+from splurge_sql_runner.exceptions import (
+    SplurgeSqlRunnerError,
+    SplurgeSqlRunnerSecurityError,
+    SplurgeSqlRunnerFileError,
+)
 
 # Load configuration
 config = load_config()
 
 try:
     # Execute SQL files
-    results = process_sql_files(
+    summary = process_sql_files(
         ["schema.sql", "data.sql"],
         database_url=config["database_url"],
         security_level=config.get("security_level", "normal"),
@@ -695,24 +793,32 @@ try:
     )
     
     # Process results
-    for result in results:
-        status = "✓" if result["success"] else "✗"
-        print(f"{status} {result['statement'][:50]}")
-        if result["error"]:
-            print(f"  Error: {result['error']}")
-        else:
-            print(f"  Rows: {result['row_count']}")
+    print(f"Files processed: {summary['files_processed']}")
+    print(f"Files passed: {summary['files_passed']}")
+    
+    for file_path, results in summary["results"].items():
+        print(f"\n{file_path}:")
+        for result in results:
+            if result["statement_type"] == "error":
+                print(f"  ERROR: {result['error']}")
+            elif result["statement_type"] == "fetch":
+                print(f"  Rows returned: {result['row_count']}")
+            else:
+                print(f"  Rows affected: {result.get('row_count', 'N/A')}")
             
+except SplurgeSqlRunnerSecurityError as e:
+    print(f"Security error: {e}")
+except SplurgeSqlRunnerFileError as e:
+    print(f"File error: {e}")
 except SplurgeSqlRunnerError as e:
     print(f"Error: {e}")
-    exit(1)
 ```
 
 ### Direct Database Operations
 
 ```python
 from splurge_sql_runner import DatabaseClient
-from splurge_sql_runner.exceptions import DatabaseError
+from splurge_sql_runner.exceptions import SplurgeSqlRunnerDatabaseError
 
 client = DatabaseClient("sqlite:///app.db")
 
@@ -726,13 +832,19 @@ try:
     results = client.execute_sql([
         "INSERT INTO users (name) VALUES ('Alice'), ('Bob'), ('Charlie');"
     ])
-    print(f"Inserted {results[0]['row_count']} rows")
+    if results and results[0]["statement_type"] == "execute":
+        print(f"Inserted {results[0]['row_count']} rows")
     
     # Query data
-    rows = client.execute_select("SELECT * FROM users WHERE name LIKE 'A%'")
-    for row in rows:
-        print(f"User: {row['name']}")
-        
+    results = client.execute_sql([
+        "SELECT * FROM users WHERE name LIKE 'A%';"
+    ])
+    if results and results[0]["statement_type"] == "fetch":
+        for row in results[0]["result"]:
+            print(f"User: {row['name']}")
+            
+except SplurgeSqlRunnerDatabaseError as e:
+    print(f"Database error: {e}")
 finally:
     client.close()
 ```
@@ -741,7 +853,10 @@ finally:
 
 ```python
 from splurge_sql_runner import process_sql
-from splurge_sql_runner.exceptions import SecurityValidationError, SecurityUrlError
+from splurge_sql_runner.exceptions import (
+    SplurgeSqlRunnerSecurityError,
+    SplurgeSqlRunnerValueError,
+)
 
 # Strict mode - only safe operations
 try:
@@ -751,10 +866,10 @@ try:
         security_level="strict",
         max_statements_per_file=10
     )
-except SecurityValidationError as e:
-    print(f"SQL blocked by security policy: {e}")
-except SecurityUrlError as e:
-    print(f"Database URL rejected: {e}")
+except SplurgeSqlRunnerSecurityError as e:
+    print(f"Security validation failed: {e}")
+except SplurgeSqlRunnerValueError as e:
+    print(f"Validation error: {e}")
 ```
 
 ### Error Handling
@@ -763,22 +878,25 @@ except SecurityUrlError as e:
 from splurge_sql_runner import process_sql_files
 from splurge_sql_runner.exceptions import (
     SplurgeSqlRunnerError,
-    SecurityFileError,
-    DatabaseConnectionError,
-    SqlExecutionError
+    SplurgeSqlRunnerSecurityError,
+    SplurgeSqlRunnerFileError,
+    SplurgeSqlRunnerDatabaseError,
+    SplurgeSqlRunnerValueError,
 )
 
 try:
-    results = process_sql_files(
+    summary = process_sql_files(
         ["schema.sql"],
         database_url="postgresql://localhost/db"
     )
-except SecurityFileError as e:
-    print(f"File security check failed: {e.details}")
-except DatabaseConnectionError as e:
-    print(f"Cannot connect to database: {e}")
-except SqlExecutionError as e:
-    print(f"SQL execution failed: {e}")
+except SplurgeSqlRunnerSecurityError as e:
+    print(f"Security validation failed: {e}")
+except SplurgeSqlRunnerFileError as e:
+    print(f"File error: {e}")
+except SplurgeSqlRunnerDatabaseError as e:
+    print(f"Database error: {e}")
+except SplurgeSqlRunnerValueError as e:
+    print(f"Validation error: {e}")
 except SplurgeSqlRunnerError as e:
     print(f"Unexpected error: {e}")
 ```
@@ -787,7 +905,7 @@ except SplurgeSqlRunnerError as e:
 
 ## Version Information
 
-- **Current Version**: 2025.6.0
+- **Current Version**: 2025.7.0
 - **Python Support**: 3.10+
 - **License**: MIT
 
@@ -798,6 +916,4 @@ See [CHANGELOG.md](../../CHANGELOG.md) for version history.
 ## Additional Resources
 
 - [README](../../README.md) - Project overview and quick start
-- [CONTRIBUTING](../../docs/CONTRIBUTING.md) - Development guidelines
 - [CLI Examples](../../examples/cli_examples.md) - Command-line usage examples
-- [Architecture Decision Records](../../docs/ADR.md) - Design decisions

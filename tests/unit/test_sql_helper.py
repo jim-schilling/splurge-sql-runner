@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from splurge_sql_runner.exceptions import SqlFileError
+from splurge_sql_runner.exceptions import SplurgeSqlRunnerFileError
 from splurge_sql_runner.sql_helper import (
     EXECUTE_STATEMENT,
     FETCH_STATEMENT,
@@ -503,22 +503,22 @@ class TestSplitSqlFile:
 
     def test_parse_sql_file_nonexistent(self):
         """Test splitting non-existent SQL file."""
-        with pytest.raises(SqlFileError, match="Error reading SQL file"):
+        with pytest.raises(SplurgeSqlRunnerFileError, match="Error reading SQL file"):
             parse_sql_file("nonexistent.sql")
 
     def test_parse_sql_file_none_path(self):
         """Test splitting with None file path."""
-        with pytest.raises(SqlFileError, match="Invalid file path: None"):
+        with pytest.raises(SplurgeSqlRunnerFileError, match="Invalid file path: None"):
             parse_sql_file(None)
 
     def test_parse_sql_file_empty_path(self):
         """Test splitting with empty file path."""
-        with pytest.raises(SqlFileError, match="Error reading SQL file"):
+        with pytest.raises(SplurgeSqlRunnerFileError, match="Error reading SQL file"):
             parse_sql_file("")
 
     def test_parse_sql_file_invalid_type(self):
         """Test splitting with invalid file path type."""
-        with pytest.raises(SqlFileError, match="Invalid file path type"):
+        with pytest.raises(SplurgeSqlRunnerFileError, match="Invalid file path type"):
             parse_sql_file(123)
 
     def test_parse_sql_file_empty_content(self):
@@ -632,5 +632,5 @@ class TestSplitSqlFile:
             # Accept either the generic 'Error reading SQL file' message or the
             # more specific 'Invalid file path' message depending on the
             # underlying path validation implementation.
-            with pytest.raises(SqlFileError, match=r"(Error reading SQL file|Invalid file path)"):
+            with pytest.raises(SplurgeSqlRunnerFileError, match=r"(Error reading SQL file|Invalid file path)"):
                 parse_sql_file(temp_dir)
