@@ -109,7 +109,7 @@ def run_command(cmd: list, description: str = "") -> bool:
             print("SUCCESS: Command completed successfully")
             if result.stdout:
                 print("Output:")
-                print(result.stdout[:1000] + "..." if len(result.stdout) > 1000 else result.stdout)
+                print(result.stdout[:5000] + "..." if len(result.stdout) > 5000 else result.stdout)
             return True
         else:
             print(f"ERROR: Command failed with exit code {result.returncode}")
@@ -155,6 +155,14 @@ def main():
 
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp_db:
         db_path = tmp_db.name
+
+    # Initialize all temporary file variables
+    setup_file = None
+    migration_file = None
+    analysis_file = None
+    invalid_file = None
+    security_file = None
+    verification_file = None
 
     try:
         print(f"\nUsing temporary database: {db_path}")
@@ -495,9 +503,11 @@ SELECT 'Demonstration completed successfully!' as final_status;
             security_file,
             verification_file,
         ]:
-            if os.path.exists(temp_file):
+            if temp_file and os.path.exists(temp_file):
                 os.unlink(temp_file)
-                os.rmdir(os.path.dirname(temp_file))
+                temp_dir = os.path.dirname(temp_file)
+                if os.path.exists(temp_dir) and not os.listdir(temp_dir):
+                    os.rmdir(temp_dir)
 
 
 if __name__ == "__main__":

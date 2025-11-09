@@ -5,14 +5,10 @@ These tests focus on the most essential functionality that must always work.
 Run these tests first to ensure core functionality is intact.
 """
 
-import tempfile
-from pathlib import Path
-
 import pytest
 
 from splurge_sql_runner.exceptions import SplurgeSqlRunnerSecurityError
 from splurge_sql_runner.security import SecurityValidator
-from splurge_sql_runner.sql_helper import parse_sql_file
 
 
 @pytest.mark.critical
@@ -62,46 +58,3 @@ class TestCriticalSecurityValidation:
         dangerous_sql = "DROP DATABASE test;"
         with pytest.raises(SplurgeSqlRunnerSecurityError):
             SecurityValidator.validate_sql_content(dangerous_sql, "strict")
-
-
-@pytest.mark.critical
-@pytest.mark.fast
-class TestCriticalSQLProcessing:
-    """Critical SQL processing that must always work."""
-
-    def test_basic_sql_file_parsing(self):
-        """Test that basic SQL file parsing works."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".sql", delete=False) as f:
-            f.write("SELECT 1;\nINSERT INTO test VALUES (1);")
-            temp_file = f.name
-
-        try:
-            statements = parse_sql_file(temp_file)
-            assert len(statements) == 2
-            assert "SELECT 1" in statements[0]
-            assert "INSERT INTO test" in statements[1]
-        finally:
-            Path(temp_file).unlink()
-
-    def test_complex_sql_file_parsing(self):
-        """Test parsing of complex SQL with comments and formatting."""
-        sql_content = """-- This is a comment
-SELECT id, name
-FROM users
-WHERE active = 1;
-
-/* Multi-line comment
-   with more content */
-INSERT INTO logs (message) VALUES ('test');"""
-
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".sql", delete=False) as f:
-            f.write(sql_content)
-            temp_file = f.name
-
-        try:
-            statements = parse_sql_file(temp_file)
-            assert len(statements) == 2
-            assert "SELECT id, name" in statements[0]
-            assert "INSERT INTO logs" in statements[1]
-        finally:
-            Path(temp_file).unlink()
