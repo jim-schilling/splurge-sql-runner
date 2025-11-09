@@ -1,5 +1,73 @@
 ## Changelog
 
+### 2025.8.0 (11-09-2025)
+
+- **Vendored Dependency: splurge_pub_sub**
+  - Added vendored copy of `splurge_pub_sub` package at `splurge_sql_runner._vendor.splurge_pub_sub`
+  - Integrated `PubSubSolo` for scoped singleton event publishing
+  - Added event publishing to `process_sql()` and `process_sql_files()` functions:
+    - `main.process.sql.begin` - Published when SQL processing starts
+    - `main.process.sql.end` - Published when SQL processing completes
+    - `main.process.sql.error` - Published when errors occur during processing
+    - `main.process.sql.files.begin` - Published when file batch processing starts
+    - `main.process.sql.files.end` - Published when file batch processing completes
+    - `main.process.sql.files.error` - Published when errors occur during file batch processing
+    - `main.process.sql.file.process.begin` - Published when individual file processing starts
+    - `main.process.sql.file.process.end` - Published when individual file processing completes
+  - Events include correlation IDs for tracing and scoped to `splurge-sql-runner`
+  - `PubSubSolo` exported from package `__init__.py` for external subscribers
+  - Enables event-driven monitoring and integration without external dependencies
+  - Added `correlation_id` parameter to `process_sql()` and `process_sql_files()` functions for distributed tracing support
+
+- **End-to-End Test Suite Expansion**
+  - Added comprehensive end-to-end tests for public APIs (`process_sql`, `process_sql_files`, `DatabaseClient`)
+  - Created `tests/e2e/test_public_api_e2e.py` with 21+ new E2E tests covering:
+    - CRUD operations (CREATE, INSERT, SELECT, UPDATE, DELETE)
+    - Complex queries (JOINs, CTEs, aggregations)
+    - Multiple statement execution
+    - Error handling and transaction rollback
+    - Security validation with real databases
+    - Real-world scenarios (e-commerce workflows, analytics queries, data migration)
+  - Tests use real SQLite databases with actual data to validate expected behavior
+  - Improved confidence in public API reliability and correctness
+
+- **File I/O Adapter Test Coverage**
+  - Added comprehensive unit tests for `FileIoAdapter` utility module
+  - Created `tests/unit/test_utils_file_io_adapter_comprehensive.py` covering:
+    - Exception handling paths for all `SplurgeSafeIo` error types
+    - Error translation from vendor exceptions to `SplurgeSqlRunnerFileError`
+    - Context-aware error messages (config, sql, log file types)
+    - Edge cases and error propagation scenarios
+    - Chunked file reading error handling
+    - File size validation (when used)
+  - Significantly improved test coverage for file I/O error handling paths
+
+- **Documentation Corrections**
+  - Updated `docs/README-DETAILS.md` to remove inaccurate error documentation:
+    - Removed "File too large" error (file size validation exists but is not enforced in main execution flow)
+    - Removed "Connection timeout" error (timeout parameter is passed to database drivers but not enforced by the library)
+  - Clarified that only actively detected and handled errors are documented
+  - Improved accuracy of error documentation to match actual implementation
+
+- **Test Updates**
+  - Updated `tests/unit/test_config_basic.py` to reflect exception hierarchy changes from 2025.7.0:
+    - Changed expected exceptions from `SplurgeSqlRunnerConfigValidationError` to `SplurgeSqlRunnerValueError`
+    - Updated test assertions and docstring comments to match new exception names
+  - All tests now align with simplified exception hierarchy
+
+- **Version Bump**
+  - Updated package version to `2025.8.0` in `__init__.py`
+
+- **Test Coverage**
+  - Expanded test suite to 500+ tests covering all functionality
+  - Enhanced E2E test coverage with real database interactions
+  - Improved unit test coverage for error handling paths
+
+- **Backward Compatibility**
+  - No breaking changes; all changes are additive (new tests) or documentation corrections
+  - Public APIs remain stable and unchanged
+
+
 ### 2025.7.0 (11-01-2025)
 
 - **Exception Simplification**

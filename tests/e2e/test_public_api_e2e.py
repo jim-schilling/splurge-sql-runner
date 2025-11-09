@@ -511,7 +511,7 @@ class TestProcessSqlFilesE2E:
         assert "/nonexistent/file.sql" in summary["results"]
         # Error should be captured in results
         assert summary["results"]["/nonexistent/file.sql"][0]["statement_type"] == "error"
-        assert "Unexpected error" in summary["results"]["/nonexistent/file.sql"][0]["error"]
+        assert "Runtime error" in summary["results"]["/nonexistent/file.sql"][0]["error"]
 
 
 class TestDatabaseClientE2E:

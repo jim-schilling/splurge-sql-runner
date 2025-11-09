@@ -15,8 +15,10 @@ from __future__ import annotations
 from typing import Any
 
 from . import load_config
+from ._vendor.splurge_pub_sub.pubsub_solo import PubSubSolo
 from .database.database_client import DatabaseClient
 from .exceptions import (
+    SplurgeSqlRunnerError,
     SplurgeSqlRunnerSecurityError,
 )
 from .logging import configure_module_logging
@@ -40,6 +42,7 @@ def process_sql(
     security_level: str = "normal",
     max_statements_per_file: int = 100,
     stop_on_error: bool = True,
+    correlation_id: str | None = None,
 ) -> list[dict[str, Any]]:
     """Process raw SQL content block, validate it, then execute it.
 
@@ -50,6 +53,7 @@ def process_sql(
         security_level: Security validation level.
         max_statements_per_file: Max statements allowed in this SQL blob.
         stop_on_error: Whether to stop on first statement error.
+        correlation_id: Optional correlation ID.
 
     Returns:
         List of result dicts from DatabaseClient.execute_sql
@@ -61,26 +65,40 @@ def process_sql(
     """
     logger.debug("process_sql: starting")
 
-    if config is None:
-        config = load_config(None)
-
-    # Validate database URL first
-    SecurityValidator.validate_database_url(database_url, security_level)
-
-    sql_stmts = parse_sql_statements(sql_content, strip_semicolon=False)
-
-    SecurityValidator.validate_sql_content("\n".join(sql_stmts), security_level, max_statements_per_file)
-
-    db_client = DatabaseClient(database_url=database_url, connection_timeout=config.get("connection_timeout", 30.0))
+    PubSubSolo.publish(topic="main.process.sql.begin", correlation_id=correlation_id, scope="splurge-sql-runner")
 
     try:
-        results = db_client.execute_sql(sql_stmts, stop_on_error=stop_on_error)
-        return results
-    finally:
+        if config is None:
+            config = load_config(None)
+
+        # Validate database URL first
+        SecurityValidator.validate_database_url(database_url, security_level)
+
+        sql_stmts = parse_sql_statements(sql_content, strip_semicolon=False)
+
+        SecurityValidator.validate_sql_content("\n".join(sql_stmts), security_level, max_statements_per_file)
+
+        db_client = DatabaseClient(database_url=database_url, connection_timeout=config.get("connection_timeout", 30.0))
+
         try:
-            db_client.close()
-        except Exception:
-            pass
+            results = db_client.execute_sql(sql_stmts, stop_on_error=stop_on_error)
+            return results
+        finally:
+            try:
+                db_client.close()
+            except Exception:
+                pass
+    except SplurgeSqlRunnerError as e:
+        logger.error("process_sql: encountered error", exc_info=True)
+        PubSubSolo.publish(
+            topic="main.process.sql.error",
+            data={"error": str(e)},
+            correlation_id=correlation_id,
+            scope="splurge-sql-runner",
+        )
+        raise
+    finally:
+        PubSubSolo.publish(topic="main.process.sql.end", correlation_id=correlation_id, scope="splurge-sql-runner")
 
 
 def process_sql_files(
@@ -91,6 +109,7 @@ def process_sql_files(
     security_level: str = "normal",
     max_statements_per_file: int = 100,
     stop_on_error: bool = True,
+    correlation_id: str | None = None,
 ) -> dict[str, Any]:
     """Process one or more SQL files and execute them.
 
@@ -103,6 +122,7 @@ def process_sql_files(
         security_level: Security validation level.
         max_statements_per_file: Max statements allowed in this SQL blob.
         stop_on_error: Whether to stop on first statement error.
+        correlation_id: Optional correlation ID.
 
     Returns:
         Dictionary with per-file results and counts.
@@ -114,8 +134,7 @@ def process_sql_files(
     """
     logger.debug("process_sql_files: starting")
 
-    if config is None:
-        config = load_config(None)
+    PubSubSolo.publish(topic="main.process.sql.files.begin", correlation_id=correlation_id, scope="splurge-sql-runner")
 
     summary: dict[str, Any] = {
         "files_processed": 0,
@@ -125,41 +144,85 @@ def process_sql_files(
         "results": {},
     }
 
-    for fp in file_paths:
-        try:
-            content = FileIoAdapter.read_file(fp, context_type="sql")
-            results = process_sql(
-                content,
-                database_url=database_url,
-                config=config,
-                security_level=security_level,
-                max_statements_per_file=max_statements_per_file,
-                stop_on_error=stop_on_error,
-            )
-            summary["files_processed"] += 1
-            # Count success if none of the statement results are error
-            batch_passed = all(r.get("statement_type") != "error" for r in results)
-            batch_failed = all(r.get("statement_type") == "error" for r in results)
-            if batch_passed:
-                summary["files_passed"] += 1
-            elif batch_failed:
-                summary["files_failed"] += 1
-            else:
-                summary["files_mixed"] += 1
-            summary["results"][fp] = results
-        except SplurgeSqlRunnerSecurityError:
-            # Re-raise; caller (CLI or API) can decide how to handle
-            raise
-        except Exception as e:
-            # Capture unexpected per-file errors into results
-            logger.error(f"Processing failed for {fp}", exc_info=True)
-            summary["results"][fp] = [
-                {
-                    "statement": "",
-                    "statement_type": "error",
-                    "result": None,
-                    "error": f"Unexpected error processing file {fp}: {e}",
-                }
-            ]
+    try:
+        if config is None:
+            config = load_config(None)
 
-    return summary
+        for fp in file_paths:
+            batch_passed = batch_failed = False
+            try:
+                PubSubSolo.publish(
+                    topic="main.process.sql.file.process.begin",
+                    data={"file_path": fp},
+                    correlation_id=correlation_id,
+                    scope="splurge-sql-runner",
+                )
+
+                content = FileIoAdapter.read_file(fp, context_type="sql")
+                results = process_sql(
+                    content,
+                    database_url=database_url,
+                    config=config,
+                    security_level=security_level,
+                    max_statements_per_file=max_statements_per_file,
+                    stop_on_error=stop_on_error,
+                )
+
+                summary["files_processed"] += 1
+                # Count success if none of the statement results are error
+                batch_passed = all(r.get("statement_type") != "error" for r in results)
+                batch_failed = all(r.get("statement_type") == "error" for r in results)
+                if batch_passed:
+                    summary["files_passed"] += 1
+                elif batch_failed:
+                    summary["files_failed"] += 1
+                else:
+                    summary["files_mixed"] += 1
+                summary["results"][fp] = results
+            except SplurgeSqlRunnerSecurityError:
+                # Re-raise; caller (CLI or API) can decide how to handle
+                raise
+            except Exception as e:
+                # Capture runtime errors per-file errors into results
+                logger.error(f"Processing failed for {fp}", exc_info=True)
+                summary["results"][fp] = [
+                    {
+                        "statement": "",
+                        "statement_type": "error",
+                        "result": None,
+                        "error": f"Runtime error processing file {fp}: {e}",
+                    }
+                ]
+            finally:
+                PubSubSolo.publish(
+                    topic="main.process.sql.file.process.end",
+                    data={
+                        "file_path": fp,
+                        "result": "passed" if batch_passed else "failed" if batch_failed else "mixed",
+                    },
+                    correlation_id=correlation_id,
+                    scope="splurge-sql-runner",
+                )
+
+        return summary
+    except SplurgeSqlRunnerError as e:
+        logger.error("process_sql_files: encountered error", exc_info=True)
+        PubSubSolo.publish(
+            topic="main.process.sql.files.error",
+            data={"error": str(e)},
+            correlation_id=correlation_id,
+            scope="splurge-sql-runner",
+        )
+        raise
+    finally:
+        PubSubSolo.publish(
+            topic="main.process.sql.files.end",
+            data={
+                "files_processed": summary.get("files_processed", 0),
+                "files_passed": summary.get("files_passed", 0),
+                "files_failed": summary.get("files_failed", 0),
+                "files_mixed": summary.get("files_mixed", 0),
+            },
+            correlation_id=correlation_id,
+            scope="splurge-sql-runner",
+        )

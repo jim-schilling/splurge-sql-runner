@@ -9,21 +9,15 @@ This module is licensed under the MIT License.
 """
 
 from functools import lru_cache
-from pathlib import Path
 
 import sqlparse
 from sqlparse.sql import Token
 from sqlparse.tokens import Comment
 
-from .exceptions import (
-    SplurgeSqlRunnerFileError,
-)
-from .utils.file_io_adapter import FileIoAdapter
-
 # Module domains
 DOMAINS = ["sql", "parsing", "helpers"]
 
-__all__ = ["parse_sql_statements", "parse_sql_file", "detect_statement_type"]
+__all__ = ["parse_sql_statements", "detect_statement_type"]
 
 # Private constants for SQL statement types
 _FETCH_KEYWORDS: set[str] = {
@@ -378,97 +372,3 @@ def parse_sql_statements(
         filtered_stmts.append(stmt_str)
 
     return filtered_stmts
-
-
-def parse_sql_file(
-    file_path: str | Path,
-    *,
-    strip_semicolon: bool = False,
-) -> list[str]:
-    """
-    Read a SQL file and parse it into individual executable statements.
-
-    This function reads a SQL file and intelligently splits it into individual
-    statements that can be executed separately. It handles complex SQL files
-    with comments, multiple statements, and preserves statement integrity.
-
-    Processing Steps:
-        1. Read entire file content using SafeTextFileReader.read()
-        2. Parse using sqlparse for accurate statement boundaries
-        3. Filter out empty statements and comment-only lines
-        4. Optionally strip trailing semicolons
-
-    Args:
-        file_path: Path to the SQL file to process. Can be a string path or
-            pathlib.Path object. SafeTextFileReader validates the path during
-            instantiation, ensuring the file exists and is readable.
-        strip_semicolon: If True, remove trailing semicolons from each statement.
-            If False (default), preserve semicolons as they appear in the file.
-            Useful when the execution engine expects statements without semicolons.
-
-    Returns:
-        List of individual SQL statements as strings. Each statement is:
-        - Trimmed of leading/trailing whitespace
-        - Free of comments (unless within string literals)
-        - Non-empty and contains actual SQL content
-        - Optionally without trailing semicolons
-
-    Raises:
-        SplurgeSqlRunnerFileError: If file operations fail, including:
-            - Invalid file path (None or wrong type)
-            - File not found
-            - Permission denied
-            - I/O errors during reading
-            - Encoding errors (non-UTF-8 content)
-
-    Examples:
-        Basic usage:
-            >>> statements = parse_sql_file("setup.sql")
-            >>> for stmt in statements:
-            ...     print(f"Statement: {stmt}")
-
-        With semicolon stripping:
-            >>> statements = parse_sql_file("migration.sql", strip_semicolon=True)
-            >>> # Statements will not have trailing semicolons
-
-        Using pathlib.Path:
-            >>> from pathlib import Path
-            >>> sql_file = Path("database") / "schema.sql"
-            >>> statements = parse_sql_file(sql_file)
-
-        Handling complex SQL files:
-            >>> # File content:
-            >>> # -- Create users table
-            >>> # CREATE TABLE users (
-            >>> #     id INTEGER PRIMARY KEY,
-            >>> #     name TEXT NOT NULL
-            >>> # );
-            >>> #
-            >>> # /* Insert sample data */
-            >>> # INSERT INTO users (name) VALUES ('Alice'), ('Bob');
-            >>> statements = parse_sql_file("complex.sql")
-            >>> len(statements)  # Returns 2 (CREATE and INSERT)
-
-    Note:
-        - Files are read with UTF-8 encoding
-        - SafeTextFileReader normalizes newlines to \\n
-        - Comments within string literals are preserved
-        - Empty lines and comment-only lines are filtered out
-        - Statement boundaries are determined by sqlparse for accuracy
-        - Thread-safe: Can be called concurrently from multiple threads
-    """
-    # Basic input validation for cases SafeTextFileReader doesn't handle
-    if file_path is None:
-        raise SplurgeSqlRunnerFileError("Invalid file path: None")
-
-    if not isinstance(file_path, str | Path):
-        raise SplurgeSqlRunnerFileError(f"Invalid file path type: {type(file_path).__name__}")
-
-    try:
-        # Read entire file content as a single string
-        sql_content = FileIoAdapter.read_file(str(file_path), context_type="sql")
-
-        return parse_sql_statements(sql_content, strip_semicolon=strip_semicolon)
-
-    except Exception as exc:
-        raise SplurgeSqlRunnerFileError(f"Error reading SQL file: {file_path}") from exc

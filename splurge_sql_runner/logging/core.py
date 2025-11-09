@@ -21,6 +21,30 @@ DOMAINS = ["logging", "core", "configuration"]
 
 __all__ = ["setup_logging", "get_logger", "configure_module_logging", "get_logging_config", "is_logging_configured"]
 
+
+class _TimedRotatingFileHandlerSafe(logging.handlers.TimedRotatingFileHandler):
+    """
+    Thread-safe variant of TimedRotatingFileHandler that handles Windows file locking issues.
+
+    Gracefully handles PermissionError on Windows when rotating log files.
+    """
+
+    def doRollover(self) -> None:
+        """
+        Override doRollover to handle Windows file locking issues gracefully.
+
+        On Windows, the log file may be locked by another process, causing
+        PermissionError during rotation. This method catches such errors
+        and continues logging without interruption.
+        """
+        try:
+            super().doRollover()
+        except PermissionError:
+            # On Windows, log rotation can fail if the file is locked.
+            # We silently continue - the rotation will be attempted at the next rollover time.
+            pass
+
+
 # Global configuration registry to prevent multiple setups
 _LOGGING_CONFIGURED = False
 _LOGGING_CONFIG = {}
@@ -102,7 +126,8 @@ def setup_logging(
     logger.handlers.clear()
 
     # File handler with timed rotation (daily at midnight)
-    file_handler = logging.handlers.TimedRotatingFileHandler(
+    # Use safe handler that handles Windows file locking gracefully
+    file_handler = _TimedRotatingFileHandlerSafe(
         filename=str(log_path),
         when="midnight",
         interval=1,

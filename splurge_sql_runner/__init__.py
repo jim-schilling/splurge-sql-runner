@@ -9,6 +9,7 @@ Copyright (c) 2025, Jim Schilling
 This module is licensed under the MIT License.
 """
 
+from ._vendor.splurge_pub_sub.pubsub_solo import PubSubSolo
 from .config import load_config
 from .database import DatabaseClient
 from .exceptions import (
@@ -39,7 +40,7 @@ from .logging import (
 )
 from .utils import FileIoAdapter
 
-__version__ = "2025.7.0"
+__version__ = "2025.8.0"
 
 # Package domains
 __domains__ = [
@@ -87,6 +88,8 @@ __all__ = [
     "ContextualLogger",
     "get_contextual_logger",
     "log_context",
+    # pubsub
+    "PubSubSolo",
     # Version
     "__version__",
 ]

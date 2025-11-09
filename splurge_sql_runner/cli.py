@@ -336,7 +336,7 @@ Examples:
         print_security_guidance(str(e), context="url")
         exit_code = EXIT_CODE_FAILURE
     except Exception as e:
-        logger.error(f"Runtimeerror: {e}", exc_info=True)
+        logger.error(f"Runtime error: {e}", exc_info=True)
         print(f"{ERROR_PREFIX} Runtime error: {e}")
         exit_code = EXIT_CODE_FAILURE
     finally:
